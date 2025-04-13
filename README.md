@@ -1,6 +1,10 @@
-# snrlab-template-code
+# snrlab-ic-q-pix-v1
 
-Template for all kinds of coding
+Q-Pix front end design and coupling to a digital data transmission back-end
+
+## MOS + COTS OpAmp Simulation
+
+Files under [./mos_cots_opamp_sim/] simulate a MOS (in an ASIC, wire-bonded out) plus COTS OpAmp formed Q-Pix front-end.  The procedure and results are detailed at (arXiv:2311.09568)[https://arxiv.org/abs/2311.09568].
 
 ## Python `venv`
 
