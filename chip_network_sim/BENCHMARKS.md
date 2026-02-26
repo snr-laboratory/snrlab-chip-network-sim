@@ -27,3 +27,48 @@ Workload: `300,000` ticks (10x longer than prior 30,000-tick run), identical rou
 ### Notes
 - `cycles/sec` is measured inside orchestrator as `ticks / tick_loop_sec`.
 - External timing (`/usr/bin/time`) was also captured per run and was consistent with internal instrumentation.
+
+## Reproduce
+1. Build binaries:
+```bash
+cmake -S . -B build
+cmake --build build -j
+```
+
+2. Generate 300k-tick benchmark configs from the base `3x4` snake config:
+```bash
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+src = Path("config/network_3x4_snake_to_top_left.json")
+base = json.loads(src.read_text())
+base["runtime"]["ticks"] = 300000
+base["runtime"]["chip_bin"] = "./build/chip_rtl"
+
+targets = [
+    ("barrier_ack", 4, Path("/tmp/network_3x4_bench10x_barrier_ack.json")),
+    ("windowed_ack", 8, Path("/tmp/network_3x4_bench10x_windowed_ack.json")),
+    ("pubsub_only", 4, Path("/tmp/network_3x4_bench10x_pubsub_only.json")),
+]
+
+for mode, win, dst in targets:
+    cfg = json.loads(json.dumps(base))
+    cfg["runtime"]["sync_mode"] = mode
+    cfg["runtime"]["ack_window"] = win
+    dst.write_text(json.dumps(cfg, indent=2) + "\n")
+    print(dst)
+PY
+```
+
+3. Run the three benchmark modes:
+```bash
+/usr/bin/time -f "ELAPSED_SEC=%e USER_SEC=%U SYS_SEC=%S CPU_PCT=%P MAXRSS_KB=%M" \
+  python3 scripts/run_from_config.py -cfg /tmp/network_3x4_bench10x_barrier_ack.json
+
+/usr/bin/time -f "ELAPSED_SEC=%e USER_SEC=%U SYS_SEC=%S CPU_PCT=%P MAXRSS_KB=%M" \
+  python3 scripts/run_from_config.py -cfg /tmp/network_3x4_bench10x_windowed_ack.json
+
+/usr/bin/time -f "ELAPSED_SEC=%e USER_SEC=%U SYS_SEC=%S CPU_PCT=%P MAXRSS_KB=%M" \
+  python3 scripts/run_from_config.py -cfg /tmp/network_3x4_bench10x_pubsub_only.json
+```
