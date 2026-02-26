@@ -52,6 +52,8 @@ def main() -> int:
     ack_timeout_ms = str(get(cfg, "runtime.ack_timeout_ms", 5000))
 
     chip_bin = get(cfg, "runtime.chip_bin", args.chip_bin)
+    trace_dir = get(cfg, "runtime.trace_dir")
+    trace_run_id = get(cfg, "runtime.trace_run_id")
 
     cmd = [
         args.orchestrator_bin,
@@ -97,6 +99,11 @@ def main() -> int:
             if "gen_ppm" in entry:
                 spec_gen = f"{entry['id']}:{entry['gen_ppm']}"
                 cmd.extend(["-chip_gen", spec_gen])
+
+    if trace_dir:
+        cmd.extend(["-trace_dir", str(trace_dir)])
+    if trace_run_id:
+        cmd.extend(["-trace_run_id", str(trace_run_id)])
 
     print(" ".join(cmd))
     return subprocess.call(cmd)

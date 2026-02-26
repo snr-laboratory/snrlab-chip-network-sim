@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -46,6 +47,8 @@ typedef struct {
 	route_mode_t        route_mode;
 	const char         *chip_bin;
 	const char         *base_uri;
+	const char         *trace_dir;
+	const char         *trace_run_id;
 	route_override_t   *route_overrides;
 	int                 route_override_count;
 	int                 route_override_capacity;
@@ -77,6 +80,8 @@ usage(const char *prog)
 	    "  -startup_ms <N>                 wait before first tick (default 350)\n"
 	    "  -ack_timeout_ms <N>             timeout waiting for ACK/METRIC (default 5000)\n"
 	    "  -chip_bin <path>                chip executable (default ./chip)\n"
+	    "  -trace_dir <path>               optional trace output root directory\n"
+	    "  -trace_run_id <id>              optional trace run id (default auto)\n"
 	    "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default auto)\n",
 	    prog);
 }
@@ -270,6 +275,8 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 	opts->route_mode    = ROUTE_EAST;
 	opts->chip_bin      = "./chip";
 	opts->base_uri      = NULL;
+	opts->trace_dir     = NULL;
+	opts->trace_run_id  = NULL;
 	opts->route_overrides = NULL;
 	opts->route_override_count = 0;
 	opts->route_override_capacity = 0;
@@ -333,6 +340,10 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 			}
 		} else if (strcmp(argv[i], "-chip_bin") == 0 && i + 1 < argc) {
 			opts->chip_bin = argv[++i];
+		} else if (strcmp(argv[i], "-trace_dir") == 0 && i + 1 < argc) {
+			opts->trace_dir = argv[++i];
+		} else if (strcmp(argv[i], "-trace_run_id") == 0 && i + 1 < argc) {
+			opts->trace_run_id = argv[++i];
 		} else if (strcmp(argv[i], "-base_uri") == 0 && i + 1 < argc) {
 			opts->base_uri = argv[++i];
 		} else {
@@ -343,6 +354,133 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 	if (opts->rows <= 0 || opts->cols <= 0 || opts->ticks == 0) {
 		return -1;
 	}
+	return 0;
+}
+
+static int
+mkdir_p(const char *path)
+{
+	char  buf[1024];
+	char *p;
+	int   rv;
+
+	if (path == NULL || path[0] == '\0') {
+		return -1;
+	}
+	if (snprintf(buf, sizeof(buf), "%s", path) >= (int) sizeof(buf)) {
+		return -1;
+	}
+
+	for (p = buf + 1; *p != '\0'; p++) {
+		if (*p == '/') {
+			*p  = '\0';
+			rv = mkdir(buf, 0775);
+			if (rv != 0 && errno != EEXIST) {
+				return -1;
+			}
+			*p = '/';
+		}
+	}
+	rv = mkdir(buf, 0775);
+	if (rv != 0 && errno != EEXIST) {
+		return -1;
+	}
+	return 0;
+}
+
+static int
+build_auto_trace_run_id(char *dst, size_t dst_len)
+{
+	struct timespec ts;
+
+	if (dst == NULL || dst_len == 0) {
+		return -1;
+	}
+	if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+		return -1;
+	}
+	if (snprintf(dst, dst_len, "run_%lld_%ld", (long long) ts.tv_sec, (long) getpid()) >=
+	    (int) dst_len) {
+		return -1;
+	}
+	return 0;
+}
+
+static int
+prepare_trace_paths(const orchestrator_options_t *opts, char *run_id, size_t run_id_len,
+    char *run_dir, size_t run_dir_len, bool *enabled)
+{
+	int n;
+
+	*enabled = false;
+	run_id[0] = '\0';
+	run_dir[0] = '\0';
+
+	if (opts->trace_dir == NULL || opts->trace_dir[0] == '\0') {
+		return 0;
+	}
+
+	if (opts->trace_run_id != NULL && opts->trace_run_id[0] != '\0') {
+		n = snprintf(run_id, run_id_len, "%s", opts->trace_run_id);
+		if (n < 0 || (size_t) n >= run_id_len) {
+			return -1;
+		}
+	} else {
+		if (build_auto_trace_run_id(run_id, run_id_len) != 0) {
+			return -1;
+		}
+	}
+
+	n = snprintf(run_dir, run_dir_len, "%s/%s", opts->trace_dir, run_id);
+	if (n < 0 || (size_t) n >= run_dir_len) {
+		return -1;
+	}
+	if (mkdir_p(run_dir) != 0) {
+		fprintf(stderr, "failed to create trace directory %s: %s\n", run_dir, strerror(errno));
+		return -1;
+	}
+	*enabled = true;
+	return 0;
+}
+
+static int
+write_trace_manifest(const char *run_dir, const char *run_id, const orchestrator_options_t *opts,
+    int chip_count, const int *input_ids, const int *out_ids, const int *chip_gen_ppm)
+{
+	char    path[1200];
+	FILE   *fp;
+	time_t  now;
+	int     i;
+
+	if (snprintf(path, sizeof(path), "%s/manifest.json", run_dir) >= (int) sizeof(path)) {
+		return -1;
+	}
+	fp = fopen(path, "w");
+	if (fp == NULL) {
+		fprintf(stderr, "failed to open manifest %s: %s\n", path, strerror(errno));
+		return -1;
+	}
+	now = time(NULL);
+
+	fprintf(fp, "{\n");
+	fprintf(fp, "  \"format\": \"chipsim-trace-manifest-v1\",\n");
+	fprintf(fp, "  \"run_id\": \"%s\",\n", run_id);
+	fprintf(fp, "  \"created_unix_sec\": %lld,\n", (long long) now);
+	fprintf(fp, "  \"rows\": %d,\n", opts->rows);
+	fprintf(fp, "  \"cols\": %d,\n", opts->cols);
+	fprintf(fp, "  \"ticks\": %" PRIu64 ",\n", opts->ticks);
+	fprintf(fp, "  \"record_size\": 24,\n");
+	fprintf(fp, "  \"chip_bin\": \"%s\",\n", opts->chip_bin);
+	fprintf(fp, "  \"chips\": [\n");
+	for (i = 0; i < chip_count; i++) {
+		fprintf(fp,
+		    "    {\"id\": %d, \"input_id\": %d, \"out_id\": %d, \"gen_ppm\": %d, \"file\": "
+		    "\"chip_%d.tracebin\"}%s\n",
+		    i, input_ids[i], out_ids[i], chip_gen_ppm[i], i, (i + 1 < chip_count) ? "," : "");
+	}
+	fprintf(fp, "  ]\n");
+	fprintf(fp, "}\n");
+	fclose(fp);
 	return 0;
 }
 
@@ -598,12 +736,12 @@ build_routes(const orchestrator_options_t *opts, int *input_ids, int *out_ids)
 static int
 launch_chip(const orchestrator_options_t *opts, const char *control_url, const char *metric_url,
     const char *data_prefix, int data_port_base, int chip_id, int input_id, int out_id,
-    int chip_gen_ppm, pid_t *child_pid)
+    int chip_gen_ppm, const char *trace_file, pid_t *child_pid)
 {
 	pid_t pid;
 	char  id_s[32], input_s[32], out_s[32], fifo_s[32], gen_s[32], seed_s[32], data_port_base_s[32];
 	char  data_timeout_s[32];
-	char *argv_exec[32];
+	char *argv_exec[36];
 	int   idx = 0;
 
 	snprintf(id_s, sizeof(id_s), "%d", chip_id);
@@ -638,6 +776,10 @@ launch_chip(const orchestrator_options_t *opts, const char *control_url, const c
 	argv_exec[idx++] = data_port_base_s;
 	argv_exec[idx++] = "-data_timeout_ms";
 	argv_exec[idx++] = data_timeout_s;
+	if (trace_file != NULL && trace_file[0] != '\0') {
+		argv_exec[idx++] = "-trace_file";
+		argv_exec[idx++] = (char *) trace_file;
+	}
 	argv_exec[idx++] = NULL;
 
 	pid = fork();
@@ -752,6 +894,9 @@ main(int argc, char **argv)
 	char                   control_prefix[256];
 	char                   metric_url[256];
 	char                   data_prefix[256];
+	char                   trace_run_id[256];
+	char                   trace_run_dir[1024];
+	bool                   tracing_enabled = false;
 	int                    control_port_base = 0;
 	int                    data_port_base = 0;
 	int                    rv;
@@ -784,6 +929,14 @@ main(int argc, char **argv)
 		return 2;
 	}
 	chip_count = opts.rows * opts.cols;
+	if (prepare_trace_paths(&opts, trace_run_id, sizeof(trace_run_id), trace_run_dir,
+	        sizeof(trace_run_dir), &tracing_enabled) != 0) {
+		fprintf(stderr, "failed to prepare trace paths\n");
+		free(opts.route_overrides);
+		free(opts.gen_overrides);
+		nng_fini();
+		return 1;
+	}
 
 	if (build_endpoints(&opts, control_prefix, sizeof(control_prefix), metric_url,
 	        sizeof(metric_url), data_prefix, sizeof(data_prefix), &control_port_base,
@@ -800,6 +953,9 @@ main(int argc, char **argv)
 	    (opts.gen_override_count > 0) ? "custom" : "global");
 	printf("orchestrator: control_prefix=%s control_port_base=%d\n", control_prefix,
 	    control_port_base);
+	if (tracing_enabled) {
+		printf("orchestrator: trace_run_id=%s trace_dir=%s\n", trace_run_id, trace_run_dir);
+	}
 	t_setup_start = mono_now_sec();
 
 	input_ids   = calloc((size_t) chip_count, sizeof(int));
@@ -818,6 +974,11 @@ main(int argc, char **argv)
 		goto fail;
 	}
 	if (build_chip_gen(&opts, chip_count, chip_gen_ppm) != 0) {
+		goto fail;
+	}
+	if (tracing_enabled &&
+	    write_trace_manifest(trace_run_dir, trace_run_id, &opts, chip_count, input_ids, out_ids,
+	        chip_gen_ppm) != 0) {
 		goto fail;
 	}
 
@@ -839,14 +1000,24 @@ main(int argc, char **argv)
 
 	for (i = 0; i < chip_count; i++) {
 		char control_url[256];
+		char trace_file[1200];
+		const char *trace_file_arg = NULL;
 
 		if (build_endpoint_url(
 		        control_url, sizeof(control_url), control_prefix, i, control_port_base) != 0) {
 			fprintf(stderr, "failed to build control url for chip %d\n", i);
 			goto fail;
 		}
+		if (tracing_enabled) {
+			if (snprintf(trace_file, sizeof(trace_file), "%s/chip_%d.tracebin", trace_run_dir, i) >=
+			    (int) sizeof(trace_file)) {
+				fprintf(stderr, "trace file path too long for chip %d\n", i);
+				goto fail;
+			}
+			trace_file_arg = trace_file;
+		}
 		if (launch_chip(&opts, control_url, metric_url, data_prefix, data_port_base, i, input_ids[i],
-		        out_ids[i], chip_gen_ppm[i], &child_pids[i]) != 0) {
+		        out_ids[i], chip_gen_ppm[i], trace_file_arg, &child_pids[i]) != 0) {
 			fprintf(stderr, "failed to launch chip %d\n", i);
 			goto fail;
 		}

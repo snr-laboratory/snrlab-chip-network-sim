@@ -317,7 +317,33 @@ Orchestrator timing instrumentation:
 
 This is printed at end of each run and used by `BENCHMARKS.md`.
 
-## 12. Performance Snapshot
+## 12. Packet Trace (Minimal Binary)
+Tracing is optional and enabled at orchestrator launch:
+- `-trace_dir <path>`
+- `-trace_run_id <id>` (optional; auto-generated if omitted)
+
+Orchestrator behavior when enabled:
+- creates `traces/<run_id>/`,
+- writes `manifest.json`,
+- passes per-chip `-trace_file traces/<run_id>/chip_<id>.tracebin`.
+
+Trace row schema (`include/chipsim/trace.h`):
+- fixed 24-byte records,
+- fields: `tick`, `event_type`, `fifo_occupancy`, `packet_word`,
+- `packet_word` is intentionally at struct tail for forward extension.
+
+Event types:
+- `GEN_LOCAL`
+- `ENQ_LOCAL_OK`
+- `ENQ_LOCAL_DROP_FULL`
+- `ENQ_NEIGH_OK`
+- `ENQ_NEIGH_DROP_FULL`
+- `DEQ_OUT`
+
+Offline reconstruction:
+- `python3 scripts/reconstruct_trace.py -run traces/<run_id> --top 20`
+
+## 13. Performance Snapshot
 From `BENCHMARKS.md`:
 
 | Topology | Backend | Ticks | Tick loop sec | Cycles/sec | Tick wait sec | Wait % |
@@ -334,7 +360,7 @@ Interpretation:
 - `chip` and `chip_rtl` are close on `3x4` at 10k ticks.
 - see `BENCHMARKS.md` for historical pre-migration 300k baseline.
 
-## 13. Documentation Build Commands
+## 14. Documentation Build Commands
 From `doc/`:
 ```bash
 make html        # doc/build/architecture.html

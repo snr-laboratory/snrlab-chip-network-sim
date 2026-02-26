@@ -45,6 +45,13 @@ Run with explicit per-chip routing map:
 python3 scripts/run_from_config.py -cfg config/network_2x2_custom_routes.json
 ```
 
+Run with packet tracing enabled:
+```bash
+./build/orchestrator -rows 2 -cols 2 -ticks 100 -route east -chip_bin ./build/chip \
+  -trace_dir traces -trace_run_id demo_run
+python3 scripts/reconstruct_trace.py -run traces/demo_run --top 10
+```
+
 Single chip wrapper:
 ```bash
 python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8
@@ -75,6 +82,10 @@ python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8
   - `out_id: -1` means this chip has no downstream neighbor output target.
 - FIFO full policy is drop-incoming with drop counter.
 - Ingress arbitration is local-first when local and neighbor data arrive in the same tick.
+- Optional minimal packet tracing:
+  - per-chip binary files under `traces/<run_id>/chip_<id>.tracebin`,
+  - fixed 24-byte rows (`tick`, `event_type`, `fifo_occupancy`, `packet_word`),
+  - run manifest at `traces/<run_id>/manifest.json`.
 
 ## Chip ID Layout
 Chip IDs are row-major:

@@ -22,6 +22,7 @@ set_target_properties(nng_local PROPERTIES
 add_library(chipsim_common
   src/fifo.c
   src/protocol.c
+  src/trace.c
 )
 target_include_directories(chipsim_common PUBLIC include)
 target_link_libraries(chipsim_common PUBLIC nng_local)
@@ -67,6 +68,7 @@ if(VERILATOR_BIN)
       -LDFLAGS "-L${CMAKE_SOURCE_DIR}/nng/build -lnng -pthread -Wl,-rpath,${CMAKE_SOURCE_DIR}/nng/build"
       "${CMAKE_SOURCE_DIR}/rtl/chip_fifo_router.sv"
       "${CMAKE_SOURCE_DIR}/src/chip_rtl.cpp"
+      "${CMAKE_SOURCE_DIR}/src/trace.c"
       -o chip_rtl
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${CHIPSIM_RTL_MDIR}/chip_rtl"
@@ -75,6 +77,8 @@ if(VERILATOR_BIN)
       "${CMAKE_SOURCE_DIR}/rtl/chip_fifo_router.sv"
       "${CMAKE_SOURCE_DIR}/src/chip_rtl.cpp"
       "${CMAKE_SOURCE_DIR}/include/chipsim/protocol.h"
+      "${CMAKE_SOURCE_DIR}/include/chipsim/trace.h"
+      "${CMAKE_SOURCE_DIR}/src/trace.c"
     VERBATIM
   )
   add_custom_target(chip_rtl_build ALL DEPENDS "${CHIPSIM_RTL_BIN}")

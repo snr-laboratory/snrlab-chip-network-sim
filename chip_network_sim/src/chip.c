@@ -12,6 +12,7 @@
 
 #include "chipsim/fifo.h"
 #include "chipsim/protocol.h"
+#include "chipsim/trace.h"
 
 #define CHIPSIM_DEFAULT_CLOCK_URL "tcp://127.0.0.1:23000"
 #define CHIPSIM_DEFAULT_METRIC_URL "tcp://127.0.0.1:23002"
@@ -30,6 +31,7 @@ typedef struct {
 	const char         *clock_url;
 	const char         *metric_url;
 	const char         *data_prefix;
+	const char         *trace_file;
 } chip_options_t;
 
 typedef struct {
@@ -67,7 +69,8 @@ usage(const char *prog)
 	    "  -metric_url <URI>    orchestrator metric endpoint\n"
 	    "  -data_prefix <URI>   per-chip data endpoint prefix or printf pattern\n"
 	    "  -data_port_base <N>  numeric base added to chip id when using %%d pattern\n"
-	    "  -data_timeout_ms <N> upstream data pull timeout (default 5000)\n",
+	    "  -data_timeout_ms <N> upstream data pull timeout (default 5000)\n"
+	    "  -trace_file <path>   optional binary trace output path\n",
 	    prog);
 }
 
@@ -121,6 +124,7 @@ parse_args(int argc, char **argv, chip_options_t *opts)
 	opts->clock_url       = CHIPSIM_DEFAULT_CLOCK_URL;
 	opts->metric_url      = CHIPSIM_DEFAULT_METRIC_URL;
 	opts->data_prefix     = CHIPSIM_DEFAULT_DATA_PREFIX;
+	opts->trace_file      = NULL;
 
 	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "-id") == 0 && i + 1 < argc) {
@@ -163,6 +167,8 @@ parse_args(int argc, char **argv, chip_options_t *opts)
 			if (parse_int(argv[++i], &opts->data_timeout_ms) != 0 || opts->data_timeout_ms <= 0) {
 				return -1;
 			}
+		} else if (strcmp(argv[i], "-trace_file") == 0 && i + 1 < argc) {
+			opts->trace_file = argv[++i];
 		} else {
 			return -1;
 		}
@@ -414,6 +420,7 @@ main(int argc, char **argv)
 	bool               data_state_inited = false;
 	bool               data_thread_started = false;
 	pthread_t          data_thread;
+	chipsim_trace_writer_t trace;
 
 	memset(&fifo, 0, sizeof(fifo));
 
@@ -431,6 +438,11 @@ main(int argc, char **argv)
 	has_input  = opts.input_id >= 0;
 	has_output = opts.out_id >= 0;
 	memset(&metrics, 0, sizeof(metrics));
+	memset(&trace, 0, sizeof(trace));
+
+	if (chipsim_trace_open(&trace, opts.trace_file, (uint32_t) opts.id) != 0) {
+		goto cleanup;
+	}
 
 	if (build_data_url(
 	        my_data_url, sizeof(my_data_url), opts.data_prefix, opts.id, opts.data_port_base) != 0) {
@@ -572,6 +584,11 @@ main(int argc, char **argv)
 
 		if (chipsim_fifo_pop(&fifo, &out_packet) > 0) {
 			have_out = true;
+			occupancy = chipsim_fifo_size(&fifo);
+			if (chipsim_trace_emit_fields(&trace, tick.seq, CHIPSIM_TRACE_EVT_DEQ_OUT,
+			        (uint32_t) occupancy, chipsim_trace_pack_packet_word(&out_packet)) != 0) {
+				goto cleanup;
+			}
 		}
 		if (has_output) {
 			bool publish_has_packet = have_out;
@@ -599,17 +616,46 @@ main(int argc, char **argv)
 			local_packet.seq_local = metrics.local_gen_count;
 			have_local             = true;
 			metrics.local_gen_count++;
+			occupancy = chipsim_fifo_size(&fifo);
+			if (chipsim_trace_emit_fields(&trace, tick.seq, CHIPSIM_TRACE_EVT_GEN_LOCAL,
+			        (uint32_t) occupancy, chipsim_trace_pack_packet_word(&local_packet)) != 0) {
+				goto cleanup;
+			}
 		}
 
 		// Local data has strict priority over neighbor data when both are available.
 		if (have_local) {
-			if (chipsim_fifo_push(&fifo, &local_packet) <= 0) {
+			int push_local = chipsim_fifo_push(&fifo, &local_packet);
+			occupancy      = chipsim_fifo_size(&fifo);
+			if (push_local <= 0) {
 				metrics.drop_count++;
+				if (chipsim_trace_emit_fields(&trace, tick.seq,
+				        CHIPSIM_TRACE_EVT_ENQ_LOCAL_DROP_FULL, (uint32_t) occupancy,
+				        chipsim_trace_pack_packet_word(&local_packet)) != 0) {
+					goto cleanup;
+				}
+			} else {
+				if (chipsim_trace_emit_fields(&trace, tick.seq, CHIPSIM_TRACE_EVT_ENQ_LOCAL_OK,
+				        (uint32_t) occupancy, chipsim_trace_pack_packet_word(&local_packet)) != 0) {
+					goto cleanup;
+				}
 			}
 		}
 		if (have_neighbor) {
-			if (chipsim_fifo_push(&fifo, &neighbor_packet) <= 0) {
+			int push_neighbor = chipsim_fifo_push(&fifo, &neighbor_packet);
+			occupancy         = chipsim_fifo_size(&fifo);
+			if (push_neighbor <= 0) {
 				metrics.drop_count++;
+				if (chipsim_trace_emit_fields(&trace, tick.seq,
+				        CHIPSIM_TRACE_EVT_ENQ_NEIGH_DROP_FULL, (uint32_t) occupancy,
+				        chipsim_trace_pack_packet_word(&neighbor_packet)) != 0) {
+					goto cleanup;
+				}
+			} else {
+				if (chipsim_trace_emit_fields(&trace, tick.seq, CHIPSIM_TRACE_EVT_ENQ_NEIGH_OK,
+				        (uint32_t) occupancy, chipsim_trace_pack_packet_word(&neighbor_packet)) != 0) {
+					goto cleanup;
+				}
 			}
 		}
 
@@ -650,6 +696,7 @@ cleanup:
 	if (nng_socket_id(control_rep) > 0) {
 		nng_socket_close(control_rep);
 	}
+	chipsim_trace_close(&trace);
 	chipsim_fifo_free(&fifo);
 	nng_fini();
 	return exit_code;
