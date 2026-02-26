@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <nng/nng.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,9 +14,9 @@
 #include "chipsim/protocol.h"
 
 #define CHIPSIM_DEFAULT_CLOCK_URL "tcp://127.0.0.1:23000"
-#define CHIPSIM_DEFAULT_DONE_URL "tcp://127.0.0.1:23001"
 #define CHIPSIM_DEFAULT_METRIC_URL "tcp://127.0.0.1:23002"
 #define CHIPSIM_DEFAULT_DATA_PREFIX "tcp://127.0.0.1:%d"
+#define CHIPSIM_DEFAULT_DATA_TIMEOUT_MS 5000
 
 #define PACKET_A_BITS 16u
 #define PACKET_B_BITS 24u
@@ -27,14 +28,12 @@ typedef struct {
 	int                 id;
 	int                 input_id;
 	int                 out_id;
-	int                 ack_window;
 	int                 fifo_depth;
 	int                 data_port_base;
+	int                 data_timeout_ms;
 	uint32_t            seed;
 	int                 gen_ppm;
-	chipsim_sync_mode_t sync_mode;
 	const char         *clock_url;
-	const char         *done_url;
 	const char         *metric_url;
 	const char         *data_prefix;
 } chip_options_t;
@@ -48,41 +47,33 @@ typedef struct {
 	uint64_t last_seq;
 } chip_metrics_t;
 
-static int
-parse_sync_mode(const char *value, chipsim_sync_mode_t *mode)
-{
-	if (strcmp(value, "barrier_ack") == 0) {
-		*mode = CHIPSIM_SYNC_BARRIER_ACK;
-		return 0;
-	}
-	if (strcmp(value, "pubsub_only") == 0) {
-		*mode = CHIPSIM_SYNC_PUBSUB_ONLY;
-		return 0;
-	}
-	if (strcmp(value, "windowed_ack") == 0) {
-		*mode = CHIPSIM_SYNC_WINDOWED_ACK;
-		return 0;
-	}
-	return -1;
-}
+typedef struct {
+	pthread_mutex_t lock;
+	pthread_cond_t  cond;
+	bool            stop_requested;
+	bool            has_published;
+	uint64_t        seq;
+	bool            has_packet;
+	chipsim_packet_t packet;
+	nng_socket      data_rep;
+	int             chip_id;
+} data_server_state_t;
 
 static void
 usage(const char *prog)
 {
 	fprintf(stderr,
-	    "Usage: %s -id <chip_id> -input <chip_id|-1> -out <chip_id|-1> "
-	    "-sync <barrier_ack|pubsub_only|windowed_ack> [options]\n"
+	    "Usage: %s -id <chip_id> -input <chip_id|-1> -out <chip_id|-1> [options]\n"
 	    "Options:\n"
-	    "  -ack_window <N>    window size for windowed_ack (default 4)\n"
-	    "  -fifo_depth <N>    local FIFO depth (default 32)\n"
-	    "  -gen_ppm <N>       local generation rate per tick in ppm [0..1e6] "
+	    "  -fifo_depth <N>      local FIFO depth (default 32)\n"
+	    "  -gen_ppm <N>         local generation rate per tick in ppm [0..1e6] "
 	    "(default 100000)\n"
-	    "  -seed <N>          RNG seed (default 1)\n"
-	    "  -clock_url <URI>   orchestrator tick endpoint\n"
-	    "  -done_url <URI>    orchestrator done endpoint\n"
-	    "  -metric_url <URI>  orchestrator metric endpoint\n"
-	    "  -data_prefix <URI> per-chip data endpoint prefix or printf pattern\n"
-	    "  -data_port_base <N> numeric base added to chip id when using %%d pattern\n",
+	    "  -seed <N>            RNG seed (default 1)\n"
+	    "  -clock_url <URI>     orchestrator control endpoint (REQ/REP)\n"
+	    "  -metric_url <URI>    orchestrator metric endpoint\n"
+	    "  -data_prefix <URI>   per-chip data endpoint prefix or printf pattern\n"
+	    "  -data_port_base <N>  numeric base added to chip id when using %%d pattern\n"
+	    "  -data_timeout_ms <N> upstream data pull timeout (default 5000)\n",
 	    prog);
 }
 
@@ -125,19 +116,17 @@ parse_args(int argc, char **argv, chip_options_t *opts)
 	int i;
 
 	memset(opts, 0, sizeof(*opts));
-	opts->id             = -1;
-	opts->input_id       = -1;
-	opts->out_id         = -1;
-	opts->ack_window     = 4;
-	opts->fifo_depth     = 32;
-	opts->data_port_base = 0;
-	opts->seed           = 1u;
-	opts->gen_ppm        = 100000;
-	opts->sync_mode      = CHIPSIM_SYNC_BARRIER_ACK;
-	opts->clock_url      = CHIPSIM_DEFAULT_CLOCK_URL;
-	opts->done_url       = CHIPSIM_DEFAULT_DONE_URL;
-	opts->metric_url     = CHIPSIM_DEFAULT_METRIC_URL;
-	opts->data_prefix    = CHIPSIM_DEFAULT_DATA_PREFIX;
+	opts->id              = -1;
+	opts->input_id        = -1;
+	opts->out_id          = -1;
+	opts->fifo_depth      = 32;
+	opts->data_port_base  = 0;
+	opts->data_timeout_ms = CHIPSIM_DEFAULT_DATA_TIMEOUT_MS;
+	opts->seed            = 1u;
+	opts->gen_ppm         = 100000;
+	opts->clock_url       = CHIPSIM_DEFAULT_CLOCK_URL;
+	opts->metric_url      = CHIPSIM_DEFAULT_METRIC_URL;
+	opts->data_prefix     = CHIPSIM_DEFAULT_DATA_PREFIX;
 
 	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "-id") == 0 && i + 1 < argc) {
@@ -150,14 +139,6 @@ parse_args(int argc, char **argv, chip_options_t *opts)
 			}
 		} else if (strcmp(argv[i], "-out") == 0 && i + 1 < argc) {
 			if (parse_int(argv[++i], &opts->out_id) != 0) {
-				return -1;
-			}
-		} else if (strcmp(argv[i], "-sync") == 0 && i + 1 < argc) {
-			if (parse_sync_mode(argv[++i], &opts->sync_mode) != 0) {
-				return -1;
-			}
-		} else if (strcmp(argv[i], "-ack_window") == 0 && i + 1 < argc) {
-			if (parse_int(argv[++i], &opts->ack_window) != 0 || opts->ack_window <= 0) {
 				return -1;
 			}
 		} else if (strcmp(argv[i], "-fifo_depth") == 0 && i + 1 < argc) {
@@ -176,8 +157,6 @@ parse_args(int argc, char **argv, chip_options_t *opts)
 			}
 		} else if (strcmp(argv[i], "-clock_url") == 0 && i + 1 < argc) {
 			opts->clock_url = argv[++i];
-		} else if (strcmp(argv[i], "-done_url") == 0 && i + 1 < argc) {
-			opts->done_url = argv[++i];
 		} else if (strcmp(argv[i], "-metric_url") == 0 && i + 1 < argc) {
 			opts->metric_url = argv[++i];
 		} else if (strcmp(argv[i], "-data_prefix") == 0 && i + 1 < argc) {
@@ -185,6 +164,10 @@ parse_args(int argc, char **argv, chip_options_t *opts)
 		} else if (strcmp(argv[i], "-data_port_base") == 0 && i + 1 < argc) {
 			if (parse_int(argv[++i], &opts->data_port_base) != 0 || opts->data_port_base < 0 ||
 			    opts->data_port_base > 65535) {
+				return -1;
+			}
+		} else if (strcmp(argv[i], "-data_timeout_ms") == 0 && i + 1 < argc) {
+			if (parse_int(argv[++i], &opts->data_timeout_ms) != 0 || opts->data_timeout_ms <= 0) {
 				return -1;
 			}
 		} else {
@@ -256,19 +239,7 @@ unpack_packet(uint64_t word)
 }
 
 static int
-should_send_done(const chip_options_t *opts, uint64_t seq)
-{
-	if (opts->sync_mode == CHIPSIM_SYNC_BARRIER_ACK) {
-		return 1;
-	}
-	if (opts->sync_mode == CHIPSIM_SYNC_WINDOWED_ACK) {
-		return ((seq + 1u) % (uint64_t) opts->ack_window) == 0u;
-	}
-	return 0;
-}
-
-static int
-send_done(nng_socket done_push, const chip_options_t *opts, uint64_t seq, uint64_t fifo_occupancy,
+send_done(nng_socket control_rep, const chip_options_t *opts, uint64_t seq, uint64_t fifo_occupancy,
     const chip_metrics_t *metrics)
 {
 	chipsim_done_msg_t done;
@@ -276,7 +247,6 @@ send_done(nng_socket done_push, const chip_options_t *opts, uint64_t seq, uint64
 
 	memset(&done, 0, sizeof(done));
 	done.type            = CHIPSIM_MSG_DONE;
-	done.sync_mode       = (uint8_t) opts->sync_mode;
 	done.chip_id         = (uint32_t) opts->id;
 	done.seq             = seq;
 	done.tx_count        = metrics->tx_count;
@@ -285,7 +255,7 @@ send_done(nng_socket done_push, const chip_options_t *opts, uint64_t seq, uint64
 	done.drop_count      = metrics->drop_count;
 	done.fifo_occupancy  = fifo_occupancy;
 
-	rv = nng_send(done_push, &done, sizeof(done), 0);
+	rv = nng_send(control_rep, &done, sizeof(done), 0);
 	if (rv != 0) {
 		fprintf(stderr, "chip_rtl[%d] failed to send DONE: %s\n", opts->id, ERRSTR(rv));
 		return -1;
@@ -302,7 +272,6 @@ send_metric(nng_socket metric_push, const chip_options_t *opts, uint64_t fifo_oc
 
 	memset(&m, 0, sizeof(m));
 	m.type            = CHIPSIM_MSG_METRIC;
-	m.sync_mode       = (uint8_t) opts->sync_mode;
 	m.chip_id         = (uint32_t) opts->id;
 	m.seq             = metrics->last_seq;
 	m.tx_count        = metrics->tx_count;
@@ -316,6 +285,146 @@ send_metric(nng_socket metric_push, const chip_options_t *opts, uint64_t fifo_oc
 	if (rv != 0) {
 		fprintf(stderr, "chip_rtl[%d] failed to send METRIC: %s\n", opts->id, ERRSTR(rv));
 		return -1;
+	}
+	return 0;
+}
+
+static int
+data_server_init(data_server_state_t *state, nng_socket data_rep, int chip_id)
+{
+	memset(state, 0, sizeof(*state));
+	state->data_rep = data_rep;
+	state->chip_id  = chip_id;
+	if (pthread_mutex_init(&state->lock, NULL) != 0) {
+		return -1;
+	}
+	if (pthread_cond_init(&state->cond, NULL) != 0) {
+		pthread_mutex_destroy(&state->lock);
+		return -1;
+	}
+	return 0;
+}
+
+static void
+data_server_destroy(data_server_state_t *state)
+{
+	pthread_cond_destroy(&state->cond);
+	pthread_mutex_destroy(&state->lock);
+}
+
+static void
+data_server_publish(data_server_state_t *state, uint64_t seq, bool has_packet,
+    const chipsim_packet_t *packet)
+{
+	pthread_mutex_lock(&state->lock);
+	state->has_published = true;
+	state->seq           = seq;
+	state->has_packet    = has_packet;
+	if (has_packet && packet != NULL) {
+		state->packet = *packet;
+	}
+	pthread_cond_broadcast(&state->cond);
+	pthread_mutex_unlock(&state->lock);
+}
+
+static void
+data_server_request_stop(data_server_state_t *state)
+{
+	pthread_mutex_lock(&state->lock);
+	state->stop_requested = true;
+	pthread_cond_broadcast(&state->cond);
+	pthread_mutex_unlock(&state->lock);
+}
+
+static void *
+data_server_thread_main(void *arg)
+{
+	data_server_state_t *state = (data_server_state_t *) arg;
+
+	for (;;) {
+		chipsim_data_pull_msg_t  req;
+		chipsim_data_reply_msg_t rep;
+		size_t                  req_sz = sizeof(req);
+		int                     rv;
+
+		rv = nng_recv(state->data_rep, &req, &req_sz, 0);
+		if (rv != 0) {
+			break;
+		}
+		if (req_sz != sizeof(req) || req.type != CHIPSIM_MSG_DATA_PULL) {
+			continue;
+		}
+
+		memset(&rep, 0, sizeof(rep));
+		rep.type         = CHIPSIM_MSG_DATA_REPLY;
+		rep.responder_id = (uint32_t) state->chip_id;
+		rep.seq          = req.seq;
+
+		pthread_mutex_lock(&state->lock);
+		while (!state->stop_requested && (!state->has_published || state->seq < req.seq)) {
+			pthread_cond_wait(&state->cond, &state->lock);
+		}
+		if (!state->stop_requested && state->has_published && state->seq == req.seq &&
+		    state->has_packet) {
+			rep.has_packet = 1u;
+			rep.packet     = state->packet;
+		}
+		pthread_mutex_unlock(&state->lock);
+
+		rv = nng_send(state->data_rep, &rep, sizeof(rep), 0);
+		if (rv != 0) {
+			break;
+		}
+	}
+	return NULL;
+}
+
+static int
+pull_from_upstream(nng_socket data_req, const chip_options_t *opts, uint64_t seq,
+    chipsim_packet_t *packet, bool *have_packet)
+{
+	chipsim_data_pull_msg_t  req;
+	chipsim_data_reply_msg_t rep;
+	size_t                  rep_sz;
+	int                     rv;
+
+	memset(&req, 0, sizeof(req));
+	req.type         = CHIPSIM_MSG_DATA_PULL;
+	req.requester_id = (uint32_t) opts->id;
+	req.seq          = seq;
+
+	rv = nng_send(data_req, &req, sizeof(req), 0);
+	if (rv != 0) {
+		fprintf(stderr, "chip_rtl[%d] send(data_req) failed: %s\n", opts->id, ERRSTR(rv));
+		return -1;
+	}
+
+	rep_sz = sizeof(rep);
+	rv     = nng_recv(data_req, &rep, &rep_sz, 0);
+	if (rv != 0) {
+		fprintf(stderr, "chip_rtl[%d] recv(data_reply) failed: %s\n", opts->id, ERRSTR(rv));
+		return -1;
+	}
+	if (rep_sz != sizeof(rep) || rep.type != CHIPSIM_MSG_DATA_REPLY) {
+		fprintf(stderr, "chip_rtl[%d] malformed data reply\n", opts->id);
+		return -1;
+	}
+	if (rep.seq != seq) {
+		fprintf(stderr, "chip_rtl[%d] data reply seq=%" PRIu64 " expected=%" PRIu64 "\n", opts->id,
+		    rep.seq, seq);
+		return -1;
+	}
+	if (rep.responder_id != (uint32_t) opts->input_id) {
+		fprintf(stderr, "chip_rtl[%d] data reply responder_id=%u expected=%d\n", opts->id,
+		    rep.responder_id, opts->input_id);
+		return -1;
+	}
+
+	if (rep.has_packet) {
+		*packet      = rep.packet;
+		*have_packet = true;
+	} else {
+		*have_packet = false;
 	}
 	return 0;
 }
@@ -334,19 +443,24 @@ tick_model(Vchip_fifo_router *model)
 int
 main(int argc, char **argv)
 {
-	chip_options_t opts;
-	chip_metrics_t metrics;
-	nng_socket     clock_sub   = NNG_SOCKET_INITIALIZER;
-	nng_socket     data_pub    = NNG_SOCKET_INITIALIZER;
-	nng_socket     data_sub    = NNG_SOCKET_INITIALIZER;
-	nng_socket     done_push   = NNG_SOCKET_INITIALIZER;
-	nng_socket     metric_push = NNG_SOCKET_INITIALIZER;
-	char           my_data_url[256];
-	char           input_data_url[256];
-	bool           has_input;
-	uint32_t       rng_state;
-	nng_err        init_err;
-	int            rv;
+	chip_options_t      opts;
+	chip_metrics_t      metrics;
+	nng_socket          control_rep = NNG_SOCKET_INITIALIZER;
+	nng_socket          data_req    = NNG_SOCKET_INITIALIZER;
+	nng_socket          data_rep    = NNG_SOCKET_INITIALIZER;
+	nng_socket          metric_push = NNG_SOCKET_INITIALIZER;
+	char                my_data_url[256];
+	char                input_data_url[256];
+	bool                has_input;
+	bool                has_output;
+	uint32_t            rng_state;
+	nng_err             init_err;
+	int                 rv;
+	int                 exit_code = 1;
+	data_server_state_t data_state;
+	bool                data_state_inited  = false;
+	bool                data_thread_started = false;
+	pthread_t           data_thread;
 
 	Vchip_fifo_router *model = NULL;
 
@@ -354,7 +468,8 @@ main(int argc, char **argv)
 		usage(argv[0]);
 		return 2;
 	}
-	has_input = opts.input_id >= 0;
+	has_input  = opts.input_id >= 0;
+	has_output = opts.out_id >= 0;
 	memset(&metrics, 0, sizeof(metrics));
 
 	init_err = nng_init(NULL);
@@ -363,14 +478,14 @@ main(int argc, char **argv)
 		return 1;
 	}
 
-	model                = new Vchip_fifo_router();
-	model->rst_n         = 0;
+	model = new Vchip_fifo_router();
+	model->rst_n          = 0;
 	model->cfg_fifo_depth = (uint16_t) opts.fifo_depth;
-	model->local_valid   = 0;
-	model->local_data    = 0;
-	model->neigh_valid   = 0;
-	model->neigh_data    = 0;
-	model->out_ready     = 1;
+	model->local_valid    = 0;
+	model->local_data     = 0;
+	model->neigh_valid    = 0;
+	model->neigh_data     = 0;
+	model->out_ready      = 1;
 	tick_model(model);
 	model->rst_n = 1;
 	tick_model(model);
@@ -378,89 +493,93 @@ main(int argc, char **argv)
 	if (build_data_url(
 	        my_data_url, sizeof(my_data_url), opts.data_prefix, opts.id, opts.data_port_base) != 0) {
 		fprintf(stderr, "chip_rtl[%d] invalid data prefix\n", opts.id);
-		goto fail;
+		goto cleanup;
 	}
 	if (has_input && build_data_url(input_data_url, sizeof(input_data_url), opts.data_prefix,
 	                     opts.input_id, opts.data_port_base) != 0) {
 		fprintf(stderr, "chip_rtl[%d] invalid data prefix for input\n", opts.id);
-		goto fail;
+		goto cleanup;
 	}
 
-	rv = nng_sub0_open(&clock_sub);
+	rv = nng_rep0_open(&control_rep);
 	if (rv != 0) {
-		fprintf(stderr, "chip_rtl[%d] nng_sub0_open(clock) failed: %s\n", opts.id, ERRSTR(rv));
-		goto fail;
+		fprintf(stderr, "chip_rtl[%d] nng_rep0_open(control) failed: %s\n", opts.id, ERRSTR(rv));
+		goto cleanup;
 	}
-	rv = nng_sub0_socket_subscribe(clock_sub, NULL, 0);
+	rv = nng_listen(control_rep, opts.clock_url, NULL, 0);
 	if (rv != 0) {
-		fprintf(stderr, "chip_rtl[%d] subscribe(clock) failed: %s\n", opts.id, ERRSTR(rv));
-		goto fail;
-	}
-	rv = nng_dial(clock_sub, opts.clock_url, NULL, 0);
-	if (rv != 0) {
-		fprintf(stderr, "chip_rtl[%d] dial(clock) failed: %s\n", opts.id, ERRSTR(rv));
-		goto fail;
+		fprintf(stderr, "chip_rtl[%d] listen(control) failed at %s: %s\n", opts.id, opts.clock_url,
+		    ERRSTR(rv));
+		goto cleanup;
 	}
 
-	rv = nng_pub0_open(&data_pub);
-	if (rv != 0) {
-		fprintf(stderr, "chip_rtl[%d] nng_pub0_open(data_pub) failed: %s\n", opts.id,
-		    ERRSTR(rv));
-		goto fail;
-	}
-	rv = nng_listen(data_pub, my_data_url, NULL, 0);
-	if (rv != 0) {
-		fprintf(stderr, "chip_rtl[%d] listen(data_pub) failed at %s: %s\n", opts.id, my_data_url,
-		    ERRSTR(rv));
-		goto fail;
+	if (has_output) {
+		rv = nng_rep0_open(&data_rep);
+		if (rv != 0) {
+			fprintf(stderr, "chip_rtl[%d] nng_rep0_open(data_rep) failed: %s\n", opts.id,
+			    ERRSTR(rv));
+			goto cleanup;
+		}
+		rv = nng_listen(data_rep, my_data_url, NULL, 0);
+		if (rv != 0) {
+			fprintf(stderr, "chip_rtl[%d] listen(data_rep) failed at %s: %s\n", opts.id,
+			    my_data_url, ERRSTR(rv));
+			goto cleanup;
+		}
+		if (data_server_init(&data_state, data_rep, opts.id) != 0) {
+			fprintf(stderr, "chip_rtl[%d] data server init failed\n", opts.id);
+			goto cleanup;
+		}
+		data_state_inited = true;
+		if (pthread_create(&data_thread, NULL, data_server_thread_main, &data_state) != 0) {
+			fprintf(stderr, "chip_rtl[%d] data server thread create failed\n", opts.id);
+			goto cleanup;
+		}
+		data_thread_started = true;
 	}
 
 	if (has_input) {
-		uint32_t topic = (uint32_t) opts.input_id;
-		rv             = nng_sub0_open(&data_sub);
+		rv = nng_req0_open(&data_req);
 		if (rv != 0) {
-			fprintf(stderr, "chip_rtl[%d] nng_sub0_open(data_sub) failed: %s\n", opts.id,
+			fprintf(stderr, "chip_rtl[%d] nng_req0_open(data_req) failed: %s\n", opts.id,
 			    ERRSTR(rv));
-			goto fail;
+			goto cleanup;
 		}
-		rv = nng_sub0_socket_subscribe(data_sub, &topic, sizeof(topic));
+		rv = nng_socket_set_ms(data_req, NNG_OPT_SENDTIMEO, opts.data_timeout_ms);
 		if (rv != 0) {
-			fprintf(stderr, "chip_rtl[%d] subscribe(data_sub) failed: %s\n", opts.id,
+			fprintf(stderr, "chip_rtl[%d] set send timeout data_req failed: %s\n", opts.id,
 			    ERRSTR(rv));
-			goto fail;
+			goto cleanup;
 		}
-		// Non-blocking dial lets peer listener come up after this process starts.
-		rv = nng_dial(data_sub, input_data_url, NULL, NNG_FLAG_NONBLOCK);
+		rv = nng_socket_set_ms(data_req, NNG_OPT_RECVTIMEO, opts.data_timeout_ms);
 		if (rv != 0) {
-			fprintf(stderr, "chip_rtl[%d] dial(data_sub) failed at %s: %s\n", opts.id,
+			fprintf(stderr, "chip_rtl[%d] set recv timeout data_req failed: %s\n", opts.id,
+			    ERRSTR(rv));
+			goto cleanup;
+		}
+		rv = nng_socket_set_ms(data_req, NNG_OPT_REQ_RESENDTIME, NNG_DURATION_INFINITE);
+		if (rv != 0) {
+			fprintf(stderr, "chip_rtl[%d] set req resend data_req failed: %s\n", opts.id,
+			    ERRSTR(rv));
+			goto cleanup;
+		}
+		rv = nng_dial(data_req, input_data_url, NULL, NNG_FLAG_NONBLOCK);
+		if (rv != 0) {
+			fprintf(stderr, "chip_rtl[%d] dial(data_req) failed at %s: %s\n", opts.id,
 			    input_data_url, ERRSTR(rv));
-			goto fail;
-		}
-	}
-
-	if (opts.sync_mode != CHIPSIM_SYNC_PUBSUB_ONLY) {
-		rv = nng_push0_open(&done_push);
-		if (rv != 0) {
-			fprintf(stderr, "chip_rtl[%d] nng_push0_open(done) failed: %s\n", opts.id,
-			    ERRSTR(rv));
-			goto fail;
-		}
-		rv = nng_dial(done_push, opts.done_url, NULL, 0);
-		if (rv != 0) {
-			fprintf(stderr, "chip_rtl[%d] dial(done) failed: %s\n", opts.id, ERRSTR(rv));
-			goto fail;
+			goto cleanup;
 		}
 	}
 
 	rv = nng_push0_open(&metric_push);
 	if (rv != 0) {
 		fprintf(stderr, "chip_rtl[%d] nng_push0_open(metric) failed: %s\n", opts.id, ERRSTR(rv));
-		goto fail;
+		goto cleanup;
 	}
 	rv = nng_dial(metric_push, opts.metric_url, NULL, 0);
 	if (rv != 0) {
 		fprintf(stderr, "chip_rtl[%d] dial(metric) failed: %s\n", opts.id, ERRSTR(rv));
-		goto fail;
+		goto cleanup;
 	}
 
 	rng_state = opts.seed ^ ((uint32_t) opts.id * 2654435761u);
@@ -469,42 +588,62 @@ main(int argc, char **argv)
 		size_t             tick_sz = sizeof(tick);
 		chipsim_packet_t   local_packet;
 		chipsim_packet_t   neighbor_packet;
+		chipsim_packet_t   out_packet;
 		bool               have_local    = false;
 		bool               have_neighbor = false;
+		bool               have_out      = false;
 		uint64_t           local_word    = 0;
 		uint64_t           neigh_word    = 0;
 		bool               emit_valid;
 		uint64_t           emit_word;
 		uint32_t           draw;
 
-		rv = nng_recv(clock_sub, &tick, &tick_sz, 0);
+		rv = nng_recv(control_rep, &tick, &tick_sz, 0);
 		if (rv != 0) {
-			fprintf(stderr, "chip_rtl[%d] recv(clock) failed: %s\n", opts.id, ERRSTR(rv));
-			goto fail;
+			fprintf(stderr, "chip_rtl[%d] recv(control) failed: %s\n", opts.id, ERRSTR(rv));
+			goto cleanup;
 		}
 		if (tick_sz != sizeof(tick)) {
-			continue;
+			fprintf(stderr, "chip_rtl[%d] recv(control) malformed size=%zu expected=%zu\n", opts.id,
+			    tick_sz, sizeof(tick));
+			goto cleanup;
 		}
 		metrics.last_seq = tick.seq;
 		if (tick.type == CHIPSIM_MSG_STOP) {
+			if (has_output) {
+				data_server_publish(&data_state, tick.seq, false, NULL);
+			}
+			if (send_done(control_rep, &opts, tick.seq, (uint64_t) model->occupancy, &metrics) != 0) {
+				goto cleanup;
+			}
 			break;
 		}
 		if (tick.type != CHIPSIM_MSG_TICK) {
-			continue;
+			fprintf(stderr, "chip_rtl[%d] recv(control) unknown type=%u\n", opts.id,
+			    (unsigned) tick.type);
+			goto cleanup;
+		}
+
+		emit_valid = (model->out_valid != 0);
+		emit_word  = model->out_data;
+		if (emit_valid) {
+			out_packet = unpack_packet(emit_word);
+			have_out   = true;
+		}
+		if (has_output) {
+			data_server_publish(&data_state, tick.seq, have_out, have_out ? &out_packet : NULL);
+			if (have_out) {
+				metrics.tx_count++;
+			}
 		}
 
 		if (has_input) {
-			chipsim_data_msg_t msg;
-			size_t             msg_sz = sizeof(msg);
-			rv                        = nng_recv(data_sub, &msg, &msg_sz, NNG_FLAG_NONBLOCK);
-			if (rv == 0 && msg_sz == sizeof(msg)) {
-				neighbor_packet = msg.packet;
-				neigh_word      = pack_packet(&neighbor_packet);
-				have_neighbor   = true;
+			if (pull_from_upstream(data_req, &opts, tick.seq, &neighbor_packet, &have_neighbor) != 0) {
+				goto cleanup;
+			}
+			if (have_neighbor) {
+				neigh_word = pack_packet(&neighbor_packet);
 				metrics.rx_count++;
-			} else if (rv != NNG_EAGAIN && rv != NNG_ETIMEDOUT) {
-				fprintf(stderr, "chip_rtl[%d] recv(data_sub) failed: %s\n", opts.id,
-				    ERRSTR(rv));
 			}
 		}
 
@@ -518,9 +657,6 @@ main(int argc, char **argv)
 			have_local             = true;
 			metrics.local_gen_count++;
 		}
-
-		emit_valid = (model->out_valid != 0);
-		emit_word  = model->out_data;
 
 		model->cfg_fifo_depth = (uint16_t) opts.fifo_depth;
 		model->local_valid    = have_local ? 1 : 0;
@@ -540,67 +676,42 @@ main(int argc, char **argv)
 			metrics.fifo_peak = (uint64_t) model->occupancy;
 		}
 
-		if (emit_valid) {
-			if (opts.out_id >= 0) {
-				chipsim_data_msg_t tx_msg;
-				chipsim_packet_t   out_packet;
-
-				out_packet   = unpack_packet(emit_word);
-				tx_msg.topic = (uint32_t) opts.id;
-				tx_msg.packet = out_packet;
-				rv            = nng_send(data_pub, &tx_msg, sizeof(tx_msg), 0);
-				if (rv == 0) {
-					metrics.tx_count++;
-				} else {
-					fprintf(stderr, "chip_rtl[%d] send(data_pub) failed: %s\n", opts.id,
-					    ERRSTR(rv));
-				}
-			}
-		}
-
-		if (should_send_done(&opts, tick.seq) && opts.sync_mode != CHIPSIM_SYNC_PUBSUB_ONLY) {
-			if (send_done(done_push, &opts, tick.seq, (uint64_t) model->occupancy, &metrics) != 0) {
-				goto fail;
-			}
+		if (send_done(control_rep, &opts, tick.seq, (uint64_t) model->occupancy, &metrics) != 0) {
+			goto cleanup;
 		}
 	}
 
 	if (send_metric(metric_push, &opts, (uint64_t) model->occupancy, &metrics) != 0) {
-		goto fail;
+		goto cleanup;
 	}
 
-	nng_socket_close(metric_push);
-	if (opts.sync_mode != CHIPSIM_SYNC_PUBSUB_ONLY) {
-		nng_socket_close(done_push);
-	}
-	if (has_input) {
-		nng_socket_close(data_sub);
-	}
-	nng_socket_close(data_pub);
-	nng_socket_close(clock_sub);
-	delete model;
-	nng_fini();
-	return 0;
+	exit_code = 0;
 
-fail:
+cleanup:
+	if (data_thread_started) {
+		data_server_request_stop(&data_state);
+	}
+	if (nng_socket_id(data_req) > 0) {
+		nng_socket_close(data_req);
+	}
+	if (nng_socket_id(data_rep) > 0) {
+		nng_socket_close(data_rep);
+	}
+	if (data_thread_started) {
+		pthread_join(data_thread, NULL);
+	}
+	if (data_state_inited) {
+		data_server_destroy(&data_state);
+	}
 	if (nng_socket_id(metric_push) > 0) {
 		nng_socket_close(metric_push);
 	}
-	if (nng_socket_id(done_push) > 0) {
-		nng_socket_close(done_push);
-	}
-	if (nng_socket_id(data_sub) > 0) {
-		nng_socket_close(data_sub);
-	}
-	if (nng_socket_id(data_pub) > 0) {
-		nng_socket_close(data_pub);
-	}
-	if (nng_socket_id(clock_sub) > 0) {
-		nng_socket_close(clock_sub);
+	if (nng_socket_id(control_rep) > 0) {
+		nng_socket_close(control_rep);
 	}
 	if (model != NULL) {
 		delete model;
 	}
 	nng_fini();
-	return 1;
+	return exit_code;
 }

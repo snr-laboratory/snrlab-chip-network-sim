@@ -11,11 +11,9 @@
   },
   "runtime": {
     "ticks": 128,
-    "sync_mode": "barrier_ack",
     "chip_bin": "./build/chip_rtl",
     "fifo_depth": 32,
     "seed": 1,
-    "ack_window": 4,
     "startup_ms": 350,
     "ack_timeout_ms": 5000
   },

@@ -27,17 +27,17 @@ Benchmark report:
 ## Run
 Run directly with CLI:
 ```bash
-./build/orchestrator -rows 4 -cols 4 -ticks 200 -sync barrier_ack -route east -chip_bin ./build/chip
+./build/orchestrator -rows 4 -cols 4 -ticks 200 -route east -chip_bin ./build/chip
 ```
 
 Run with RTL backend:
 ```bash
-./build/orchestrator -rows 4 -cols 4 -ticks 200 -sync barrier_ack -route east -chip_bin ./build/chip_rtl
+./build/orchestrator -rows 4 -cols 4 -ticks 200 -route east -chip_bin ./build/chip_rtl
 ```
 
 Run from JSON config:
 ```bash
-python3 scripts/run_from_config.py -cfg config/network_2x2.json
+python3 scripts/run_from_config.py -cfg config/network_3x4_snake_to_top_left.json
 ```
 
 Run with explicit per-chip routing map:
@@ -47,16 +47,23 @@ python3 scripts/run_from_config.py -cfg config/network_2x2_custom_routes.json
 
 Single chip wrapper:
 ```bash
-python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8 -sync barrier_ack
+python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8
 ```
 
-## Sync Modes
-- `barrier_ack`: every tick waits for `DONE` from all chips
-- `windowed_ack`: waits every `ack_window` ticks
-- `pubsub_only`: no per-tick acknowledgements
+## Lock-Step Control (`TICK`, `STOP`, `DONE`)
+- There is one control protocol only: transactional `REQ/REP` lock-step.
+- Per simulation tick `seq`:
+  - orchestrator sends `TICK(seq)` to every chip control socket,
+  - each chip executes exactly one modeled tick and replies `DONE(seq)`,
+  - orchestrator verifies `chip_id` and `seq` for every reply before moving to the next tick.
+- Shutdown sequence:
+  - orchestrator sends `STOP(seq=ticks)` to every chip,
+  - each chip replies `DONE(seq=ticks)`,
+  - each chip pushes one final `METRIC` message.
 
 ## Current Scope
 - Runtime routing model is `1-in/1-out` per chip.
+- Inter-chip data transport is reliable pull/response per link (`REQ/REP`) with per-tick `seq` validation.
 - Routing config supports:
   - global direction via `runtime.route` (`east|west|south|north`)
   - explicit per-chip map via `routes: [{id, input_id, out_id, gen_ppm?}, ...]`

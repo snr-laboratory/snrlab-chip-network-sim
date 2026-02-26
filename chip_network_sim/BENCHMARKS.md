@@ -1,74 +1,66 @@
 # Benchmarks
 
-## 3x4 RTL Snake Benchmark (Sync Mode Comparison)
+## Post-migration Benchmarks (Reliable Inter-chip Data)
+Date: 2026-02-26
+
+These results were collected after inter-chip data moved to reliable per-link `REQ/REP` (`DATA_PULL`/`DATA_REPLY`).
+
+| Topology | Backend | Ticks | Tick loop sec | Cycles/sec | Tick send sec | Tick wait sec | Wait % | Ack barriers |
+|---------:|:-------:|------:|--------------:|-----------:|--------------:|--------------:|-------:|-------------:|
+| `2x2` custom routes | `build/chip_rtl` | 5000 | 0.932326 | 5362.934 | 0.160052 | 0.771901 | 82.79% | 5000 |
+| `2x2` custom routes | `build/chip` | 5000 | 0.786081 | 6360.670 | 0.160453 | 0.625263 | 79.54% | 5000 |
+| `3x4` snake to top-left | `build/chip_rtl` | 10000 | 3.335390 | 2998.150 | 1.232961 | 2.101491 | 63.01% | 10000 |
+| `3x4` snake to top-left | `build/chip` | 10000 | 3.281213 | 3047.654 | 1.234171 | 2.046102 | 62.36% | 10000 |
+| `3x4` snake to top-left | `build/chip_rtl` | 300000 | 84.342902 | 3556.909 | 37.857442 | 46.454093 | 55.08% | 300000 |
+
+Notes:
+- Long-run (`300k`) post-migration sustained throughput on `3x4` RTL is `3556.909` cycles/sec.
+- `chip` and `chip_rtl` backends are close on `3x4` (`~1.7%` difference at 10k ticks).
+- Wait time remains a major component (`55-63%` on `3x4`), showing synchronization/data-transaction overhead.
+
+## Historical Baseline (Pre Reliable Data Migration)
 Date: 2026-02-26
 Topology/config: `config/network_3x4_snake_to_top_left.json`
 Backend: `build/chip_rtl` (Verilated RTL FIFO)
-Workload: `300,000` ticks (10x longer than prior 30,000-tick run), identical routing and per-chip `gen_ppm`.
+Workload: `300,000` ticks, transactional control (`REQ/REP`) with old best-effort inter-chip `PUB/SUB` data path.
 
-### Results
-| Sync mode                       | Tick loop sec | Cycles/sec | Tick send sec | Tick wait sec | Wait % | Ack barriers | Local generated |  Drops | FIFO peak |
-|---------------------------------|--------------:|-----------:|--------------:|--------------:|-------:|-------------:|----------------:|-------:|----------:|
-| `barrier_ack`                   |     73.880528 |   4060.610 |     46.585271 |     27.262118 | 36.90% |       300000 |          429648 | 128494 |        32 |
-| `windowed_ack` (`ack_window=8`) |     43.610595 |   6879.062 |     25.818285 |     17.771133 | 40.75% |        37500 |          429648 | 127773 |        32 |
-| `pubsub_only`                   |     24.831436 |  12081.460 |     24.814768 |      0.000000 |  0.00% |            0 |          288836 |  84191 |        32 |
+| Tick loop sec | Cycles/sec | Tick send sec | Tick wait sec | Wait % | Ack barriers | Local generated | Drops | FIFO peak |
+|--------------:|-----------:|--------------:|--------------:|-------:|-------------:|----------------:|------:|----------:|
+|     64.153528 |   4676.282 |     47.898604 |     16.223025 | 25.29% |       300000 |          429648 | 128303 |        32 |
 
-### Derived comparisons
-- `windowed_ack` vs `barrier_ack`: `+69.4%` cycles/sec.
-- `pubsub_only` vs `barrier_ack`: `+197.5%` cycles/sec.
-- `pubsub_only` vs `windowed_ack`: `+75.6%` cycles/sec.
-
-### Findings
-1. Global per-tick barrier synchronization is the main throughput limiter for deterministic lockstep.
-2. Windowed barriers preserve most synchronization guarantees while significantly reducing orchestration cost.
-3. `pubsub_only` is fastest, but it is not behaviorally equivalent: fewer ticks are effectively processed by chips (`local generated` drops from `429,648` to `288,836`), so it trades correctness/fidelity for speed.
-4. FIFO saturation remains high across modes (`fifo_peak=32` in all runs), indicating workload pressure is sufficient to exercise drop behavior.
-
-### Notes
-- `cycles/sec` is measured inside orchestrator as `ticks / tick_loop_sec`.
-- External timing (`/usr/bin/time`) was also captured per run and was consistent with internal instrumentation.
-
-## Reproduce
+## Reproduce (Current Reliable Data Path)
 1. Build binaries:
 ```bash
 cmake -S . -B build
 cmake --build build -j
 ```
 
-2. Generate 300k-tick benchmark configs from the base `3x4` snake config:
+2. Run measured configs:
+```bash
+python3 scripts/run_from_config.py -cfg /tmp/bench_post_2x2_rtl_5000.json
+python3 scripts/run_from_config.py -cfg /tmp/bench_post_2x2_sw_5000.json
+python3 scripts/run_from_config.py -cfg /tmp/bench_post_3x4_rtl_10000.json
+python3 scripts/run_from_config.py -cfg /tmp/bench_post_3x4_sw_10000.json
+python3 scripts/run_from_config.py -cfg /tmp/bench_post_3x4_rtl_300k.json
+```
+
+3. Example config generation:
 ```bash
 python3 - <<'PY'
 import json
 from pathlib import Path
 
-src = Path("config/network_3x4_snake_to_top_left.json")
-base = json.loads(src.read_text())
-base["runtime"]["ticks"] = 300000
-base["runtime"]["chip_bin"] = "./build/chip_rtl"
-
-targets = [
-    ("barrier_ack", 4, Path("/tmp/network_3x4_bench10x_barrier_ack.json")),
-    ("windowed_ack", 8, Path("/tmp/network_3x4_bench10x_windowed_ack.json")),
-    ("pubsub_only", 4, Path("/tmp/network_3x4_bench10x_pubsub_only.json")),
-]
-
-for mode, win, dst in targets:
-    cfg = json.loads(json.dumps(base))
-    cfg["runtime"]["sync_mode"] = mode
-    cfg["runtime"]["ack_window"] = win
-    dst.write_text(json.dumps(cfg, indent=2) + "\n")
+def emit(src, dst, ticks, chip_bin):
+    cfg = json.loads(Path(src).read_text())
+    cfg["runtime"]["ticks"] = ticks
+    cfg["runtime"]["chip_bin"] = chip_bin
+    Path(dst).write_text(json.dumps(cfg, indent=2) + "\\n")
     print(dst)
+
+emit("config/network_2x2_custom_routes.json", "/tmp/bench_post_2x2_rtl_5000.json", 5000, "./build/chip_rtl")
+emit("config/network_2x2_custom_routes.json", "/tmp/bench_post_2x2_sw_5000.json", 5000, "./build/chip")
+emit("config/network_3x4_snake_to_top_left.json", "/tmp/bench_post_3x4_rtl_10000.json", 10000, "./build/chip_rtl")
+emit("config/network_3x4_snake_to_top_left.json", "/tmp/bench_post_3x4_sw_10000.json", 10000, "./build/chip")
+emit("config/network_3x4_snake_to_top_left.json", "/tmp/bench_post_3x4_rtl_300k.json", 300000, "./build/chip_rtl")
 PY
-```
-
-3. Run the three benchmark modes:
-```bash
-/usr/bin/time -f "ELAPSED_SEC=%e USER_SEC=%U SYS_SEC=%S CPU_PCT=%P MAXRSS_KB=%M" \
-  python3 scripts/run_from_config.py -cfg /tmp/network_3x4_bench10x_barrier_ack.json
-
-/usr/bin/time -f "ELAPSED_SEC=%e USER_SEC=%U SYS_SEC=%S CPU_PCT=%P MAXRSS_KB=%M" \
-  python3 scripts/run_from_config.py -cfg /tmp/network_3x4_bench10x_windowed_ack.json
-
-/usr/bin/time -f "ELAPSED_SEC=%e USER_SEC=%U SYS_SEC=%S CPU_PCT=%P MAXRSS_KB=%M" \
-  python3 scripts/run_from_config.py -cfg /tmp/network_3x4_bench10x_pubsub_only.json
 ```

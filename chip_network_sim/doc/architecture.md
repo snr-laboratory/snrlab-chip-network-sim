@@ -10,7 +10,7 @@
 The simulation supports:
 - software FIFO backend (`build/chip`),
 - RTL FIFO backend via Verilator (`build/chip_rtl`),
-- orchestrated lockstep and non-lockstep run modes.
+- orchestrated transactional lock-step control.
 
 ## 2. Repository Structure
 ```text
@@ -20,7 +20,7 @@ chip_network_sim/
     chip.c             # Software FIFO chip runtime
     chip_rtl.cpp       # Verilated RTL chip runtime
     fifo.c             # Software FIFO implementation
-    protocol.c         # Sync-mode parsing helpers
+    protocol.c         # Protocol translation unit (message structs in protocol.h)
   include/chipsim/
     protocol.h         # Packet/control message structs
     fifo.h             # FIFO API
@@ -49,21 +49,22 @@ flowchart LR
       CN["chip_n_1"]
     end
 
-    O -- "clock PUB TICK/STOP" --> C0
-    O -- "clock PUB TICK/STOP" --> C1
-    O -- "clock PUB TICK/STOP" --> CN
+    O -- "control REQ TICK/STOP" --> C0
+    O -- "control REQ TICK/STOP" --> C1
+    O -- "control REQ TICK/STOP" --> CN
 
-    C0 -- "done PUSH DONE" --> O
-    C1 -- "done PUSH DONE" --> O
-    CN -- "done PUSH DONE" --> O
+    C0 -- "control REP DONE" --> O
+    C1 -- "control REP DONE" --> O
+    CN -- "control REP DONE" --> O
 
     C0 -- "metric PUSH METRIC" --> O
     C1 -- "metric PUSH METRIC" --> O
     CN -- "metric PUSH METRIC" --> O
 
-    C0 -- "data PUB packet" --> C1
-    C1 -- "data PUB packet" --> CN
-    CN -- "data PUB packet" --> C0
+    C1 -- "REQ DATA_PULL(seq)" --> C0
+    C0 -- "REP DATA_REPLY(seq)" --> C1
+    CN -- "REQ DATA_PULL(seq)" --> C1
+    C1 -- "REP DATA_REPLY(seq)" --> CN
 ```
 
 ## 4. Build and Backend Model
@@ -76,14 +77,14 @@ flowchart LR
 - `chip_rtl` drives RTL signals per tick and exchanges data/control over `nng`.
 
 ### 4.3 Common transport
-- Clock channel: orchestrator `PUB` -> chips `SUB`.
-- Data channel: per-chip `PUB`/`SUB` sockets.
-- Done/metric channels: chips `PUSH` -> orchestrator `PULL`.
+- Control channel: orchestrator `REQ` -> per-chip `REP` (`TICK/STOP` request, `DONE` response).
+- Data channel: per-link `REQ`/`REP` pull (`DATA_PULL(seq)` -> `DATA_REPLY(seq)`).
+- Metric channel: chips `PUSH` -> orchestrator `PULL`.
 
 ## 5. Configuration Model
 Primary JSON fields:
 - `grid.rows`, `grid.cols`
-- `runtime`: `ticks`, `sync_mode`, `ack_window`, `fifo_depth`, `seed`, `chip_bin`
+- `runtime`: `ticks`, `fifo_depth`, `seed`, `chip_bin`, `startup_ms`, `ack_timeout_ms`
 - `traffic.gen_ppm`: global default generation rate
 - `routes[]`: explicit per-chip wiring and optional per-chip generation override
 
@@ -121,6 +122,8 @@ Defined in `include/chipsim/protocol.h`.
 | `chipsim_tick_msg_t` | `CHIPSIM_MSG_STOP=2` | orchestrator | all chips | End run and flush final metrics |
 | `chipsim_done_msg_t` | `CHIPSIM_MSG_DONE=3` | chip | orchestrator | Barrier acknowledgement and counters |
 | `chipsim_metric_msg_t` | `CHIPSIM_MSG_METRIC=4` | chip | orchestrator | End-of-run metrics |
+| `chipsim_data_pull_msg_t` | `CHIPSIM_MSG_DATA_PULL=5` | downstream chip | upstream chip | Request packet for tick `seq` |
+| `chipsim_data_reply_msg_t` | `CHIPSIM_MSG_DATA_REPLY=6` | upstream chip | downstream chip | Reply with `has_packet` and packet payload |
 
 Packet payload (`chipsim_packet_t`):
 - `src_id`, `timestamp`, `payload`, `seq_local`.
@@ -133,22 +136,23 @@ sequenceDiagram
     participant C1 as chip_1
     participant CN as chip_n_1
 
-    O->>C0: TICK seq
-    O->>C1: TICK seq
-    O->>CN: TICK seq
-    Note over C0,CN: Each chip executes one step
+    O->>C0: REQ TICK seq
+    C0-->>O: REP DONE seq
+    O->>C1: REQ TICK seq
+    C1-->>O: REP DONE seq
+    O->>CN: REQ TICK seq
+    CN-->>O: REP DONE seq
+    Note over O,CN: Repeat for each simulation tick
 
-    C0-->>O: DONE seq (barrier points only)
-    C1-->>O: DONE seq (barrier points only)
-    CN-->>O: DONE seq (barrier points only)
-    Note over O: pubsub_only skips DONE barriers
-
-    O->>C0: STOP
-    O->>C1: STOP
-    O->>CN: STOP
-    C0-->>O: METRIC
-    C1-->>O: METRIC
-    CN-->>O: METRIC
+    O->>C0: REQ STOP seq
+    C0-->>O: REP DONE seq
+    O->>C1: REQ STOP seq
+    C1-->>O: REP DONE seq
+    O->>CN: REQ STOP seq
+    CN-->>O: REP DONE seq
+    C0-->>O: PUSH METRIC
+    C1-->>O: PUSH METRIC
+    CN-->>O: PUSH METRIC
 ```
 
 ### 7.2 Data Message Passing
@@ -158,77 +162,139 @@ sequenceDiagram
     participant DN as downstream_chip
     participant F as local_fifo
 
-    Note over UP,DN: UP publishes packet to DN
-    UP-->>DN: packet src_id timestamp payload seq_local
+    DN->>UP: REQ DATA_PULL(seq)
+    UP-->>DN: REP DATA_REPLY(seq, has_packet, packet?)
 
     Note over DN: DN may also generate a local packet
     DN->>F: enqueue(local) if generated
-    DN->>F: enqueue(neighbor) if received
+    DN->>F: enqueue(neighbor) if reply has packet
     Note over F: Local has strict priority when both exist
-    F-->>DN: dequeue one packet per tick
-    DN-->>UP: publish to next downstream topic
+    F-->>DN: dequeue one packet for next tick service
 ```
+
+### 7.3 Inter-chip Reliable Data Implementation Notes (Annotated)
+Data transport uses `nng` `REQ/REP` per link:
+- each chip with `out_id >= 0` listens on one data `REP` endpoint (`my_data_url`);
+- each chip with `input_id >= 0` dials upstream with one data `REQ` socket (`input_data_url`).
+
+Message layout (`include/chipsim/protocol.h`):
+```c
+typedef struct {
+    uint8_t  type;         // CHIPSIM_MSG_DATA_PULL
+    uint32_t requester_id; // downstream chip id
+    uint64_t seq;          // requested tick
+} chipsim_data_pull_msg_t;
+
+typedef struct {
+    uint8_t          type;         // CHIPSIM_MSG_DATA_REPLY
+    uint8_t          has_packet;   // 1 => packet valid
+    uint32_t         responder_id; // upstream chip id
+    uint64_t         seq;          // reply tick
+    chipsim_packet_t packet;       // valid iff has_packet == 1
+} chipsim_data_reply_msg_t;
+```
+
+Endpoint binding and dial logic (`src/chip.c`, same pattern in `src/chip_rtl.cpp`):
+```c
+// Upstream service endpoint.
+nng_rep0_open(&data_rep);
+nng_listen(data_rep, my_data_url, NULL, 0);
+
+// Downstream pull client.
+nng_req0_open(&data_req);
+nng_dial(data_req, input_data_url, NULL, NNG_FLAG_NONBLOCK);
+```
+Notes:
+- `my_data_url` is built from `data_prefix` + `id` (or `printf` `%d` pattern).
+- `input_data_url` is built from `data_prefix` + `input_id`.
+- request path uses timeout and `seq`/peer-id validation in each tick.
+- one service thread handles inbound `DATA_PULL` requests while the main simulation thread runs the tick loop.
+
+Per-tick data path in software chip (`src/chip.c`):
+```c
+// 1) Pop one packet and publish it into local service state for this seq.
+have_out = chipsim_fifo_pop(&fifo, &out_packet) > 0;
+data_server_publish(&data_state, tick.seq, have_out, have_out ? &out_packet : NULL);
+
+// 2) Pull exactly one packet from upstream for this seq.
+if (has_input) {
+    pull_from_upstream(data_req, &opts, tick.seq, &neighbor_packet, &have_neighbor);
+}
+```
+Notes:
+- Current model is single-rate per link: one pull/reply opportunity per tick.
+- Local generation and upstream ingress contend for FIFO; local ingress is pushed first by design.
+
+Per-tick data path in RTL chip (`src/chip_rtl.cpp`):
+```c
+// 1) Sample current RTL output and publish as this seq service state.
+emit_valid = (model->out_valid != 0);
+if (emit_valid) { out_packet = unpack_packet(model->out_data); }
+data_server_publish(&data_state, tick.seq, emit_valid, emit_valid ? &out_packet : NULL);
+
+// 2) Pull neighbor packet for this seq and drive neigh_* inputs.
+pull_from_upstream(data_req, &opts, tick.seq, &neighbor_packet, &have_neighbor);
+```
+Notes:
+- `emit_valid/emit_word` are sampled before `tick_model` and served under current `seq`.
+- This mirrors cycle-based RTL behavior while keeping the same network contract as software chip.
 
 ## 8. Tick Execution Semantics
-## 8.1 Orchestrator loop (`src/orchestrator.c`)
-Per tick:
-1. Build and send `TICK(seq)`.
-2. If sync mode requires barrier at this tick:
-   - wait for all chips to return `DONE(seq)`.
-3. Repeat until `ticks` reached.
-4. Send one `STOP`.
-5. Collect one `METRIC` from each chip.
+## 8.1 Exact lock-step control (`src/orchestrator.c`)
+For each `seq` in `0..ticks-1`:
+1. Build control message `TICK(seq)`.
+2. Send `REQ TICK(seq)` to every chip control socket.
+3. Receive one `REP DONE(seq)` from every chip.
+4. Validate each reply:
+   - `type == CHIPSIM_MSG_DONE`,
+   - `chip_id` matches the expected chip index,
+   - `seq` equals the current tick.
+5. Advance to `seq + 1` only when all chips replied with valid `DONE(seq)`.
 
-## 8.2 Software chip loop (`src/chip.c`)
+Stop phase:
+1. Send `REQ STOP(seq=ticks)` to every chip.
+2. Receive and validate one `REP DONE(seq=ticks)` from every chip.
+3. Collect one final `METRIC` message from every chip.
+
+## 8.2 Orchestrator Threading and Internal Structure
+- Application-level threading model: single-threaded.
+- `src/orchestrator.c` does not create worker threads (`pthread`/`std::thread` are not used).
+- Concurrency comes from child processes (`fork` + `exec`) and socket I/O to all chip processes.
+- `nng` may use internal transport threads, but orchestration logic itself runs on one main control loop.
+
+Main phases in one orchestrator process:
+1. Parse CLI/config-expanded args.
+2. Build route/gen maps and endpoint URLs.
+3. Launch `rows * cols` chip processes.
+4. Open one control `REQ` socket per chip and one metric `PULL` socket.
+5. Execute lock-step tick loop (`TICK` fanout, `DONE` gather/validate).
+6. Execute stop barrier (`STOP` fanout, `DONE` gather/validate).
+7. Collect final `METRIC` messages, wait child exits, print benchmark totals.
+
+## 8.3 Software chip loop (`src/chip.c`)
 Per tick:
-1. Receive `TICK`.
-2. Nonblocking receive neighbor packet (if configured).
-3. Generate local packet probabilistically using `gen_ppm`.
-4. Pop one packet from FIFO for output publication.
+1. Receive control `REQ TICK`.
+2. Pop one packet from FIFO and publish it to data service state for current `seq`.
+3. Pull neighbor packet with `REQ DATA_PULL(seq)` (if configured).
+4. Generate local packet probabilistically using `gen_ppm`.
 5. Enqueue local first, then neighbor packet.
-6. Emit `DONE` when required by sync mode.
+6. Reply `REP DONE` for that tick.
 
-## 8.3 RTL chip loop (`src/chip_rtl.cpp`)
+## 8.4 RTL chip loop (`src/chip_rtl.cpp`)
 Per tick:
-1. Receive `TICK`.
-2. Gather neighbor and local packet candidates.
-3. Sample current `out_valid/out_data` from RTL.
-4. Drive `local_valid/local_data`, `neigh_valid/neigh_data`, `out_ready=1`.
+1. Receive control `REQ TICK`.
+2. Sample current `out_valid/out_data` from RTL and publish into data service state.
+3. Pull neighbor packet with `REQ DATA_PULL(seq)` and build `neigh_data`.
+4. Build local packet candidate and drive `local_valid/local_data`, `neigh_valid/neigh_data`, `out_ready=1`.
 5. Tick Verilator model.
-6. Publish sampled output packet.
-7. Read `drop_local/drop_neigh/occupancy`; update metrics.
-8. Emit `DONE` when required by sync mode.
+6. Read `drop_local/drop_neigh/occupancy`; update metrics.
+7. Reply `REP DONE` for that tick.
 
-## 9. Sync Modes and Timing Behavior
-## 9.1 `barrier_ack`
-- Strict lockstep: wait for all chips every tick.
-
-```text
-Orchestrator:  TICK(100) ---> chips
-Chips:         work tick 100
-Chips:         DONE(100) ---> orchestrator (all chips)
-Orchestrator:  TICK(101) only after all DONE(100)
-```
-
-## 9.2 `windowed_ack`
-- Lockstep at every `ack_window` boundary.
-- Example `ack_window=8`: wait on ticks 7, 15, 23, ...
-
-```text
-Ticks 0..6:  fire-and-forget TICK
-Tick 7:      wait for DONE(7) from all chips
-Ticks 8..14: fire-and-forget TICK
-Tick 15:     wait for DONE(15) from all chips
-```
-
-## 9.3 `pubsub_only`
-- No DONE barrier.
-- Highest throughput, weakest synchronization fidelity.
-
-```text
-Orchestrator: TICK(0), TICK(1), ... continuously
-Chips: consume at own pace
-```
+## 9. Lock-Step Guarantees and Failure Behavior
+- There is no runtime-selectable sync mode. Control always uses transactional lock-step.
+- A chip cannot execute tick `N+1` until orchestrator has completed the `TICK(N)` transaction.
+- If any `TICK` send, `DONE` receive, or `DONE` validation fails, orchestrator aborts the run.
+- `ack_timeout_ms` bounds per-message wait time for control and metric channels.
 
 ## 10. FIFO Behavior
 ### 10.1 Software FIFO (`src/fifo.c`)
@@ -251,19 +317,22 @@ Orchestrator timing instrumentation:
 
 This is printed at end of each run and used by `BENCHMARKS.md`.
 
-## 12. 300k-Tick Performance Snapshot (RTL, 3x4 snake)
+## 12. Performance Snapshot
 From `BENCHMARKS.md`:
 
-| Mode | Cycles/sec | Drops | Local generated | Note |
-|---|---:|---:|---:|---|
-| `barrier_ack` | 4060.610 | 128494 | 429648 | Strictest synchronization |
-| `windowed_ack` | 6879.062 | 127773 | 429648 | Better throughput with periodic barrier |
-| `pubsub_only` | 12081.460 | 84191 | 288836 | Fastest, but not behaviorally equivalent |
+| Topology | Backend | Ticks | Tick loop sec | Cycles/sec | Tick wait sec | Wait % |
+|---|---|---:|---:|---:|---:|---:|
+| `2x2` custom routes | `chip_rtl` | 5000 | 0.932326 | 5362.934 | 0.771901 | 82.79% |
+| `2x2` custom routes | `chip` | 5000 | 0.786081 | 6360.670 | 0.625263 | 79.54% |
+| `3x4` snake to top-left | `chip_rtl` | 10000 | 3.335390 | 2998.150 | 2.101491 | 63.01% |
+| `3x4` snake to top-left | `chip` | 10000 | 3.281213 | 3047.654 | 2.046102 | 62.36% |
+| `3x4` snake to top-left | `chip_rtl` | 300000 | 84.342902 | 3556.909 | 46.454093 | 55.08% |
 
 Interpretation:
-- Global per-tick orchestration is a major cost center.
-- Windowed barriers offer a pragmatic fidelity/performance compromise.
-- `pubsub_only` reduces orchestration cost but changes effective simulation behavior.
+- `ack_barriers == ticks` confirms strict per-tick lock-step.
+- throughput scales down with topology size as data-transaction and lock-step overhead grow.
+- `chip` and `chip_rtl` are close on `3x4` at 10k ticks.
+- see `BENCHMARKS.md` for historical pre-migration 300k baseline.
 
 ## 13. Documentation Build Commands
 From `doc/`:

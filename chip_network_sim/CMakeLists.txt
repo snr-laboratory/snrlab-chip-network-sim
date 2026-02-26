@@ -4,6 +4,7 @@ project(chip_network_sim C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
+find_package(Threads REQUIRED)
 
 if(NOT EXISTS "${CMAKE_SOURCE_DIR}/nng/include/nng/nng.h")
   message(FATAL_ERROR "Expected nng headers at nng/include/nng/nng.h.")
@@ -29,7 +30,7 @@ set_target_properties(chipsim_common PROPERTIES
 )
 
 add_executable(chip src/chip.c)
-target_link_libraries(chip PRIVATE chipsim_common)
+target_link_libraries(chip PRIVATE chipsim_common Threads::Threads)
 
 add_executable(orchestrator src/orchestrator.c)
 target_link_libraries(orchestrator PRIVATE chipsim_common)
@@ -62,8 +63,8 @@ if(VERILATOR_BIN)
       --top-module chip_fifo_router
       --prefix Vchip_fifo_router
       --Mdir "${CHIPSIM_RTL_MDIR}"
-      -CFLAGS "-I${CMAKE_SOURCE_DIR}/include -I${CMAKE_SOURCE_DIR}/nng/include -std=c++17"
-      -LDFLAGS "-L${CMAKE_SOURCE_DIR}/nng/build -lnng -Wl,-rpath,${CMAKE_SOURCE_DIR}/nng/build"
+      -CFLAGS "-I${CMAKE_SOURCE_DIR}/include -I${CMAKE_SOURCE_DIR}/nng/include -std=c++17 -pthread"
+      -LDFLAGS "-L${CMAKE_SOURCE_DIR}/nng/build -lnng -pthread -Wl,-rpath,${CMAKE_SOURCE_DIR}/nng/build"
       "${CMAKE_SOURCE_DIR}/rtl/chip_fifo_router.sv"
       "${CMAKE_SOURCE_DIR}/src/chip_rtl.cpp"
       -o chip_rtl

@@ -43,8 +43,6 @@ typedef struct {
 	uint32_t            seed;
 	int                 startup_ms;
 	int                 ack_timeout_ms;
-	int                 ack_window;
-	chipsim_sync_mode_t sync_mode;
 	route_mode_t        route_mode;
 	const char         *chip_bin;
 	const char         *base_uri;
@@ -68,8 +66,7 @@ static void
 usage(const char *prog)
 {
 	fprintf(stderr,
-	    "Usage: %s -rows <R> -cols <C> -ticks <N> "
-	    "[-sync barrier_ack|pubsub_only|windowed_ack] [options]\n"
+	    "Usage: %s -rows <R> -cols <C> -ticks <N> [options]\n"
 	    "Options:\n"
 	    "  -route <east|west|south|north>  static output direction (default east)\n"
 	    "  -chip_route <id:input:out>      per-chip explicit route (repeat for every chip)\n"
@@ -77,7 +74,6 @@ usage(const char *prog)
 	    "  -fifo_depth <N>                 FIFO depth per chip (default 32)\n"
 	    "  -gen_ppm <N>                    local generation rate in ppm (default 100000)\n"
 	    "  -seed <N>                       base seed (default 1)\n"
-	    "  -ack_window <N>                 window for windowed_ack (default 4)\n"
 	    "  -startup_ms <N>                 wait before first tick (default 350)\n"
 	    "  -ack_timeout_ms <N>             timeout waiting for ACK/METRIC (default 5000)\n"
 	    "  -chip_bin <path>                chip executable (default ./chip)\n"
@@ -271,8 +267,6 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 	opts->seed          = 1u;
 	opts->startup_ms    = 350;
 	opts->ack_timeout_ms = 5000;
-	opts->ack_window    = 4;
-	opts->sync_mode     = CHIPSIM_SYNC_BARRIER_ACK;
 	opts->route_mode    = ROUTE_EAST;
 	opts->chip_bin      = "./chip";
 	opts->base_uri      = NULL;
@@ -294,10 +288,6 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 			}
 		} else if (strcmp(argv[i], "-ticks") == 0 && i + 1 < argc) {
 			if (parse_u64(argv[++i], &opts->ticks) != 0 || opts->ticks == 0) {
-				return -1;
-			}
-		} else if (strcmp(argv[i], "-sync") == 0 && i + 1 < argc) {
-			if (chipsim_parse_sync_mode(argv[++i], &opts->sync_mode) != 0) {
 				return -1;
 			}
 		} else if (strcmp(argv[i], "-route") == 0 && i + 1 < argc) {
@@ -339,10 +329,6 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 			}
 		} else if (strcmp(argv[i], "-ack_timeout_ms") == 0 && i + 1 < argc) {
 			if (parse_int(argv[++i], &opts->ack_timeout_ms) != 0 || opts->ack_timeout_ms <= 0) {
-				return -1;
-			}
-		} else if (strcmp(argv[i], "-ack_window") == 0 && i + 1 < argc) {
-			if (parse_int(argv[++i], &opts->ack_window) != 0 || opts->ack_window <= 0) {
 				return -1;
 			}
 		} else if (strcmp(argv[i], "-chip_bin") == 0 && i + 1 < argc) {
@@ -415,9 +401,9 @@ is_neighbor(int rows, int cols, int a, int b)
 }
 
 static int
-build_endpoints(const orchestrator_options_t *opts, char *clock_url, size_t clock_len,
-    char *done_url, size_t done_len, char *metric_url, size_t metric_len, char *data_prefix,
-    size_t data_prefix_len, int *data_port_base)
+build_endpoints(const orchestrator_options_t *opts, char *control_prefix, size_t control_prefix_len,
+    char *metric_url, size_t metric_len, char *data_prefix, size_t data_prefix_len,
+    int *control_port_base, int *data_port_base)
 {
 	int        base_port = 0;
 	int        n;
@@ -441,12 +427,8 @@ build_endpoints(const orchestrator_options_t *opts, char *clock_url, size_t cloc
 		return -1;
 	}
 
-	n = snprintf(clock_url, clock_len, "tcp://127.0.0.1:%d", base_port);
-	if (n < 0 || (size_t) n >= clock_len) {
-		return -1;
-	}
-	n = snprintf(done_url, done_len, "tcp://127.0.0.1:%d", base_port + 1);
-	if (n < 0 || (size_t) n >= done_len) {
+	n = snprintf(control_prefix, control_prefix_len, "tcp://127.0.0.1:%%d");
+	if (n < 0 || (size_t) n >= control_prefix_len) {
 		return -1;
 	}
 	n = snprintf(metric_url, metric_len, "tcp://127.0.0.1:%d", base_port + 2);
@@ -457,9 +439,30 @@ build_endpoints(const orchestrator_options_t *opts, char *clock_url, size_t cloc
 	if (n < 0 || (size_t) n >= data_prefix_len) {
 		return -1;
 	}
+	*control_port_base = base_port + 10;
+	if (*control_port_base + (opts->rows * opts->cols) >= 65535) {
+		fprintf(stderr, "control port range exhausted for requested topology\n");
+		return -1;
+	}
 	*data_port_base = base_port + 100;
 	if (*data_port_base + (opts->rows * opts->cols) >= 65535) {
 		fprintf(stderr, "port range exhausted for requested topology\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int
+build_endpoint_url(char *dst, size_t dst_len, const char *prefix, int id, int port_base)
+{
+	int n;
+
+	if (strstr(prefix, "%d") != NULL) {
+		n = snprintf(dst, dst_len, prefix, port_base + id);
+	} else {
+		n = snprintf(dst, dst_len, "%s%d", prefix, id);
+	}
+	if (n < 0 || (size_t) n >= dst_len) {
 		return -1;
 	}
 	return 0;
@@ -593,24 +596,24 @@ build_routes(const orchestrator_options_t *opts, int *input_ids, int *out_ids)
 }
 
 static int
-launch_chip(const orchestrator_options_t *opts, const char *clock_url, const char *done_url,
-    const char *metric_url, const char *data_prefix, int data_port_base, int chip_id, int input_id,
-    int out_id, int chip_gen_ppm, pid_t *child_pid)
+launch_chip(const orchestrator_options_t *opts, const char *control_url, const char *metric_url,
+    const char *data_prefix, int data_port_base, int chip_id, int input_id, int out_id,
+    int chip_gen_ppm, pid_t *child_pid)
 {
 	pid_t pid;
-	char  id_s[32], input_s[32], out_s[32], ack_s[32], fifo_s[32], gen_s[32], seed_s[32],
-	    data_port_base_s[32];
+	char  id_s[32], input_s[32], out_s[32], fifo_s[32], gen_s[32], seed_s[32], data_port_base_s[32];
+	char  data_timeout_s[32];
 	char *argv_exec[32];
 	int   idx = 0;
 
 	snprintf(id_s, sizeof(id_s), "%d", chip_id);
 	snprintf(input_s, sizeof(input_s), "%d", input_id);
 	snprintf(out_s, sizeof(out_s), "%d", out_id);
-	snprintf(ack_s, sizeof(ack_s), "%d", opts->ack_window);
 	snprintf(fifo_s, sizeof(fifo_s), "%d", opts->fifo_depth);
 	snprintf(gen_s, sizeof(gen_s), "%d", chip_gen_ppm);
 	snprintf(seed_s, sizeof(seed_s), "%u", (unsigned) (opts->seed + (uint32_t) chip_id));
 	snprintf(data_port_base_s, sizeof(data_port_base_s), "%d", data_port_base);
+	snprintf(data_timeout_s, sizeof(data_timeout_s), "%d", opts->ack_timeout_ms);
 
 	argv_exec[idx++] = (char *) opts->chip_bin;
 	argv_exec[idx++] = "-id";
@@ -619,10 +622,6 @@ launch_chip(const orchestrator_options_t *opts, const char *clock_url, const cha
 	argv_exec[idx++] = input_s;
 	argv_exec[idx++] = "-out";
 	argv_exec[idx++] = out_s;
-	argv_exec[idx++] = "-sync";
-	argv_exec[idx++] = (char *) chipsim_sync_mode_name(opts->sync_mode);
-	argv_exec[idx++] = "-ack_window";
-	argv_exec[idx++] = ack_s;
 	argv_exec[idx++] = "-fifo_depth";
 	argv_exec[idx++] = fifo_s;
 	argv_exec[idx++] = "-gen_ppm";
@@ -630,15 +629,15 @@ launch_chip(const orchestrator_options_t *opts, const char *clock_url, const cha
 	argv_exec[idx++] = "-seed";
 	argv_exec[idx++] = seed_s;
 	argv_exec[idx++] = "-clock_url";
-	argv_exec[idx++] = (char *) clock_url;
-	argv_exec[idx++] = "-done_url";
-	argv_exec[idx++] = (char *) done_url;
+	argv_exec[idx++] = (char *) control_url;
 	argv_exec[idx++] = "-metric_url";
 	argv_exec[idx++] = (char *) metric_url;
 	argv_exec[idx++] = "-data_prefix";
 	argv_exec[idx++] = (char *) data_prefix;
 	argv_exec[idx++] = "-data_port_base";
 	argv_exec[idx++] = data_port_base_s;
+	argv_exec[idx++] = "-data_timeout_ms";
+	argv_exec[idx++] = data_timeout_s;
 	argv_exec[idx++] = NULL;
 
 	pid = fork();
@@ -669,51 +668,35 @@ terminate_children(pid_t *pids, int count)
 }
 
 static int
-wait_done_for_seq(nng_socket done_pull, int chip_count, uint64_t expected_seq, chipsim_done_msg_t *latest)
+recv_done_response(
+    nng_socket control_req, int expected_chip_id, uint64_t expected_seq, chipsim_done_msg_t *out)
 {
-	bool *seen;
-	int   received = 0;
+	chipsim_done_msg_t msg;
+	size_t             msg_sz = sizeof(msg);
+	int                rv;
 
-	seen = calloc((size_t) chip_count, sizeof(bool));
-	if (seen == NULL) {
+	rv = nng_recv(control_req, &msg, &msg_sz, 0);
+	if (rv != 0) {
+		fprintf(stderr, "orchestrator recv(DONE) failed: %s\n", nng_strerror(rv));
 		return -1;
 	}
-
-	while (received < chip_count) {
-		chipsim_done_msg_t msg;
-		size_t             msg_sz = sizeof(msg);
-		int                rv     = nng_recv(done_pull, &msg, &msg_sz, 0);
-		if (rv != 0) {
-			fprintf(stderr, "orchestrator recv(DONE) failed: %s\n", nng_strerror(rv));
-			free(seen);
-			return -1;
-		}
-		if (msg_sz != sizeof(msg) || msg.type != CHIPSIM_MSG_DONE) {
-			continue;
-		}
-		if (msg.seq < expected_seq) {
-			continue;
-		}
-		if (msg.seq > expected_seq) {
-			fprintf(stderr, "orchestrator received DONE future seq=%" PRIu64 " expected=%" PRIu64
-			                "\n",
-			    msg.seq, expected_seq);
-			free(seen);
-			return -1;
-		}
-		if (msg.chip_id >= (uint32_t) chip_count) {
-			fprintf(stderr, "orchestrator received DONE with invalid chip_id=%u\n", msg.chip_id);
-			free(seen);
-			return -1;
-		}
-		if (!seen[msg.chip_id]) {
-			seen[msg.chip_id] = true;
-			received++;
-		}
-		latest[msg.chip_id] = msg;
+	if (msg_sz != sizeof(msg) || msg.type != CHIPSIM_MSG_DONE) {
+		fprintf(stderr, "orchestrator received malformed DONE response\n");
+		return -1;
 	}
-
-	free(seen);
+	if (msg.seq != expected_seq) {
+		fprintf(stderr, "orchestrator received DONE seq=%" PRIu64 " expected=%" PRIu64 "\n", msg.seq,
+		    expected_seq);
+		return -1;
+	}
+	if (msg.chip_id != (uint32_t) expected_chip_id) {
+		fprintf(stderr, "orchestrator received DONE chip_id=%u expected=%d\n", msg.chip_id,
+		    expected_chip_id);
+		return -1;
+	}
+	if (out != NULL) {
+		*out = msg;
+	}
 	return 0;
 }
 
@@ -763,15 +746,13 @@ main(int argc, char **argv)
 	int                   *out_ids     = NULL;
 	int                   *chip_gen_ppm = NULL;
 	pid_t                 *child_pids  = NULL;
-	chipsim_done_msg_t    *done_latest = NULL;
 	chipsim_metric_msg_t  *metric_all  = NULL;
-	nng_socket             clock_pub   = NNG_SOCKET_INITIALIZER;
-	nng_socket             done_pull   = NNG_SOCKET_INITIALIZER;
+	nng_socket            *control_reqs = NULL;
 	nng_socket             metric_pull = NNG_SOCKET_INITIALIZER;
-	char                   clock_url[256];
-	char                   done_url[256];
+	char                   control_prefix[256];
 	char                   metric_url[256];
 	char                   data_prefix[256];
+	int                    control_port_base = 0;
 	int                    data_port_base = 0;
 	int                    rv;
 	int                    i;
@@ -804,29 +785,31 @@ main(int argc, char **argv)
 	}
 	chip_count = opts.rows * opts.cols;
 
-	if (build_endpoints(&opts, clock_url, sizeof(clock_url), done_url, sizeof(done_url), metric_url,
-	        sizeof(metric_url), data_prefix, sizeof(data_prefix), &data_port_base) != 0) {
+	if (build_endpoints(&opts, control_prefix, sizeof(control_prefix), metric_url,
+	        sizeof(metric_url), data_prefix, sizeof(data_prefix), &control_port_base,
+	        &data_port_base) != 0) {
 		fprintf(stderr, "failed to build endpoints\n");
 		free(opts.route_overrides);
 		free(opts.gen_overrides);
 		nng_fini();
 		return 1;
 	}
-	printf("orchestrator: rows=%d cols=%d chips=%d ticks=%" PRIu64 " sync=%s route=%s gen=%s\n", opts.rows,
-	    opts.cols, chip_count, opts.ticks, chipsim_sync_mode_name(opts.sync_mode),
+	printf("orchestrator: rows=%d cols=%d chips=%d ticks=%" PRIu64 " route=%s gen=%s\n", opts.rows,
+	    opts.cols, chip_count, opts.ticks,
 	    (opts.route_override_count > 0) ? "custom" : "global",
 	    (opts.gen_override_count > 0) ? "custom" : "global");
-	printf("orchestrator: clock=%s\n", clock_url);
+	printf("orchestrator: control_prefix=%s control_port_base=%d\n", control_prefix,
+	    control_port_base);
 	t_setup_start = mono_now_sec();
 
 	input_ids   = calloc((size_t) chip_count, sizeof(int));
 	out_ids     = calloc((size_t) chip_count, sizeof(int));
 	chip_gen_ppm = calloc((size_t) chip_count, sizeof(int));
 	child_pids  = calloc((size_t) chip_count, sizeof(pid_t));
-	done_latest = calloc((size_t) chip_count, sizeof(chipsim_done_msg_t));
+	control_reqs = calloc((size_t) chip_count, sizeof(nng_socket));
 	metric_all  = calloc((size_t) chip_count, sizeof(chipsim_metric_msg_t));
-	if (input_ids == NULL || out_ids == NULL || chip_gen_ppm == NULL || child_pids == NULL || done_latest == NULL ||
-	    metric_all == NULL) {
+	if (input_ids == NULL || out_ids == NULL || chip_gen_ppm == NULL || child_pids == NULL ||
+	    control_reqs == NULL || metric_all == NULL) {
 		fprintf(stderr, "allocation failure\n");
 		goto fail;
 	}
@@ -835,33 +818,6 @@ main(int argc, char **argv)
 		goto fail;
 	}
 	if (build_chip_gen(&opts, chip_count, chip_gen_ppm) != 0) {
-		goto fail;
-	}
-
-	rv = nng_pub0_open(&clock_pub);
-	if (rv != 0) {
-		fprintf(stderr, "nng_pub0_open(clock_pub) failed: %s\n", nng_strerror(rv));
-		goto fail;
-	}
-	rv = nng_listen(clock_pub, clock_url, NULL, 0);
-	if (rv != 0) {
-		fprintf(stderr, "listen(clock_pub) failed: %s\n", nng_strerror(rv));
-		goto fail;
-	}
-
-	rv = nng_pull0_open(&done_pull);
-	if (rv != 0) {
-		fprintf(stderr, "nng_pull0_open(done_pull) failed: %s\n", nng_strerror(rv));
-		goto fail;
-	}
-	rv = nng_socket_set_ms(done_pull, NNG_OPT_RECVTIMEO, opts.ack_timeout_ms);
-	if (rv != 0) {
-		fprintf(stderr, "set timeout done_pull failed: %s\n", nng_strerror(rv));
-		goto fail;
-	}
-	rv = nng_listen(done_pull, done_url, NULL, 0);
-	if (rv != 0) {
-		fprintf(stderr, "listen(done_pull) failed: %s\n", nng_strerror(rv));
 		goto fail;
 	}
 
@@ -882,72 +838,118 @@ main(int argc, char **argv)
 	}
 
 	for (i = 0; i < chip_count; i++) {
-		if (launch_chip(&opts, clock_url, done_url, metric_url, data_prefix, data_port_base, i,
-		        input_ids[i], out_ids[i], chip_gen_ppm[i], &child_pids[i]) != 0) {
+		char control_url[256];
+
+		if (build_endpoint_url(
+		        control_url, sizeof(control_url), control_prefix, i, control_port_base) != 0) {
+			fprintf(stderr, "failed to build control url for chip %d\n", i);
+			goto fail;
+		}
+		if (launch_chip(&opts, control_url, metric_url, data_prefix, data_port_base, i, input_ids[i],
+		        out_ids[i], chip_gen_ppm[i], &child_pids[i]) != 0) {
 			fprintf(stderr, "failed to launch chip %d\n", i);
 			goto fail;
 		}
 	}
 
 	nng_msleep((nng_duration) opts.startup_ms);
+	for (i = 0; i < chip_count; i++) {
+		char control_url[256];
+
+		if (build_endpoint_url(
+		        control_url, sizeof(control_url), control_prefix, i, control_port_base) != 0) {
+			fprintf(stderr, "failed to build control url for chip %d\n", i);
+			goto fail;
+		}
+		rv = nng_req0_open(&control_reqs[i]);
+		if (rv != 0) {
+			fprintf(stderr, "nng_req0_open(control[%d]) failed: %s\n", i, nng_strerror(rv));
+			goto fail;
+		}
+		rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_RECVTIMEO, opts.ack_timeout_ms);
+		if (rv != 0) {
+			fprintf(stderr, "set recv timeout control[%d] failed: %s\n", i, nng_strerror(rv));
+			goto fail;
+		}
+		rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_SENDTIMEO, opts.ack_timeout_ms);
+		if (rv != 0) {
+			fprintf(stderr, "set send timeout control[%d] failed: %s\n", i, nng_strerror(rv));
+			goto fail;
+		}
+		// Keep request path deterministic: do not auto-resend timed-out requests.
+		rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_REQ_RESENDTIME, NNG_DURATION_INFINITE);
+		if (rv != 0) {
+			fprintf(stderr, "set req resend control[%d] failed: %s\n", i, nng_strerror(rv));
+			goto fail;
+		}
+		rv = nng_dial(control_reqs[i], control_url, NULL, 0);
+		if (rv != 0) {
+			fprintf(stderr, "dial control[%d] failed at %s: %s\n", i, control_url, nng_strerror(rv));
+			goto fail;
+		}
+	}
+
 	t_tick_start = mono_now_sec();
 	for (seq = 0; seq < opts.ticks; seq++) {
 		chipsim_tick_msg_t tick;
-		bool               wait_for_done;
 		double             t_send0;
 		double             t_send1;
 		double             t_wait0;
 		double             t_wait1;
 
 		memset(&tick, 0, sizeof(tick));
-		tick.type      = CHIPSIM_MSG_TICK;
-		tick.sync_mode = (uint8_t) opts.sync_mode;
-		tick.seq       = seq;
+		tick.type = CHIPSIM_MSG_TICK;
+		tick.seq  = seq;
 
 		t_send0 = mono_now_sec();
-		rv      = nng_send(clock_pub, &tick, sizeof(tick), 0);
-		t_send1 = mono_now_sec();
-		acc_tick_send_sec += (t_send1 - t_send0);
-		if (rv != 0) {
-			fprintf(stderr, "send(TICK) failed for seq=%" PRIu64 ": %s\n", seq, nng_strerror(rv));
-			goto fail;
-		}
-
-		wait_for_done = false;
-		if (opts.sync_mode == CHIPSIM_SYNC_BARRIER_ACK) {
-			wait_for_done = true;
-		} else if (opts.sync_mode == CHIPSIM_SYNC_WINDOWED_ACK) {
-			wait_for_done = ((seq + 1u) % (uint64_t) opts.ack_window) == 0u;
-		}
-		if (wait_for_done) {
-			t_wait0 = mono_now_sec();
-			if (wait_done_for_seq(done_pull, chip_count, seq, done_latest) != 0) {
+		for (i = 0; i < chip_count; i++) {
+			rv = nng_send(control_reqs[i], &tick, sizeof(tick), 0);
+			if (rv != 0) {
+				fprintf(stderr, "send(TICK) failed for chip=%d seq=%" PRIu64 ": %s\n", i, seq,
+				    nng_strerror(rv));
 				goto fail;
 			}
-			t_wait1 = mono_now_sec();
-			acc_tick_wait_sec += (t_wait1 - t_wait0);
-			ack_barrier_count++;
 		}
+		t_send1 = mono_now_sec();
+		acc_tick_send_sec += (t_send1 - t_send0);
+
+		t_wait0 = mono_now_sec();
+		for (i = 0; i < chip_count; i++) {
+			if (recv_done_response(control_reqs[i], i, seq, NULL) != 0) {
+				goto fail;
+			}
+		}
+		t_wait1 = mono_now_sec();
+		acc_tick_wait_sec += (t_wait1 - t_wait0);
+		ack_barrier_count++;
 	}
 	t_tick_end = mono_now_sec();
 
+	t_shutdown_start = mono_now_sec();
 	{
 		chipsim_tick_msg_t stop_msg;
 		memset(&stop_msg, 0, sizeof(stop_msg));
-		stop_msg.type      = CHIPSIM_MSG_STOP;
-		stop_msg.sync_mode = (uint8_t) opts.sync_mode;
-		stop_msg.seq       = opts.ticks;
-		rv                 = nng_send(clock_pub, &stop_msg, sizeof(stop_msg), 0);
-		if (rv != 0) {
-			fprintf(stderr, "send(STOP) failed: %s\n", nng_strerror(rv));
-			goto fail;
+		stop_msg.type = CHIPSIM_MSG_STOP;
+		stop_msg.seq  = opts.ticks;
+
+		for (i = 0; i < chip_count; i++) {
+			rv = nng_send(control_reqs[i], &stop_msg, sizeof(stop_msg), 0);
+			if (rv != 0) {
+				fprintf(stderr, "send(STOP) failed for chip=%d: %s\n", i, nng_strerror(rv));
+				goto fail;
+			}
+		}
+		for (i = 0; i < chip_count; i++) {
+			if (recv_done_response(control_reqs[i], i, opts.ticks, NULL) != 0) {
+				fprintf(stderr, "recv(STOP-ACK) failed for chip=%d\n", i);
+				goto fail;
+			}
 		}
 	}
 
 	if (collect_metrics(metric_pull, chip_count, metric_all) != 0) {
 		goto fail;
 	}
-	t_shutdown_start = mono_now_sec();
 
 	{
 		uint64_t total_tx = 0;
@@ -1004,11 +1006,14 @@ main(int argc, char **argv)
 		    ack_barrier_count);
 	}
 
+	for (i = 0; i < chip_count; i++) {
+		if (control_reqs != NULL && nng_socket_id(control_reqs[i]) > 0) {
+			nng_socket_close(control_reqs[i]);
+		}
+	}
 	nng_socket_close(metric_pull);
-	nng_socket_close(done_pull);
-	nng_socket_close(clock_pub);
 	free(metric_all);
-	free(done_latest);
+	free(control_reqs);
 	free(child_pids);
 	free(chip_gen_ppm);
 	free(out_ids);
@@ -1030,14 +1035,15 @@ fail:
 	if (nng_socket_id(metric_pull) > 0) {
 		nng_socket_close(metric_pull);
 	}
-	if (nng_socket_id(done_pull) > 0) {
-		nng_socket_close(done_pull);
-	}
-	if (nng_socket_id(clock_pub) > 0) {
-		nng_socket_close(clock_pub);
+	if (control_reqs != NULL) {
+		for (i = 0; i < chip_count; i++) {
+			if (nng_socket_id(control_reqs[i]) > 0) {
+				nng_socket_close(control_reqs[i]);
+			}
+		}
 	}
 	free(metric_all);
-	free(done_latest);
+	free(control_reqs);
 	free(child_pids);
 	free(chip_gen_ppm);
 	free(out_ids);

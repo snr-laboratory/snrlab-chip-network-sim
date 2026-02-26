@@ -44,12 +44,10 @@ def main() -> int:
         print("config must define grid.rows, grid.cols, and runtime.ticks", file=sys.stderr)
         return 2
 
-    sync = get(cfg, "runtime.sync_mode", "barrier_ack")
     route = get(cfg, "runtime.route", "east")
     fifo_depth = str(get(cfg, "runtime.fifo_depth", 32))
     gen_ppm = str(get(cfg, "traffic.gen_ppm", 100000))
     seed = str(get(cfg, "runtime.seed", 1))
-    ack_window = str(get(cfg, "runtime.ack_window", 4))
     startup_ms = str(get(cfg, "runtime.startup_ms", 350))
     ack_timeout_ms = str(get(cfg, "runtime.ack_timeout_ms", 5000))
 
@@ -63,16 +61,12 @@ def main() -> int:
         str(cols),
         "-ticks",
         str(ticks),
-        "-sync",
-        sync,
         "-fifo_depth",
         fifo_depth,
         "-gen_ppm",
         gen_ppm,
         "-seed",
         seed,
-        "-ack_window",
-        ack_window,
         "-startup_ms",
         startup_ms,
         "-ack_timeout_ms",
