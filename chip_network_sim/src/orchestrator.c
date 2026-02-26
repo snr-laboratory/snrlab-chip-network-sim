@@ -23,6 +23,17 @@ typedef enum {
 } route_mode_t;
 
 typedef struct {
+	int id;
+	int input_id;
+	int out_id;
+} route_override_t;
+
+typedef struct {
+	int id;
+	int gen_ppm;
+} gen_override_t;
+
+typedef struct {
 	int                 rows;
 	int                 cols;
 	uint64_t            ticks;
@@ -36,6 +47,12 @@ typedef struct {
 	route_mode_t        route_mode;
 	const char         *chip_bin;
 	const char         *base_uri;
+	route_override_t   *route_overrides;
+	int                 route_override_count;
+	int                 route_override_capacity;
+	gen_override_t     *gen_overrides;
+	int                 gen_override_count;
+	int                 gen_override_capacity;
 } orchestrator_options_t;
 
 static void
@@ -46,6 +63,8 @@ usage(const char *prog)
 	    "[-sync barrier_ack|pubsub_only|windowed_ack] [options]\n"
 	    "Options:\n"
 	    "  -route <east|west|south|north>  static output direction (default east)\n"
+	    "  -chip_route <id:input:out>      per-chip explicit route (repeat for every chip)\n"
+	    "  -chip_gen <id:ppm>              per-chip gen_ppm override (repeat as needed)\n"
 	    "  -fifo_depth <N>                 FIFO depth per chip (default 32)\n"
 	    "  -gen_ppm <N>                    local generation rate in ppm (default 100000)\n"
 	    "  -seed <N>                       base seed (default 1)\n"
@@ -55,6 +74,111 @@ usage(const char *prog)
 	    "  -chip_bin <path>                chip executable (default ./chip)\n"
 	    "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default auto)\n",
 	    prog);
+}
+
+static int parse_int(const char *value, int *out);
+
+static int
+parse_chip_route_spec(const char *value, route_override_t *out)
+{
+	char  buf[128];
+	char *a;
+	char *b;
+	char *c;
+	char *saveptr = NULL;
+	int   id;
+	int   input_id;
+	int   out_id;
+
+	if (value == NULL || out == NULL) {
+		return -1;
+	}
+	if (snprintf(buf, sizeof(buf), "%s", value) >= (int) sizeof(buf)) {
+		return -1;
+	}
+	a = strtok_r(buf, ":", &saveptr);
+	b = strtok_r(NULL, ":", &saveptr);
+	c = strtok_r(NULL, ":", &saveptr);
+	if (a == NULL || b == NULL || c == NULL || strtok_r(NULL, ":", &saveptr) != NULL) {
+		return -1;
+	}
+	if (parse_int(a, &id) != 0 || parse_int(b, &input_id) != 0 || parse_int(c, &out_id) != 0) {
+		return -1;
+	}
+	out->id       = id;
+	out->input_id = input_id;
+	out->out_id   = out_id;
+	return 0;
+}
+
+static int
+parse_chip_gen_spec(const char *value, gen_override_t *out)
+{
+	char  buf[128];
+	char *a;
+	char *b;
+	char *saveptr = NULL;
+	int   id;
+	int   gen_ppm;
+
+	if (value == NULL || out == NULL) {
+		return -1;
+	}
+	if (snprintf(buf, sizeof(buf), "%s", value) >= (int) sizeof(buf)) {
+		return -1;
+	}
+	a = strtok_r(buf, ":", &saveptr);
+	b = strtok_r(NULL, ":", &saveptr);
+	if (a == NULL || b == NULL || strtok_r(NULL, ":", &saveptr) != NULL) {
+		return -1;
+	}
+	if (parse_int(a, &id) != 0 || parse_int(b, &gen_ppm) != 0) {
+		return -1;
+	}
+	if (gen_ppm < 0 || gen_ppm > 1000000) {
+		return -1;
+	}
+	out->id      = id;
+	out->gen_ppm = gen_ppm;
+	return 0;
+}
+
+static int
+add_route_override(orchestrator_options_t *opts, const route_override_t *entry)
+{
+	route_override_t *next;
+	int               new_cap;
+
+	if (opts->route_override_count == opts->route_override_capacity) {
+		new_cap = (opts->route_override_capacity == 0) ? 16 : opts->route_override_capacity * 2;
+		next    = realloc(opts->route_overrides, (size_t) new_cap * sizeof(route_override_t));
+		if (next == NULL) {
+			return -1;
+		}
+		opts->route_overrides        = next;
+		opts->route_override_capacity = new_cap;
+	}
+	opts->route_overrides[opts->route_override_count++] = *entry;
+	return 0;
+}
+
+static int
+add_gen_override(orchestrator_options_t *opts, const gen_override_t *entry)
+{
+	gen_override_t *next;
+	int             new_cap;
+
+	if (opts->gen_override_count == opts->gen_override_capacity) {
+		new_cap = (opts->gen_override_capacity == 0) ? 16 : opts->gen_override_capacity * 2;
+		next    = realloc(opts->gen_overrides, (size_t) new_cap * sizeof(gen_override_t));
+		if (next == NULL) {
+			return -1;
+		}
+		opts->gen_overrides         = next;
+		opts->gen_override_capacity = new_cap;
+	}
+	opts->gen_overrides[opts->gen_override_count++] = *entry;
+	return 0;
 }
 
 static int
@@ -143,6 +267,12 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 	opts->route_mode    = ROUTE_EAST;
 	opts->chip_bin      = "./chip";
 	opts->base_uri      = NULL;
+	opts->route_overrides = NULL;
+	opts->route_override_count = 0;
+	opts->route_override_capacity = 0;
+	opts->gen_overrides = NULL;
+	opts->gen_override_count = 0;
+	opts->gen_override_capacity = 0;
 
 	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "-rows") == 0 && i + 1 < argc) {
@@ -163,6 +293,22 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 			}
 		} else if (strcmp(argv[i], "-route") == 0 && i + 1 < argc) {
 			if (parse_route(argv[++i], &opts->route_mode) != 0) {
+				return -1;
+			}
+		} else if (strcmp(argv[i], "-chip_route") == 0 && i + 1 < argc) {
+			route_override_t entry;
+			if (parse_chip_route_spec(argv[++i], &entry) != 0) {
+				return -1;
+			}
+			if (add_route_override(opts, &entry) != 0) {
+				return -1;
+			}
+		} else if (strcmp(argv[i], "-chip_gen") == 0 && i + 1 < argc) {
+			gen_override_t entry;
+			if (parse_chip_gen_spec(argv[++i], &entry) != 0) {
+				return -1;
+			}
+			if (add_gen_override(opts, &entry) != 0) {
 				return -1;
 			}
 		} else if (strcmp(argv[i], "-fifo_depth") == 0 && i + 1 < argc) {
@@ -203,6 +349,60 @@ parse_args(int argc, char **argv, orchestrator_options_t *opts)
 		return -1;
 	}
 	return 0;
+}
+
+static int
+build_chip_gen(const orchestrator_options_t *opts, int chip_count, int *chip_gen_ppm)
+{
+	bool *seen = NULL;
+	int   i;
+
+	seen = calloc((size_t) chip_count, sizeof(bool));
+	if (seen == NULL) {
+		fprintf(stderr, "gen override allocation failure\n");
+		return -1;
+	}
+	for (i = 0; i < chip_count; i++) {
+		chip_gen_ppm[i] = opts->gen_ppm;
+	}
+	for (i = 0; i < opts->gen_override_count; i++) {
+		const gen_override_t *entry = &opts->gen_overrides[i];
+		if (entry->id < 0 || entry->id >= chip_count) {
+			fprintf(stderr, "chip_gen override has invalid chip id=%d\n", entry->id);
+			free(seen);
+			return -1;
+		}
+		if (seen[entry->id]) {
+			fprintf(stderr, "duplicate chip_gen override for chip id=%d\n", entry->id);
+			free(seen);
+			return -1;
+		}
+		seen[entry->id]       = true;
+		chip_gen_ppm[entry->id] = entry->gen_ppm;
+	}
+	free(seen);
+	return 0;
+}
+
+static int
+is_neighbor(int rows, int cols, int a, int b)
+{
+	int ar;
+	int ac;
+	int br;
+	int bc;
+	int manhattan;
+
+	(void) rows;
+	if (a < 0 || b < 0) {
+		return 0;
+	}
+	ar        = a / cols;
+	ac        = a % cols;
+	br        = b / cols;
+	bc        = b % cols;
+	manhattan = abs(ar - br) + abs(ac - bc);
+	return manhattan == 1;
 }
 
 static int
@@ -283,12 +483,85 @@ build_routes(const orchestrator_options_t *opts, int *input_ids, int *out_ids)
 	int cols   = opts->cols;
 	int chips  = rows * cols;
 	int chip_i = 0;
+	bool *seen_ids = NULL;
+
+	if (opts->route_override_count > 0) {
+		seen_ids = calloc((size_t) chips, sizeof(bool));
+		if (seen_ids == NULL) {
+			fprintf(stderr, "route validation allocation failure\n");
+			return -1;
+		}
+		for (chip_i = 0; chip_i < chips; chip_i++) {
+			input_ids[chip_i] = -1;
+			out_ids[chip_i]   = -1;
+		}
+		for (chip_i = 0; chip_i < opts->route_override_count; chip_i++) {
+			const route_override_t *entry = &opts->route_overrides[chip_i];
+			int                     id    = entry->id;
+
+			if (id < 0 || id >= chips) {
+				fprintf(stderr, "route override has invalid chip id=%d\n", id);
+				free(seen_ids);
+				return -1;
+			}
+			if (seen_ids[id]) {
+				fprintf(stderr, "duplicate route override for chip id=%d\n", id);
+				free(seen_ids);
+				return -1;
+			}
+			if (entry->input_id >= chips || entry->input_id < -1 || entry->out_id >= chips ||
+			    entry->out_id < -1) {
+				fprintf(stderr, "route override chip=%d has invalid input/out\n", id);
+				free(seen_ids);
+				return -1;
+			}
+			if (entry->input_id >= 0 && !is_neighbor(rows, cols, id, entry->input_id)) {
+				fprintf(stderr, "chip %d input %d is not a nearest neighbor\n", id, entry->input_id);
+				free(seen_ids);
+				return -1;
+			}
+			if (entry->out_id >= 0 && !is_neighbor(rows, cols, id, entry->out_id)) {
+				fprintf(stderr, "chip %d out %d is not a nearest neighbor\n", id, entry->out_id);
+				free(seen_ids);
+				return -1;
+			}
+			seen_ids[id]   = true;
+			input_ids[id] = entry->input_id;
+			out_ids[id]   = entry->out_id;
+		}
+		for (chip_i = 0; chip_i < chips; chip_i++) {
+			if (!seen_ids[chip_i]) {
+				fprintf(stderr, "missing -chip_route entry for chip id=%d\n", chip_i);
+				free(seen_ids);
+				return -1;
+			}
+		}
+		for (chip_i = 0; chip_i < chips; chip_i++) {
+			int out = out_ids[chip_i];
+			int in  = input_ids[chip_i];
+			if (out >= 0 && input_ids[out] != chip_i) {
+				fprintf(stderr,
+				    "route mismatch: chip %d out=%d but chip %d input=%d\n", chip_i, out, out,
+				    input_ids[out]);
+				free(seen_ids);
+				return -1;
+			}
+			if (in >= 0 && out_ids[in] != chip_i) {
+				fprintf(stderr,
+				    "route mismatch: chip %d input=%d but chip %d out=%d\n", chip_i, in, in,
+				    out_ids[in]);
+				free(seen_ids);
+				return -1;
+			}
+		}
+		free(seen_ids);
+		return 0;
+	}
 
 	for (chip_i = 0; chip_i < chips; chip_i++) {
 		input_ids[chip_i] = -1;
 		out_ids[chip_i]   = compute_out_id(opts->route_mode, rows, cols, chip_i);
 	}
-
 	for (chip_i = 0; chip_i < chips; chip_i++) {
 		int out = out_ids[chip_i];
 		if (out < 0) {
@@ -313,7 +586,7 @@ build_routes(const orchestrator_options_t *opts, int *input_ids, int *out_ids)
 static int
 launch_chip(const orchestrator_options_t *opts, const char *clock_url, const char *done_url,
     const char *metric_url, const char *data_prefix, int data_port_base, int chip_id, int input_id,
-    int out_id, pid_t *child_pid)
+    int out_id, int chip_gen_ppm, pid_t *child_pid)
 {
 	pid_t pid;
 	char  id_s[32], input_s[32], out_s[32], ack_s[32], fifo_s[32], gen_s[32], seed_s[32],
@@ -326,7 +599,7 @@ launch_chip(const orchestrator_options_t *opts, const char *clock_url, const cha
 	snprintf(out_s, sizeof(out_s), "%d", out_id);
 	snprintf(ack_s, sizeof(ack_s), "%d", opts->ack_window);
 	snprintf(fifo_s, sizeof(fifo_s), "%d", opts->fifo_depth);
-	snprintf(gen_s, sizeof(gen_s), "%d", opts->gen_ppm);
+	snprintf(gen_s, sizeof(gen_s), "%d", chip_gen_ppm);
 	snprintf(seed_s, sizeof(seed_s), "%u", (unsigned) (opts->seed + (uint32_t) chip_id));
 	snprintf(data_port_base_s, sizeof(data_port_base_s), "%d", data_port_base);
 
@@ -479,6 +752,7 @@ main(int argc, char **argv)
 	int                    chip_count;
 	int                   *input_ids   = NULL;
 	int                   *out_ids     = NULL;
+	int                   *chip_gen_ppm = NULL;
 	pid_t                 *child_pids  = NULL;
 	chipsim_done_msg_t    *done_latest = NULL;
 	chipsim_metric_msg_t  *metric_all  = NULL;
@@ -503,6 +777,9 @@ main(int argc, char **argv)
 
 	if (parse_args(argc, argv, &opts) != 0) {
 		usage(argv[0]);
+		free(opts.route_overrides);
+		free(opts.gen_overrides);
+		nng_fini();
 		return 2;
 	}
 	chip_count = opts.rows * opts.cols;
@@ -510,25 +787,33 @@ main(int argc, char **argv)
 	if (build_endpoints(&opts, clock_url, sizeof(clock_url), done_url, sizeof(done_url), metric_url,
 	        sizeof(metric_url), data_prefix, sizeof(data_prefix), &data_port_base) != 0) {
 		fprintf(stderr, "failed to build endpoints\n");
+		free(opts.route_overrides);
+		free(opts.gen_overrides);
+		nng_fini();
 		return 1;
 	}
-	printf("orchestrator: rows=%d cols=%d chips=%d ticks=%" PRIu64 " sync=%s route=%d\n", opts.rows,
+	printf("orchestrator: rows=%d cols=%d chips=%d ticks=%" PRIu64 " sync=%s route=%s gen=%s\n", opts.rows,
 	    opts.cols, chip_count, opts.ticks, chipsim_sync_mode_name(opts.sync_mode),
-	    (int) opts.route_mode);
+	    (opts.route_override_count > 0) ? "custom" : "global",
+	    (opts.gen_override_count > 0) ? "custom" : "global");
 	printf("orchestrator: clock=%s\n", clock_url);
 
 	input_ids   = calloc((size_t) chip_count, sizeof(int));
 	out_ids     = calloc((size_t) chip_count, sizeof(int));
+	chip_gen_ppm = calloc((size_t) chip_count, sizeof(int));
 	child_pids  = calloc((size_t) chip_count, sizeof(pid_t));
 	done_latest = calloc((size_t) chip_count, sizeof(chipsim_done_msg_t));
 	metric_all  = calloc((size_t) chip_count, sizeof(chipsim_metric_msg_t));
-	if (input_ids == NULL || out_ids == NULL || child_pids == NULL || done_latest == NULL ||
+	if (input_ids == NULL || out_ids == NULL || chip_gen_ppm == NULL || child_pids == NULL || done_latest == NULL ||
 	    metric_all == NULL) {
 		fprintf(stderr, "allocation failure\n");
 		goto fail;
 	}
 
 	if (build_routes(&opts, input_ids, out_ids) != 0) {
+		goto fail;
+	}
+	if (build_chip_gen(&opts, chip_count, chip_gen_ppm) != 0) {
 		goto fail;
 	}
 
@@ -577,7 +862,7 @@ main(int argc, char **argv)
 
 	for (i = 0; i < chip_count; i++) {
 		if (launch_chip(&opts, clock_url, done_url, metric_url, data_prefix, data_port_base, i,
-		        input_ids[i], out_ids[i], &child_pids[i]) != 0) {
+		        input_ids[i], out_ids[i], chip_gen_ppm[i], &child_pids[i]) != 0) {
 			fprintf(stderr, "failed to launch chip %d\n", i);
 			goto fail;
 		}
@@ -674,8 +959,11 @@ main(int argc, char **argv)
 	free(metric_all);
 	free(done_latest);
 	free(child_pids);
+	free(chip_gen_ppm);
 	free(out_ids);
 	free(input_ids);
+	free(opts.route_overrides);
+	free(opts.gen_overrides);
 	nng_fini();
 	return 0;
 
@@ -700,8 +988,11 @@ fail:
 	free(metric_all);
 	free(done_latest);
 	free(child_pids);
+	free(chip_gen_ppm);
 	free(out_ids);
 	free(input_ids);
+	free(opts.route_overrides);
+	free(opts.gen_overrides);
 	nng_fini();
 	return 1;
 }

@@ -12,7 +12,6 @@
   "runtime": {
     "ticks": 64,
     "sync_mode": "barrier_ack",
-    "route": "east",
     "chip_bin": "./build/chip_rtl",
     "fifo_depth": 32,
     "seed": 1,
@@ -22,5 +21,27 @@
   },
   "traffic": {
     "gen_ppm": 100000
-  }
+  },
+  "routes": [
+    {
+      "id": 0,
+      "input_id": 2,
+      "out_id": 1
+    },
+    {
+      "id": 1,
+      "input_id": 0,
+      "out_id": 3
+    },
+    {
+      "id": 2,
+      "input_id": 3,
+      "out_id": 0
+    },
+    {
+      "id": 3,
+      "input_id": 1,
+      "out_id": 2
+    }
+  ]
 }

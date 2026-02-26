@@ -21,6 +21,10 @@ Use the term **Simulation Orchestrator** for the top-level launcher.
 - Each chip also generates its own sporadic data stream.
 - Every data unit carries chip identity metadata (at least source chip ID).
 - Each chip includes a local FIFO buffer for incoming/outgoing flow control.
+- For explicit per-chip routing maps, use:
+  - `input_id = -1` for chips with no upstream neighbor input (edge/source node).
+  - `out_id = -1` for chips with no downstream neighbor target (edge/sink node).
+  - `gen_ppm` may be attached per route entry to override local generation rate for that chip.
 
 ### RTL implemented chip behavior
 - Data format: each data word (N-bit wide) contains A-bit wide chip ID, B-bit wide time stamp, and C-bit wide payload
@@ -50,7 +54,7 @@ Use the term **Simulation Orchestrator** for the top-level launcher.
 - "No data loss" is interpreted as no unintended software loss; finite FIFO overflow behavior must be explicit (`drop incoming + count`).
 
 ## Proposed Architecture
-- `config/`: Grid dimensions, chip IDs, static routes, FIFO depth, random seed, runtime limits.
+- `config/`: Grid dimensions, chip IDs, static routes, FIFO depth, random seed, runtime limits. Support both global route mode and explicit per-chip route map.
 - `protocol/`: Message schemas (`PACKET`, `TICK`, `DONE`, `METRIC`) and serialization.
 - `chip/rtl/`: Verilated core wrapper (C99 interface), reset/tick/input/output shims.
 - `chip/runtime/`: nng sockets, local sporadic generator, FIFO adapter, step execution.
@@ -87,8 +91,16 @@ Use the term **Simulation Orchestrator** for the top-level launcher.
 - Prefer nng request/reply or pair channels for `TICK/DONE`; use pub/sub primarily for data fanout.
 - Keep command examples explicit, e.g.:
   - `./chip -id 5 -input 2 -out 8 -cfg chip_5.json -sync barrier_ack`
+  - `./build/orchestrator -rows 4 -cols 4 -ticks 200 -sync barrier_ack -chip_route 0:2:1 -chip_route 1:0:3 ...`
   - `./build/orchestrator -rows 4 -cols 4 -ticks 200 -sync barrier_ack -chip_bin ./build/chip_rtl`
   - `./orchestrator -cfg network_8x8.json`
+
+## Chip ID Assignment
+- IDs are row-major in the grid: `id = row * cols + col`.
+- Example for `3x4`:
+  - row 0: `0 1 2 3`
+  - row 1: `4 5 6 7`
+  - row 2: `8 9 10 11`
 
 ## Decision-Complete Execution Plan
 Locked design decisions:

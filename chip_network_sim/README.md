@@ -35,6 +35,11 @@ Run from JSON config:
 python3 scripts/run_from_config.py -cfg config/network_2x2.json
 ```
 
+Run with explicit per-chip routing map:
+```bash
+python3 scripts/run_from_config.py -cfg config/network_2x2_custom_routes.json
+```
+
 Single chip wrapper:
 ```bash
 python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8 -sync barrier_ack
@@ -47,5 +52,29 @@ python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8
 
 ## Current Scope
 - Runtime routing model is `1-in/1-out` per chip.
+- Routing config supports:
+  - global direction via `runtime.route` (`east|west|south|north`)
+  - explicit per-chip map via `routes: [{id, input_id, out_id, gen_ppm?}, ...]`
+- Traffic generation supports:
+  - global default via `traffic.gen_ppm`
+  - per-chip override via `routes[].gen_ppm`
+- Edge node conventions in explicit routing:
+  - `input_id: -1` means this chip has no upstream neighbor input.
+  - `out_id: -1` means this chip has no downstream neighbor output target.
 - FIFO full policy is drop-incoming with drop counter.
 - Ingress arbitration is local-first when local and neighbor data arrive in the same tick.
+
+## Chip ID Layout
+Chip IDs are row-major:
+- `id = row * cols + col`
+
+Example for `rows=3, cols=4`:
+```text
++----+----+----+----+
+|  0 |  1 |  2 |  3 |
++----+----+----+----+
+|  4 |  5 |  6 |  7 |
++----+----+----+----+
+|  8 |  9 | 10 | 11 |
++----+----+----+----+
+```

@@ -1,0 +1,99 @@
+{
+  "grid": {
+    "rows": 3,
+    "cols": 4
+  },
+  "packet": {
+    "N_bits": 64,
+    "A_id_bits": 16,
+    "B_ts_bits": 24,
+    "C_payload_bits": 24
+  },
+  "runtime": {
+    "ticks": 128,
+    "sync_mode": "barrier_ack",
+    "chip_bin": "./build/chip_rtl",
+    "fifo_depth": 32,
+    "seed": 1,
+    "ack_window": 4,
+    "startup_ms": 350,
+    "ack_timeout_ms": 5000
+  },
+  "traffic": {
+    "gen_ppm": 100000
+  },
+  "routes": [
+    {
+      "id": 0,
+      "input_id": 1,
+      "out_id": -1,
+      "gen_ppm": 0
+    },
+    {
+      "id": 1,
+      "input_id": 2,
+      "out_id": 0,
+      "gen_ppm": 80000
+    },
+    {
+      "id": 2,
+      "input_id": 3,
+      "out_id": 1,
+      "gen_ppm": 90000
+    },
+    {
+      "id": 3,
+      "input_id": 7,
+      "out_id": 2,
+      "gen_ppm": 100000
+    },
+    {
+      "id": 4,
+      "input_id": 8,
+      "out_id": 5,
+      "gen_ppm": 110000
+    },
+    {
+      "id": 5,
+      "input_id": 4,
+      "out_id": 6,
+      "gen_ppm": 120000
+    },
+    {
+      "id": 6,
+      "input_id": 5,
+      "out_id": 7,
+      "gen_ppm": 130000
+    },
+    {
+      "id": 7,
+      "input_id": 6,
+      "out_id": 3,
+      "gen_ppm": 140000
+    },
+    {
+      "id": 8,
+      "input_id": 9,
+      "out_id": 4,
+      "gen_ppm": 150000
+    },
+    {
+      "id": 9,
+      "input_id": 10,
+      "out_id": 8,
+      "gen_ppm": 160000
+    },
+    {
+      "id": 10,
+      "input_id": 11,
+      "out_id": 9,
+      "gen_ppm": 170000
+    },
+    {
+      "id": 11,
+      "input_id": -1,
+      "out_id": 10,
+      "gen_ppm": 180000
+    }
+  ]
+}

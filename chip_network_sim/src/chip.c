@@ -354,7 +354,8 @@ main(int argc, char **argv)
 			    nng_strerror(rv));
 			goto fail;
 		}
-		rv = nng_dial(data_sub, input_data_url, NULL, 0);
+		// Non-blocking dial lets peer listener come up after this process starts.
+		rv = nng_dial(data_sub, input_data_url, NULL, NNG_FLAG_NONBLOCK);
 		if (rv != 0) {
 			fprintf(stderr, "chip[%d] dial(data_sub) failed at %s: %s\n", opts.id,
 			    input_data_url, nng_strerror(rv));

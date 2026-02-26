@@ -65,8 +65,6 @@ def main() -> int:
         str(ticks),
         "-sync",
         sync,
-        "-route",
-        route,
         "-fifo_depth",
         fifo_depth,
         "-gen_ppm",
@@ -82,6 +80,29 @@ def main() -> int:
         "-chip_bin",
         chip_bin,
     ]
+
+    routes = cfg.get("routes")
+    if routes is None:
+        cmd.extend(["-route", route])
+    else:
+        normalized_routes = []
+        if not isinstance(routes, list):
+            print("routes must be a list of {id,input_id,out_id}", file=sys.stderr)
+            return 2
+        for entry in routes:
+            if not isinstance(entry, dict):
+                print("route entry must be an object", file=sys.stderr)
+                return 2
+            normalized_routes.append(entry)
+        for entry in sorted(normalized_routes, key=lambda x: int(x.get("id", -1))):
+            if "id" not in entry or "input_id" not in entry or "out_id" not in entry:
+                print("route entry must include id, input_id, out_id", file=sys.stderr)
+                return 2
+            spec = f"{entry['id']}:{entry['input_id']}:{entry['out_id']}"
+            cmd.extend(["-chip_route", spec])
+            if "gen_ppm" in entry:
+                spec_gen = f"{entry['id']}:{entry['gen_ppm']}"
+                cmd.extend(["-chip_gen", spec_gen])
 
     print(" ".join(cmd))
     return subprocess.call(cmd)
