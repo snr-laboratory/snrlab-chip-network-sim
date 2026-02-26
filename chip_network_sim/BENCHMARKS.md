@@ -18,6 +18,21 @@ Notes:
 - `chip` and `chip_rtl` backends are close on `3x4` (`~1.7%` difference at 10k ticks).
 - Wait time remains a major component (`55-63%` on `3x4`), showing synchronization/data-transaction overhead.
 
+## Trace-enabled Snapshot
+Date: 2026-02-26
+
+Config: `config/network_3x4_snake_to_top_left.json` with:
+- `runtime.ticks = 10000`
+- `runtime.chip_bin = ./build/chip_rtl`
+- tracing enabled (`runtime.trace_dir=traces`, `runtime.trace_run_id=trace_3x4_rtl_10000`)
+
+Observed metrics:
+- `cycles_per_sec = 3023.144`
+- `tick_loop_sec = 3.307814`
+- `tick_wait_pct = 62.40%`
+- `tx = 82651`, `rx = 82651`, `local = 14078`, `drops = 3936`, `fifo_peak = 32`
+- trace output size: `2.3M`, rows: `203448`
+
 ## Historical Baseline (Pre Reliable Data Migration)
 Date: 2026-02-26
 Topology/config: `config/network_3x4_snake_to_top_left.json`

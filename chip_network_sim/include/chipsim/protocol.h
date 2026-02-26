@@ -18,11 +18,6 @@ typedef struct {
 } chipsim_packet_t;
 
 typedef struct {
-	uint32_t         topic;
-	chipsim_packet_t packet;
-} chipsim_data_msg_t;
-
-typedef struct {
 	uint8_t  type;
 	uint8_t  reserved0[3];
 	uint32_t requester_id;

@@ -228,6 +228,53 @@ def build_ascii_packet_history(
     return "\n".join(lines) + "\n"
 
 
+def build_ascii_chip_lane_history(
+    rows: List[TraceRow],
+    packet_word: int,
+    chip_ids: List[int],
+    cell_width: int,
+    tick_min: int,
+    tick_max: int,
+) -> str:
+    packet_rows = [r for r in rows if r.packet_word == packet_word]
+    if not packet_rows:
+        return f"Selected packet 0x{packet_word:016x} was not found in this run.\n"
+
+    timeline: Dict[int, Dict[int, List[str]]] = {}
+    for row in sorted(packet_rows, key=lambda r: (r.tick, r.chip_id, r.local_index)):
+        by_chip = timeline.setdefault(row.tick, {})
+        by_chip.setdefault(row.chip_id, []).append(EVENT_TOKENS.get(row.event_type, "?"))
+
+    tick_w = max(4, len(str(tick_max)))
+    headers = [fit_cell(f"c{cid}", cell_width) for cid in chip_ids]
+
+    lines: List[str] = []
+    lines.append("Packet Lifetime History (Chip Lanes)")
+    lines.append(
+        "Legend: G=generated, IL/IN=entered FIFO(local/neigh), O=left FIFO, "
+        "XL/XN=dropped(local/neigh)"
+    )
+    lines.append(f"Packet: 0x{packet_word:016x}")
+    lines.append(f"Tick range: {tick_min}..{tick_max}")
+    lines.append("")
+
+    head = f"{'tick':>{tick_w}} | " + " | ".join(headers)
+    sep = "-" * len(head)
+    lines.append(head)
+    lines.append(sep)
+
+    for tick in range(tick_min, tick_max + 1):
+        cells: List[str] = []
+        tick_map = timeline.get(tick, {})
+        for cid in chip_ids:
+            ev = tick_map.get(cid)
+            text = ",".join(ev) if ev else "."
+            cells.append(fit_cell(text, cell_width))
+        lines.append(f"{tick:>{tick_w}} | " + " | ".join(cells))
+
+    return "\n".join(lines) + "\n"
+
+
 def select_plot_packets(summary: dict, explicit: List[int], plot_top: int) -> List[int]:
     selected: List[int] = []
     seen = set()
@@ -263,6 +310,12 @@ def main() -> int:
     ap.add_argument(
         "--plot-out",
         help="Optional output ASCII file path for packet lifetime history plot",
+    )
+    ap.add_argument(
+        "--plot-mode",
+        choices=["packet-columns", "chip-lanes"],
+        default="packet-columns",
+        help="ASCII plot mode: packet-columns (current) or chip-lanes (single packet across chips)",
     )
     ap.add_argument(
         "--plot-packets",
@@ -344,7 +397,8 @@ def main() -> int:
     if args.plot_out:
         explicit = parse_packet_words(args.plot_packets)
         selected = select_plot_packets(summary, explicit, max(args.plot_top, 0))
-        selected_rows = [r for r in rows if r.packet_word in set(selected)]
+        selected_set = set(selected)
+        selected_rows = [r for r in rows if r.packet_word in selected_set]
 
         if args.plot_tick_min is not None:
             tick_min = args.plot_tick_min
@@ -369,18 +423,41 @@ def main() -> int:
         if tick_max < tick_min:
             raise ValueError("plot tick range is invalid: tick_max < tick_min")
 
-        ascii_plot = build_ascii_packet_history(
-            rows,
-            selected,
-            max(args.plot_cell_width, 8),
-            tick_min,
-            tick_max,
-        )
+        if args.plot_mode == "chip-lanes":
+            chip_ids = sorted(
+                int(chip.get("id"))
+                for chip in manifest.get("chips", [])
+                if isinstance(chip, dict) and "id" in chip
+            )
+            if not chip_ids:
+                chip_ids = sorted({r.chip_id for r in rows})
+            packet_word = selected[0]
+            if len(selected) > 1:
+                print(
+                    f"note: chip-lanes mode uses the first selected packet only: "
+                    f"0x{packet_word:016x}"
+                )
+            ascii_plot = build_ascii_chip_lane_history(
+                rows,
+                packet_word,
+                chip_ids,
+                max(args.plot_cell_width, 6),
+                tick_min,
+                tick_max,
+            )
+        else:
+            ascii_plot = build_ascii_packet_history(
+                rows,
+                selected,
+                max(args.plot_cell_width, 8),
+                tick_min,
+                tick_max,
+            )
 
         out_path = Path(args.plot_out)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(ascii_plot, encoding="utf-8")
-        print(f"wrote {out_path} (packets={len(selected)})")
+        print(f"wrote {out_path} (packets={len(selected)} mode={args.plot_mode})")
 
     return 0
 

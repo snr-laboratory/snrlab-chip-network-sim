@@ -50,8 +50,8 @@ Required v1 events:
 - `DEQ_OUT`
 
 ## Write/Order Rules
-- Single writer queue per chip.
-- Runtime threads emit to queue; one writer serializes to file.
+- Trace writes are emitted from the main simulation thread.
+- Data service helper threads do not write trace rows.
 - File order is authoritative local order for equal tick values.
 
 ## Reconstruction

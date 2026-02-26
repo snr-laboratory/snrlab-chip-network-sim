@@ -56,6 +56,11 @@ python3 scripts/reconstruct_trace.py -run traces/demo_run --plot-top 4 \
 python3 scripts/reconstruct_trace.py -run traces/demo_run \
   --plot-packets 0x00000000096002cb,0x000000000ab84b8a \
   --plot-out traces/demo_run/packet_history_selected.txt
+# Chip-lane view for one packet (columns are chips c0..cN):
+python3 scripts/reconstruct_trace.py -run traces/demo_run \
+  --plot-mode chip-lanes --plot-packets 0x00000000096002cb \
+  --plot-compact-range --plot-cell-width 6 \
+  --plot-out traces/demo_run/packet_history_chip_lanes.txt
 # Default plot range is full run tick span (0..ticks-1).
 # Use compact range only around selected packet activity:
 python3 scripts/reconstruct_trace.py -run traces/demo_run --plot-top 4 \
@@ -64,7 +69,8 @@ python3 scripts/reconstruct_trace.py -run traces/demo_run --plot-top 4 \
 
 Single chip wrapper:
 ```bash
-python3 scripts/chip_wrapper.py --chip-bin ./build/chip -- -id 5 -input 2 -out 8
+python3 scripts/chip_wrapper.py -- -id 5 -input 2 -out 8
+python3 scripts/chip_wrapper.py --rtl -- -id 5 -input 2 -out 8
 ```
 
 ## Lock-Step Control (`TICK`, `STOP`, `DONE`)

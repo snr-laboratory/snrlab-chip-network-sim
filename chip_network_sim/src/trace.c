@@ -84,12 +84,6 @@ chipsim_trace_close(chipsim_trace_writer_t *writer)
 	writer->fp = NULL;
 }
 
-bool
-chipsim_trace_is_enabled(const chipsim_trace_writer_t *writer)
-{
-	return writer != NULL && writer->fp != NULL;
-}
-
 uint64_t
 chipsim_trace_pack_packet_word(const chipsim_packet_t *packet)
 {

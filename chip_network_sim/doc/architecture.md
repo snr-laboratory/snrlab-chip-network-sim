@@ -21,13 +21,16 @@ chip_network_sim/
     chip_rtl.cpp       # Verilated RTL chip runtime
     fifo.c             # Software FIFO implementation
     protocol.c         # Protocol translation unit (message structs in protocol.h)
+    trace.c            # Minimal binary trace writer
   include/chipsim/
     protocol.h         # Packet/control message structs
     fifo.h             # FIFO API
+    trace.h            # Trace schema and writer API
   rtl/
     chip_fifo_router.sv # 2-input, 1-output FIFO router RTL
   scripts/
     run_from_config.py # JSON -> orchestrator CLI expansion
+    reconstruct_trace.py # Trace summary + ASCII timeline plots
     chip_wrapper.py
   config/
     *.json             # Topology + traffic + runtime scenarios
@@ -84,7 +87,8 @@ flowchart LR
 ## 5. Configuration Model
 Primary JSON fields:
 - `grid.rows`, `grid.cols`
-- `runtime`: `ticks`, `fifo_depth`, `seed`, `chip_bin`, `startup_ms`, `ack_timeout_ms`
+- `runtime`: `ticks`, `fifo_depth`, `seed`, `chip_bin`, `startup_ms`, `ack_timeout_ms`,
+  `trace_dir?`, `trace_run_id?`
 - `traffic.gen_ppm`: global default generation rate
 - `routes[]`: explicit per-chip wiring and optional per-chip generation override
 
@@ -341,7 +345,12 @@ Event types:
 - `DEQ_OUT`
 
 Offline reconstruction:
-- `python3 scripts/reconstruct_trace.py -run traces/<run_id> --top 20`
+- Summary:
+  - `python3 scripts/reconstruct_trace.py -run traces/<run_id> --top 20`
+- ASCII packet columns:
+  - `python3 scripts/reconstruct_trace.py -run traces/<run_id> --plot-top 4 --plot-out <file>`
+- ASCII chip lanes (single packet):
+  - `python3 scripts/reconstruct_trace.py -run traces/<run_id> --plot-mode chip-lanes --plot-packets <packet_word> --plot-out <file>`
 
 ## 13. Performance Snapshot
 From `BENCHMARKS.md`:

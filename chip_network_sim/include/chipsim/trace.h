@@ -1,7 +1,6 @@
 #ifndef CHIPSIM_TRACE_H
 #define CHIPSIM_TRACE_H
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -53,7 +52,6 @@ int  chipsim_trace_emit(chipsim_trace_writer_t *writer, const chipsim_trace_row_
 int  chipsim_trace_emit_fields(chipsim_trace_writer_t *writer, uint64_t tick, uint16_t event_type,
      uint32_t fifo_occupancy, uint64_t packet_word);
 void chipsim_trace_close(chipsim_trace_writer_t *writer);
-bool chipsim_trace_is_enabled(const chipsim_trace_writer_t *writer);
 
 uint64_t chipsim_trace_pack_packet_word(const chipsim_packet_t *packet);
 
