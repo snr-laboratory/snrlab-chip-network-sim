@@ -19,6 +19,9 @@ The build links against local `nng` at:
 Verilator build artifact:
 - `build/chip_rtl` (uses RTL FIFO behavior)
 
+Benchmark report:
+- `BENCHMARKS.md`
+
 ## Run
 Run directly with CLI:
 ```bash

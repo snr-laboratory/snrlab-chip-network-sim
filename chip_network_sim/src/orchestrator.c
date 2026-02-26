@@ -11,6 +11,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "chipsim/protocol.h"
@@ -54,6 +55,14 @@ typedef struct {
 	int                 gen_override_count;
 	int                 gen_override_capacity;
 } orchestrator_options_t;
+
+static double
+mono_now_sec(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (double) ts.tv_sec + ((double) ts.tv_nsec / 1.0e9);
+}
 
 static void
 usage(const char *prog)
@@ -768,6 +777,17 @@ main(int argc, char **argv)
 	int                    i;
 	uint64_t               seq;
 	nng_err                init_err;
+	double                 t_all_start;
+	double                 t_setup_start;
+	double                 t_tick_start;
+	double                 t_tick_end;
+	double                 t_shutdown_start;
+	double                 t_all_end;
+	double                 acc_tick_send_sec = 0.0;
+	double                 acc_tick_wait_sec = 0.0;
+	uint64_t               ack_barrier_count = 0;
+
+	t_all_start = mono_now_sec();
 
 	init_err = nng_init(NULL);
 	if (init_err != 0) {
@@ -797,6 +817,7 @@ main(int argc, char **argv)
 	    (opts.route_override_count > 0) ? "custom" : "global",
 	    (opts.gen_override_count > 0) ? "custom" : "global");
 	printf("orchestrator: clock=%s\n", clock_url);
+	t_setup_start = mono_now_sec();
 
 	input_ids   = calloc((size_t) chip_count, sizeof(int));
 	out_ids     = calloc((size_t) chip_count, sizeof(int));
@@ -869,16 +890,24 @@ main(int argc, char **argv)
 	}
 
 	nng_msleep((nng_duration) opts.startup_ms);
+	t_tick_start = mono_now_sec();
 	for (seq = 0; seq < opts.ticks; seq++) {
 		chipsim_tick_msg_t tick;
 		bool               wait_for_done;
+		double             t_send0;
+		double             t_send1;
+		double             t_wait0;
+		double             t_wait1;
 
 		memset(&tick, 0, sizeof(tick));
 		tick.type      = CHIPSIM_MSG_TICK;
 		tick.sync_mode = (uint8_t) opts.sync_mode;
 		tick.seq       = seq;
 
-		rv = nng_send(clock_pub, &tick, sizeof(tick), 0);
+		t_send0 = mono_now_sec();
+		rv      = nng_send(clock_pub, &tick, sizeof(tick), 0);
+		t_send1 = mono_now_sec();
+		acc_tick_send_sec += (t_send1 - t_send0);
 		if (rv != 0) {
 			fprintf(stderr, "send(TICK) failed for seq=%" PRIu64 ": %s\n", seq, nng_strerror(rv));
 			goto fail;
@@ -891,11 +920,16 @@ main(int argc, char **argv)
 			wait_for_done = ((seq + 1u) % (uint64_t) opts.ack_window) == 0u;
 		}
 		if (wait_for_done) {
+			t_wait0 = mono_now_sec();
 			if (wait_done_for_seq(done_pull, chip_count, seq, done_latest) != 0) {
 				goto fail;
 			}
+			t_wait1 = mono_now_sec();
+			acc_tick_wait_sec += (t_wait1 - t_wait0);
+			ack_barrier_count++;
 		}
 	}
+	t_tick_end = mono_now_sec();
 
 	{
 		chipsim_tick_msg_t stop_msg;
@@ -913,6 +947,7 @@ main(int argc, char **argv)
 	if (collect_metrics(metric_pull, chip_count, metric_all) != 0) {
 		goto fail;
 	}
+	t_shutdown_start = mono_now_sec();
 
 	{
 		uint64_t total_tx = 0;
@@ -952,6 +987,22 @@ main(int argc, char **argv)
 	}
 
 	printf("orchestrator: all %d chips exited cleanly\n", chip_count);
+	t_all_end = mono_now_sec();
+	{
+		double total_sec      = t_all_end - t_all_start;
+		double setup_sec      = t_tick_start - t_setup_start;
+		double tick_loop_sec  = t_tick_end - t_tick_start;
+		double shutdown_sec   = t_all_end - t_shutdown_start;
+		double cycles_per_sec = (tick_loop_sec > 0.0) ? ((double) opts.ticks / tick_loop_sec) : 0.0;
+		double wait_pct       = (tick_loop_sec > 0.0) ? (100.0 * acc_tick_wait_sec / tick_loop_sec) : 0.0;
+
+		printf("benchmark: total_sec=%.6f setup_sec=%.6f tick_loop_sec=%.6f shutdown_sec=%.6f\n",
+		    total_sec, setup_sec, tick_loop_sec, shutdown_sec);
+		printf("benchmark: ticks=%" PRIu64 " cycles_per_sec=%.3f tick_send_sec=%.6f tick_wait_sec=%.6f "
+		       "tick_wait_pct=%.2f ack_barriers=%" PRIu64 "\n",
+		    opts.ticks, cycles_per_sec, acc_tick_send_sec, acc_tick_wait_sec, wait_pct,
+		    ack_barrier_count);
+	}
 
 	nng_socket_close(metric_pull);
 	nng_socket_close(done_pull);
