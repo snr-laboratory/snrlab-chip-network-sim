@@ -1,0 +1,23 @@
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.mermaid) {
+      // Pandoc emits <pre class="mermaid"><code>...</code></pre>. Normalize to plain text.
+      document.querySelectorAll("pre.mermaid").forEach(function (pre) {
+        var code = pre.querySelector("code");
+        if (code) {
+          pre.textContent = code.textContent;
+        }
+      });
+
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: "default",
+        securityLevel: "loose"
+      });
+      window.mermaid.run({
+        querySelector: "pre.mermaid"
+      });
+    }
+  });
+</script>

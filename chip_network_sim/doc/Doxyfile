@@ -1,0 +1,43 @@
+PROJECT_NAME           = "chip_network_sim"
+PROJECT_BRIEF          = "Inter-chip digital network simulation with software and RTL backends"
+PROJECT_NUMBER         = "v1"
+OUTPUT_DIRECTORY       = doc/build/doxygen
+USE_MDFILE_AS_MAINPAGE = README.md
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = NO
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+OPTIMIZE_OUTPUT_JAVA   = NO
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+RECURSIVE              = YES
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+
+INPUT                  = README.md AGENTS.md BENCHMARKS.md include src scripts rtl tests CMakeLists.txt config
+EXCLUDE                = nng build doc/build
+FILE_PATTERNS          = *.md *.h *.hpp *.c *.cc *.cpp *.cxx *.py *.sv *.cmake CMakeLists.txt
+EXTENSION_MAPPING      = py=Python
+NUM_PROC_THREADS       = 8
+SOURCE_BROWSER         = YES
+VERBATIM_HEADERS       = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+GENERATE_HTML          = YES
+USE_MATHJAX            = YES
+HTML_EXTRA_STYLESHEET  = doc/doxygen_extra.css
+GENERATE_LATEX         = NO
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+DOT_MULTI_TARGETS      = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+CLASS_GRAPH            = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+UML_LOOK               = YES
+TEMPLATE_RELATIONS     = YES
+DOT_GRAPH_MAX_NODES    = 1000

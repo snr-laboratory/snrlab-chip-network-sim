@@ -21,6 +21,7 @@ Verilator build artifact:
 
 Benchmark report:
 - `BENCHMARKS.md`
+- `doc/architecture.md` (render with `cd doc && make html`)
 
 ## Run
 Run directly with CLI:
