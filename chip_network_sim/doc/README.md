@@ -5,7 +5,7 @@ This directory contains architecture and API documentation inputs and build conf
 ## Main Documents
 - `architecture.md`: system architecture, message model, sync/tick behavior, and backend design.
 - `packet_trace_plan.md`: packet-level tracing design (binary schema, event model, reconstruction flow).
-- `../scripts/reconstruct_trace.py`: offline parser/reconstructor for `tracebin` runs.
+- `../scripts/reconstruct_trace.py`: offline parser/reconstructor for `tracebin` runs, including ASCII packet lifetime history plots.
 - `../BENCHMARKS.md`: benchmark results and reproduction commands.
 - `Doxyfile`: Doxygen configuration for code-level API docs.
 

@@ -50,6 +50,16 @@ Run with packet tracing enabled:
 ./build/orchestrator -rows 2 -cols 2 -ticks 100 -route east -chip_bin ./build/chip \
   -trace_dir traces -trace_run_id demo_run
 python3 scripts/reconstruct_trace.py -run traces/demo_run --top 10
+python3 scripts/reconstruct_trace.py -run traces/demo_run --plot-top 4 \
+  --plot-out traces/demo_run/packet_history.txt
+# Or select explicit packet words:
+python3 scripts/reconstruct_trace.py -run traces/demo_run \
+  --plot-packets 0x00000000096002cb,0x000000000ab84b8a \
+  --plot-out traces/demo_run/packet_history_selected.txt
+# Default plot range is full run tick span (0..ticks-1).
+# Use compact range only around selected packet activity:
+python3 scripts/reconstruct_trace.py -run traces/demo_run --plot-top 4 \
+  --plot-compact-range --plot-out traces/demo_run/packet_history_compact.txt
 ```
 
 Single chip wrapper:

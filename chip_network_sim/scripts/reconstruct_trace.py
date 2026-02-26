@@ -24,6 +24,15 @@ EVENT_NAMES = {
     6: "DEQ_OUT",
 }
 
+EVENT_TOKENS = {
+    1: "G",   # generated local packet
+    2: "IL",  # entered FIFO (local)
+    3: "XL",  # dropped on local enqueue
+    4: "IN",  # entered FIFO (neighbor)
+    5: "XN",  # dropped on neighbor enqueue
+    6: "O",   # left FIFO / output event
+}
+
 
 @dataclass
 class TraceRow:
@@ -129,11 +138,166 @@ def summarize(rows: List[TraceRow]) -> dict:
     }
 
 
+def parse_packet_words(spec: str) -> List[int]:
+    out: List[int] = []
+    if not spec:
+        return out
+    for raw in spec.split(","):
+        item = raw.strip()
+        if not item:
+            continue
+        out.append(int(item, 0))
+    return out
+
+
+def fit_cell(text: str, width: int) -> str:
+    if width <= 0:
+        return ""
+    if len(text) <= width:
+        return text.ljust(width)
+    if width <= 3:
+        return text[:width]
+    return text[: width - 3] + "..."
+
+
+def event_token(row: TraceRow) -> str:
+    tok = EVENT_TOKENS.get(row.event_type, "?")
+    return f"{tok}@{row.chip_id}"
+
+
+def build_ascii_packet_history(
+    rows: List[TraceRow],
+    packet_words: List[int],
+    cell_width: int,
+    tick_min: int,
+    tick_max: int,
+) -> str:
+    row_by_packet: Dict[int, List[TraceRow]] = {}
+    for row in rows:
+        row_by_packet.setdefault(row.packet_word, []).append(row)
+
+    selected = packet_words[:]
+    if not selected:
+        return "No packets selected.\n"
+
+    existing = [pw for pw in selected if pw in row_by_packet]
+    missing = [pw for pw in selected if pw not in row_by_packet]
+
+    if not existing:
+        return "None of the selected packets were found in this run.\n"
+
+    timelines: Dict[int, Dict[int, List[str]]] = {}
+    for pw in existing:
+        tick_map: Dict[int, List[str]] = {}
+        for row in sorted(row_by_packet[pw], key=lambda r: (r.tick, r.chip_id, r.local_index)):
+            tick_map.setdefault(row.tick, []).append(event_token(row))
+        timelines[pw] = tick_map
+
+    tick_w = max(4, len(str(tick_max)))
+    headers = [fit_cell(f"0x{pw:016x}", cell_width) for pw in existing]
+
+    lines: List[str] = []
+    lines.append("Packet Lifetime History")
+    lines.append(
+        "Legend: G=generated, IL/IN=entered FIFO(local/neigh), O=left FIFO, "
+        "XL/XN=dropped(local/neigh); @<chip_id>"
+    )
+    lines.append(f"Tick range: {tick_min}..{tick_max}")
+    if missing:
+        lines.append(
+            "Missing packets: " + ", ".join(f"0x{pw:016x}" for pw in missing)
+        )
+    lines.append("")
+
+    head = f"{'tick':>{tick_w}} | " + " | ".join(headers)
+    sep = "-" * len(head)
+    lines.append(head)
+    lines.append(sep)
+
+    for tick in range(tick_min, tick_max + 1):
+        cells: List[str] = []
+        for pw in existing:
+            events = timelines[pw].get(tick)
+            if not events:
+                text = "."
+            else:
+                text = ",".join(events)
+            cells.append(fit_cell(text, cell_width))
+        lines.append(f"{tick:>{tick_w}} | " + " | ".join(cells))
+
+    return "\n".join(lines) + "\n"
+
+
+def select_plot_packets(summary: dict, explicit: List[int], plot_top: int) -> List[int]:
+    selected: List[int] = []
+    seen = set()
+
+    for pw in explicit:
+        if pw not in seen:
+            selected.append(pw)
+            seen.add(pw)
+
+    if plot_top > 0:
+        for pkt in summary["packets"]:
+            pw = int(pkt["packet_word"])
+            if pw in seen:
+                continue
+            selected.append(pw)
+            seen.add(pw)
+            if len(selected) >= len(explicit) + plot_top:
+                break
+
+    if not selected:
+        for pkt in summary["packets"][:4]:
+            pw = int(pkt["packet_word"])
+            selected.append(pw)
+
+    return selected
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Reconstruct packet timelines from tracebin logs")
     ap.add_argument("-run", "--run-dir", required=True, help="Trace run directory")
     ap.add_argument("--top", type=int, default=20, help="Show top-N packets in summary")
     ap.add_argument("--json-out", help="Optional path to write full JSON summary")
+    ap.add_argument(
+        "--plot-out",
+        help="Optional output ASCII file path for packet lifetime history plot",
+    )
+    ap.add_argument(
+        "--plot-packets",
+        default="",
+        help="Comma-separated packet words (hex or int), e.g. 0x00000000096002cb,0x123",
+    )
+    ap.add_argument(
+        "--plot-top",
+        type=int,
+        default=0,
+        help="Also include first N packets by earliest appearance in plot columns",
+    )
+    ap.add_argument(
+        "--plot-cell-width",
+        type=int,
+        default=22,
+        help="ASCII plot column width per packet",
+    )
+    ap.add_argument(
+        "--plot-compact-range",
+        action="store_true",
+        help="Use compact tick range covering only selected packet activity",
+    )
+    ap.add_argument(
+        "--plot-tick-min",
+        type=int,
+        default=None,
+        help="Override plot tick lower bound (inclusive)",
+    )
+    ap.add_argument(
+        "--plot-tick-max",
+        type=int,
+        default=None,
+        help="Override plot tick upper bound (inclusive)",
+    )
     args = ap.parse_args()
 
     run_dir = Path(args.run_dir)
@@ -176,6 +340,47 @@ def main() -> int:
         with out_path.open("w", encoding="utf-8") as f:
             json.dump({"manifest": manifest, "summary": summary}, f, indent=2)
         print(f"wrote {out_path}")
+
+    if args.plot_out:
+        explicit = parse_packet_words(args.plot_packets)
+        selected = select_plot_packets(summary, explicit, max(args.plot_top, 0))
+        selected_rows = [r for r in rows if r.packet_word in set(selected)]
+
+        if args.plot_tick_min is not None:
+            tick_min = args.plot_tick_min
+        elif args.plot_compact_range and selected_rows:
+            tick_min = int(min(r.tick for r in selected_rows))
+        else:
+            tick_min = 0
+
+        if args.plot_tick_max is not None:
+            tick_max = args.plot_tick_max
+        elif args.plot_compact_range and selected_rows:
+            tick_max = int(max(r.tick for r in selected_rows))
+        else:
+            run_ticks = int(manifest.get("ticks", 0) or 0)
+            if run_ticks > 0:
+                tick_max = run_ticks - 1
+            elif rows:
+                tick_max = int(max(r.tick for r in rows))
+            else:
+                tick_max = tick_min
+
+        if tick_max < tick_min:
+            raise ValueError("plot tick range is invalid: tick_max < tick_min")
+
+        ascii_plot = build_ascii_packet_history(
+            rows,
+            selected,
+            max(args.plot_cell_width, 8),
+            tick_min,
+            tick_max,
+        )
+
+        out_path = Path(args.plot_out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(ascii_plot, encoding="utf-8")
+        print(f"wrote {out_path} (packets={len(selected)})")
 
     return 0
 
