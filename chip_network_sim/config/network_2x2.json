@@ -1,0 +1,26 @@
+{
+  "grid": {
+    "rows": 2,
+    "cols": 2
+  },
+  "packet": {
+    "N_bits": 64,
+    "A_id_bits": 16,
+    "B_ts_bits": 24,
+    "C_payload_bits": 24
+  },
+  "runtime": {
+    "ticks": 64,
+    "sync_mode": "barrier_ack",
+    "route": "east",
+    "chip_bin": "./build/chip_rtl",
+    "fifo_depth": 32,
+    "seed": 1,
+    "ack_window": 4,
+    "startup_ms": 350,
+    "ack_timeout_ms": 5000
+  },
+  "traffic": {
+    "gen_ppm": 100000
+  }
+}

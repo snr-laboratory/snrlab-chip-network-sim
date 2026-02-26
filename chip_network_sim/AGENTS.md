@@ -61,12 +61,13 @@ Use the term **Simulation Orchestrator** for the top-level launcher.
 ## Revised Work Breakdown
 1. **Contracts first**: freeze packet bit layout (`N/A/B/C`), CLI/config schema, and tick protocol with sequence numbers.
 2. **Core primitives**: implement FIFO and packet codec with unit tests for ordering, full/empty, overflow behavior.
-3. **Single-chip path**: implement `chip` runtime with mock RTL, then swap in Verilator backend.
-4. **Orchestrator sync modes**: implement launch control for `barrier_ack`, `pubsub_only`, and `windowed_ack` with timeout + abort policy.
-5. **Topology wiring**: compile `m x n` routes into chip startup args and endpoint map.
-6. **Traffic model**: add sporadic local generation with deterministic RNG seed control.
-7. **Metrics pipeline**: collect per-tick and end-of-run stats; emit machine-readable report.
-8. **Scale and hardening**: run increasing grid sizes, profile bottlenecks, and tune transport settings.
+3. **RTL FIFO first**: implement FIFO/router RTL (two inputs, one output, local-first arbitration) and compile it with Verilator.
+4. **Single-chip runtime variants**: keep software `chip` path and add `chip_rtl` runtime that drives the verilated FIFO model.
+5. **Orchestrator sync modes**: implement launch control for `barrier_ack`, `pubsub_only`, and `windowed_ack` with timeout + abort policy.
+6. **Topology wiring**: compile `m x n` routes into chip startup args and endpoint map.
+7. **Traffic model**: add sporadic local generation with deterministic RNG seed control.
+8. **Metrics pipeline**: collect per-tick and end-of-run stats; emit machine-readable report.
+9. **Scale and hardening**: run increasing grid sizes, profile bottlenecks, and tune transport settings.
 
 ## Validation Methods
 - **Protocol checks**: reject malformed packet width/field mappings at startup.
@@ -77,6 +78,8 @@ Use the term **Simulation Orchestrator** for the top-level launcher.
   - `windowed_ack`: all chips report `DONE(seq)` exactly once per configured window.
   - `pubsub_only`: no `DONE` requirement; monitor drift/stall counters.
 - **FIFO correctness**: verify no reorder, local-first ingress priority, and overflow counter behavior.
+- **RTL parity**: compare `chip` vs `chip_rtl` runs on same seed/config; enforce matching packet-trace invariants.
+- **Verilator build gate**: CI/local build must produce runnable `chip_rtl` artifact before integration tests.
 - **Fault handling**: kill one chip process and verify orchestrator detects and exits with clear diagnostics.
 - **Performance gate**: for each target grid size, record ticks/sec, CPU, memory, drop/stall rates.
 
@@ -84,6 +87,7 @@ Use the term **Simulation Orchestrator** for the top-level launcher.
 - Prefer nng request/reply or pair channels for `TICK/DONE`; use pub/sub primarily for data fanout.
 - Keep command examples explicit, e.g.:
   - `./chip -id 5 -input 2 -out 8 -cfg chip_5.json -sync barrier_ack`
+  - `./build/orchestrator -rows 4 -cols 4 -ticks 200 -sync barrier_ack -chip_bin ./build/chip_rtl`
   - `./orchestrator -cfg network_8x8.json`
 
 ## Decision-Complete Execution Plan
@@ -94,17 +98,19 @@ Locked design decisions:
 
 1. Freeze contracts: packet bit layout (`N/A/B/C`), `chip`/`orchestrator` CLI, config schema, and sync-mode options.
 2. Build core primitives: packet codec and FIFO (C99), including local-first ingress arbitration and drop counters.
-3. Implement `chip` runtime with mock RTL adapter first; then integrate Verilated RTL backend.
-4. Implement orchestrator launch/topology compiler for `m x n` grids under `1-in/1-out` routing.
-5. Implement clock-sync modes:
+3. Implement RTL FIFO/router and compile with Verilator to produce `chip_rtl`.
+4. Implement `chip` (software FIFO) and `chip_rtl` (verilated FIFO) runtime variants under shared protocol/CLI.
+5. Implement orchestrator launch/topology compiler for `m x n` grids under `1-in/1-out` routing.
+6. Implement clock-sync modes:
    - `barrier_ack`: strict per-tick `TICK(seq)` -> `DONE(id, seq)` barrier.
    - `pubsub_only`: broadcast tick without per-tick wait.
    - `windowed_ack`: barrier every `N` ticks.
-6. Add metrics and diagnostics: throughput, latency, FIFO occupancy, drops, stalls, timeout/fault events.
-7. Validate with deterministic seeds and golden traces (`2x2`, `3x3`, then larger scale).
+7. Add metrics and diagnostics: throughput, latency, FIFO occupancy, drops, stalls, timeout/fault events.
+8. Validate with deterministic seeds and golden traces (`2x2`, `3x3`, then larger scale), including `chip` vs `chip_rtl` parity checks.
 
 ## Validation Gate Criteria
 - Same config + seed gives identical traces/metrics in `barrier_ack` and `windowed_ack`.
 - FIFO guarantees preserved: no reorder, correct drop-on-full accounting, local-first tie-break.
+- Verilator artifact exists and runs: `build/chip_rtl`.
 - Routing correctness on fixed topologies with known expected packet paths.
 - Sync invariants met per selected mode; dead/stalled chip detected and reported clearly.
