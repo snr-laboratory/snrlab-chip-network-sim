@@ -69,6 +69,31 @@ RUNS=15 ./scripts/run_determinism_3x5.sh
   - cycles/sec
   - deterministic pass/fail checks across all runs
 
+Congestion-wave test (3x5 snake, bottom-right to top-left):
+```bash
+python3 scripts/run_congestion_wave_3x5.py
+```
+- Uses config template: `config/network_3x5_congestion_wave_br_to_tl.json`
+- Default parameters:
+  - grid `3x5`
+  - per-chip `gen_ppm=25000` for all 15 chips
+  - `fifo_depth=64`
+  - `ticks=50000`
+- Configurable at run time:
+```bash
+python3 scripts/run_congestion_wave_3x5.py --gen-ppm 30000 --fifo-depth 48 --ticks 40000
+```
+- Script writes outputs under:
+  - `reports/congestion_wave_3x5/<timestamp>/congestion_wave_report.md`
+  - `reports/congestion_wave_3x5/<timestamp>/fifo_occupancy_15chips.png`
+  - `reports/congestion_wave_3x5/<timestamp>/per_chip_metrics.tsv`
+  - `reports/congestion_wave_3x5/<timestamp>/fifo_occupancy_timeseries.tsv`
+- Report includes:
+  - per-chip packet counts (generated, forwarded)
+  - per-chip drop counts split into local vs pass-through
+  - aggregate totals
+  - one shared-axis FIFO occupancy plot with all 15 labeled chip curves
+
 2-chip local-priority/loss test (`chip 0 -> chip 1` sink):
 ```bash
 python3 scripts/run_from_config.py -cfg config/network_1x2_priority_loss_test.json \
