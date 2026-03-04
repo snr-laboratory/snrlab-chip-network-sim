@@ -45,6 +45,30 @@ Run with explicit per-chip routing map:
 python3 scripts/run_from_config.py -cfg config/network_2x2_custom_routes.json
 ```
 
+Determinism test (3x5 snake, bottom-right to top-left):
+```bash
+./scripts/run_determinism_3x5.sh
+```
+- Uses config: `config/network_3x5_determinism_snake_br_to_tl.json`
+- Fixed parameters in that config:
+  - grid `3x5`
+  - per-chip `gen_ppm=50000` for all 15 chips
+  - `fifo_depth=64`
+  - fixed `seed=424242`
+- Default run count is 15; override with:
+```bash
+RUNS=15 ./scripts/run_determinism_3x5.sh
+```
+- Script writes outputs under:
+  - `reports/determinism_3x5/<timestamp>/results.tsv`
+  - `reports/determinism_3x5/<timestamp>/determinism_report.md`
+- Report includes, per run:
+  - delivered packets (`tx`)
+  - total drops
+  - per-chip drop counts
+  - cycles/sec
+  - deterministic pass/fail checks across all runs
+
 Run with packet tracing enabled:
 ```bash
 ./build/orchestrator -rows 2 -cols 2 -ticks 100 -route east -chip_bin ./build/chip \
