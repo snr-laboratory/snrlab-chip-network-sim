@@ -1,0 +1,38 @@
+{
+  "grid": {
+    "rows": 1,
+    "cols": 2
+  },
+  "packet": {
+    "N_bits": 64,
+    "A_id_bits": 16,
+    "B_ts_bits": 24,
+    "C_payload_bits": 24
+  },
+  "runtime": {
+    "ticks": 2000,
+    "chip_bin": "./build/chip",
+    "fifo_depth": 2,
+    "seed": 777,
+    "startup_ms": 350,
+    "ack_timeout_ms": 5000,
+    "trace_dir": "./traces/priority_loss_1x2"
+  },
+  "traffic": {
+    "gen_ppm": 1000000
+  },
+  "routes": [
+    {
+      "id": 0,
+      "input_id": -1,
+      "out_id": 1,
+      "gen_ppm": 1000000
+    },
+    {
+      "id": 1,
+      "input_id": 0,
+      "out_id": -1,
+      "gen_ppm": 1000000
+    }
+  ]
+}

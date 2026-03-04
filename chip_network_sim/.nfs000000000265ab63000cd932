@@ -69,24 +69,6 @@ RUNS=15 ./scripts/run_determinism_3x5.sh
   - cycles/sec
   - deterministic pass/fail checks across all runs
 
-2-chip local-priority/loss test (`chip 0 -> chip 1` sink):
-```bash
-python3 scripts/run_from_config.py -cfg config/network_1x2_priority_loss_test.json \
-  > reports/priority_loss_1x2/latest_run.log 2>&1
-```
-- Uses config: `config/network_1x2_priority_loss_test.json`
-- Fixed parameters in that config:
-  - grid `1x2`
-  - routes: `0:-1:1`, `1:0:-1` (chip 1 is sink)
-  - per-chip `gen_ppm=1000000` for both chips
-  - `fifo_depth=2`
-- This test tracks:
-  - packet loss totals and per-chip drop events (from traces)
-  - sink output packet provenance by `src_id`
-  - if any sink output packet has `src_id=0`, the packet `timestamp` value(s) are recorded
-- Findings report location pattern:
-  - `reports/priority_loss_1x2/<trace_run_id>/priority_loss_report.md`
-
 Run with packet tracing enabled:
 ```bash
 ./build/orchestrator -rows 2 -cols 2 -ticks 100 -route east -chip_bin ./build/chip \
