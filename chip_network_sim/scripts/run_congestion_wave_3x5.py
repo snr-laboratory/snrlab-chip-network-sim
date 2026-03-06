@@ -271,26 +271,43 @@ def write_occupancy_tsv(path: Path, occupancy_by_chip: Dict[int, List[int]]) -> 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def plot_occupancy(path: Path, occupancy_by_chip: Dict[int, List[int]], fifo_depth: int) -> None:
+def plot_occupancy_grouped(
+    out_dir: Path, occupancy_by_chip: Dict[int, List[int]], fifo_depth: int
+) -> List[Path]:
     chip_ids = sorted(occupancy_by_chip)
+    if not chip_ids:
+        raise ValueError("no chip occupancy data available for plotting")
+
     ticks = len(occupancy_by_chip[chip_ids[0]])
     x = list(range(ticks))
 
-    fig, ax = plt.subplots(figsize=(15, 7.5))
-    for cid in chip_ids:
-        ax.plot(x, occupancy_by_chip[cid], linewidth=1.0, label=f"chip_{cid}")
+    groups = [(0, 4), (5, 9), (10, 14)]
+    out_paths: List[Path] = []
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    ax.set_xlabel("Ticks")
-    ax.set_ylabel("FIFO Occupancy")
-    ax.set_title("3x5 BR->TL Congestion Wave: FIFO Occupancy per Chip")
-    ax.set_ylim(0, max(fifo_depth, 1))
-    ax.grid(True, alpha=0.3)
-    ax.legend(loc="upper right", ncol=3, fontsize=8, frameon=False)
+    for start, end in groups:
+        selected = [cid for cid in chip_ids if start <= cid <= end]
+        if not selected:
+            continue
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.tight_layout()
-    fig.savefig(path, dpi=160)
-    plt.close(fig)
+        fig, ax = plt.subplots(figsize=(13, 6.5))
+        for cid in selected:
+            ax.plot(x, occupancy_by_chip[cid], linewidth=1.0, label=f"chip_{cid}")
+
+        ax.set_xlabel("Ticks")
+        ax.set_ylabel("FIFO Occupancy")
+        ax.set_title(f"3x5 BR->TL Congestion Wave: FIFO Occupancy (chips {start}-{end})")
+        ax.set_ylim(0, max(fifo_depth, 1))
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="upper right", ncol=1, fontsize=9, frameon=False)
+
+        out_path = out_dir / f"fifo_occupancy_chips_{start}_{end}.png"
+        fig.tight_layout()
+        fig.savefig(out_path, dpi=160)
+        plt.close(fig)
+        out_paths.append(out_path)
+
+    return out_paths
 
 
 def write_report(
@@ -298,7 +315,7 @@ def write_report(
     config_path: Path,
     run_log_path: Path,
     trace_run_dir: Path,
-    plot_path: Path,
+    plot_paths: List[Path],
     per_chip_tsv: Path,
     occupancy_tsv: Path,
     run_metrics: dict,
@@ -352,9 +369,13 @@ def write_report(
     lines.append("")
     lines.append("## FIFO Occupancy Over Time")
     lines.append("")
-    lines.append("The plot below overlays all 15 chips on one axis (x=tick, y=occupancy).")
+    lines.append("The plots below show FIFO occupancy vs tick, grouped as 5 chips per axis.")
     lines.append("")
-    lines.append(f"![FIFO Occupancy 15-Chip Overlay]({plot_path.name})")
+    for plot_path in plot_paths:
+        lines.append(f"### `{plot_path.stem}`")
+        lines.append("")
+        lines.append(f"![{plot_path.stem}]({plot_path.name})")
+        lines.append("")
     lines.append("")
     lines.append("## Data Files")
     lines.append("")
@@ -451,18 +472,19 @@ def main() -> int:
 
     per_chip_tsv = out_dir / "per_chip_metrics.tsv"
     occupancy_tsv = out_dir / "fifo_occupancy_timeseries.tsv"
-    plot_path = out_dir / "fifo_occupancy_15chips.png"
+    plot_paths = plot_occupancy_grouped(out_dir, occupancy_by_chip, args.fifo_depth)
+    if len(plot_paths) != 3:
+        raise SystemExit(f"expected 3 occupancy plots, found {len(plot_paths)}")
     report_md = out_dir / "congestion_wave_report.md"
 
     write_per_chip_tsv(per_chip_tsv, per_chip)
     write_occupancy_tsv(occupancy_tsv, occupancy_by_chip)
-    plot_occupancy(plot_path, occupancy_by_chip, args.fifo_depth)
     write_report(
         report_md,
         eff_cfg_path,
         run_log_path,
         trace_run_dir,
-        plot_path,
+        plot_paths,
         per_chip_tsv,
         occupancy_tsv,
         run_metrics,
@@ -472,7 +494,8 @@ def main() -> int:
     print("done")
     print(f"output_dir={out_dir}")
     print(f"report={report_md}")
-    print(f"plot={plot_path}")
+    for plot_path in plot_paths:
+        print(f"plot={plot_path}")
     print(f"per_chip_metrics={per_chip_tsv}")
     print(f"occupancy_tsv={occupancy_tsv}")
     return 0
