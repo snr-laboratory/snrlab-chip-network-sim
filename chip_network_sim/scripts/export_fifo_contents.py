@@ -67,6 +67,50 @@ def format_md_row(values: List[str]) -> str:
     return "| " + " | ".join(values) + " |"
 
 
+def build_md_run_header(
+    run_dir: Path,
+    manifest: dict,
+    chip_id: int,
+    fifo_depth: int,
+    args: argparse.Namespace,
+) -> List[str]:
+    lines: List[str] = []
+    chips = sorted(manifest.get("chips", []), key=lambda c: int(c["id"]))
+
+    lines.append("# FIFO Contents Export")
+    lines.append("")
+    lines.append("## Run Summary")
+    lines.append("")
+    lines.append(f"- Run directory: `{run_dir}`")
+    lines.append(f"- Manifest format: `{manifest.get('format', 'unknown')}`")
+    lines.append(f"- Ticks: `{manifest.get('ticks', 'unknown')}`")
+    lines.append(f"- FIFO depth used for table columns: `{fifo_depth}`")
+    lines.append(f"- Selected chip for FIFO table: `{chip_id}`")
+    lines.append(f"- Chip binary: `{manifest.get('chip_bin', 'unknown')}`")
+    lines.append(f"- Table generator script: `scripts/export_fifo_contents.py`")
+    lines.append(
+        "- Table generator command: "
+        f"`python3 scripts/export_fifo_contents.py --run-dir {run_dir} "
+        f"--chip-id {args.chip_id} --fifo-depth {args.fifo_depth} --format {args.format}"
+        + (" --include-io-cols" if args.include_io_cols else "")
+        + f" --out {args.out}`"
+    )
+    lines.append("")
+    lines.append("## Routing And Generation")
+    lines.append("")
+    lines.append("| chip_id | input_id | out_id | gen_ppm |")
+    lines.append("| --- | --- | --- | --- |")
+    for chip in chips:
+        lines.append(
+            f"| {int(chip['id'])} | {int(chip.get('input_id', -1))} | "
+            f"{int(chip.get('out_id', -1))} | {int(chip.get('gen_ppm', -1))} |"
+        )
+    lines.append("")
+    lines.append("## Per-Tick FIFO Table")
+    lines.append("")
+    return lines
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Export per-tick FIFO content table for one chip")
     ap.add_argument("--run-dir", required=True, help="Trace run directory")
@@ -83,6 +127,11 @@ def main() -> int:
         choices=("txt", "md"),
         default="txt",
         help="Output format: fixed-width text table (txt) or markdown table (md)",
+    )
+    ap.add_argument(
+        "--include-io-cols",
+        action="store_true",
+        help="Include per-tick enter/exit packet columns (enter_local, enter_neigh, exit_out)",
     )
     args = ap.parse_args()
 
@@ -113,10 +162,14 @@ def main() -> int:
 
     fifo: Deque[int] = deque()
     lines: List[str] = []
-    header = ["tick"] + [f"slot_{i}" for i in range(args.fifo_depth)]
+    if args.format == "md":
+        lines.extend(build_md_run_header(run_dir, manifest, args.chip_id, args.fifo_depth, args))
+
+    io_header = ["enter_local", "enter_neigh", "exit_out"] if args.include_io_cols else []
+    header = ["tick"] + io_header + [f"slot_{i}" for i in range(args.fifo_depth)]
     tick_width = max(len("tick"), len(str(max(ticks - 1, 0))))
     slot_width = max(18, max(len(h) for h in header[1:]) if len(header) > 1 else 18)
-    widths = [tick_width] + [slot_width] * args.fifo_depth
+    widths = [tick_width] + [slot_width] * (len(header) - 1)
     if args.format == "md":
         lines.append(format_md_row(header))
         lines.append(format_md_row(["---"] * len(header)))
@@ -126,9 +179,15 @@ def main() -> int:
 
     for tick in range(ticks):
         events = by_tick.get(tick, [])
+        enter_local = "-"
+        enter_neigh = "-"
+        exit_out = "-"
 
         # Dequeue event is emitted at tick start in current runtime model.
-        deq_count = sum(1 for ev, _ in events if ev == EV_DEQ_OUT)
+        deq_words = [word for ev, word in events if ev == EV_DEQ_OUT]
+        deq_count = len(deq_words)
+        if deq_words:
+            exit_out = packet_word_to_str(deq_words[0])
         for _ in range(deq_count):
             if fifo:
                 fifo.popleft()
@@ -137,14 +196,21 @@ def main() -> int:
         for ev, word in events:
             if ev == EV_ENQ_LOCAL_OK:
                 fifo.append(word)
+                if enter_local == "-":
+                    enter_local = packet_word_to_str(word)
         for ev, word in events:
             if ev == EV_ENQ_NEIGH_OK:
                 fifo.append(word)
+                if enter_neigh == "-":
+                    enter_neigh = packet_word_to_str(word)
 
         slots = ["-"] * args.fifo_depth
         for i, word in enumerate(list(fifo)[: args.fifo_depth]):
             slots[i] = packet_word_to_str(word)
-        row_vals = [str(tick)] + slots
+        row_vals = [str(tick)]
+        if args.include_io_cols:
+            row_vals.extend([enter_local, enter_neigh, exit_out])
+        row_vals.extend(slots)
         if args.format == "md":
             lines.append(format_md_row(row_vals))
         else:
