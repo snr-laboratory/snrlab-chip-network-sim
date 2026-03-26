@@ -1,0 +1,29 @@
+// mcp program to debug external trigger
+
+  $display("EXT_TRIG_SHORT.MCP RUNNING");
+
+
+#50
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h01);
+
+//#50 
+//  $display("enable channels 0 - 7 (enable CSA)");
+//  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+//#50 
+//  $display("enable channels 0 - 7 (turn off channel mask)");
+//  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+
+#50
+  $display("enable channels 0 - 7 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK,0);
+
+#50
+  $display("READY FOR ACTION");
+
+#50
+  $display("Read Back test: 1d/0x01 expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,ENABLE_PISO_DOWN,8'h01);
+

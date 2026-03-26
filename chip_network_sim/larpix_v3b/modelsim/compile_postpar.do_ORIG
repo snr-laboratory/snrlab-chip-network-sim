@@ -1,0 +1,40 @@
+#
+# Create work library
+vdel -all work
+vlib work
+
+#
+# Map libraries
+#
+vmap work  
+
+#
+# Design gate-level netlist - assumes precompiled refLibs
+#
+vlog  "../larpix_digital_core/digital_core.output.v"
+#vlog  "/home/4/projects/rfchip/cadence_RF/verilog/larpix_digita_core/digital_core.output.v"
+
+vlog -incr +incdir+../testbench/larpix_tasks/ "../testbench/larpix_tb.v"
+vlog -incr "../src/uart_rx.v" 
+vlog -incr "../src/uart_tx.v" 
+
+vlog -incr "../testbench/analog_core/sar_adc.v" 
+vlog -incr "../testbench/analog_core/sar_adc_core.v" 
+vlog -incr "../testbench/analog_core/discriminator.v" 
+vlog -incr "../testbench/analog_core/csa.v" 
+vlog -incr "../testbench/analog_core/analog_channel.v" 
+vlog -incr "../testbench/analog_core/analog_core.v" 
+
+#
+# full chip model
+#
+vlog -incr "../testbench/larpix/larpix.v" 
+
+#
+# MCP
+#
+
+#vlog +incdir+../testbench/larpix_tasks/ -incr "../testbench/mcp/mcp_spi.v"
+vlog +incdir+../testbench/larpix_tasks/ -incr "../testbench/mcp/mcp_regmap.v"
+vlog +incdir+../testbench/larpix_tasks/ -incr "../testbench/mcp/mcp_analog.v"
+

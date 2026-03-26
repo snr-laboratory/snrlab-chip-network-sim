@@ -1,0 +1,84 @@
+
+
+
+// mcp program to test 4-node LArPix Hydra Network
+
+$display("RUNNING VER_HYDRA_DEBUG.MCP");
+$display("run length = 300 us");
+$display("Verify basic data transfer through hydra network");
+$display("Hydra network comprises four LArPix chips");
+$display("Expected returned packets:");
+$display("CHIP 0: Chip ID = 4, Reg =  74 (IBIAS_TDAC), Data = 8'h01");
+$display("CHIP 1: Chip ID = 2, Reg =  111 (VMONITOR0), Data = 8'h0F");
+$display("CHIP 2: Chip ID = 15, Reg =  113 (VMONITOR2), Data = 8'h04");
+$display("CHIP 3: Chip ID = 6, Reg =  127 (ANALOG_MONITOR), Data = 8'h08");
+$display("Begin Simulation.\n");
+
+#50
+  $display("Change Chip ID for chip0 to 8'h04");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h04);
+
+#10000
+  $display("Enable Downstream PISO0[3] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_DOWN,8'h08);
+#10000
+  $display("Enable Upstream PISO0[1] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h02);
+
+#10000
+  $display("Change Chip ID for chip1 to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+#10000
+  $display("Disable Upstream PISO1[3:0] (chip 1 is leaf node)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h00);
+
+
+#10000
+  $display("Enable Downstream PISO1[3] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_DOWN,8'h08);
+
+#10000
+  // note also keep PISO0[1] enabled
+  $display("Enable Upstream PISO0[0] (for writing data to chip2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h03);
+
+#10000
+  $display("Change Chip ID for chip2 to 8'h0F");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h0F);
+#10000
+  $display("Enable Upstream PISO2[1] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_PISO_UP,8'h02);
+
+#10000
+  $display("Enable Downstream PISO2[2] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_PISO_DOWN,8'h04);
+
+#10000
+  $display("write to 8'h04 to VMONITOR2, chip2"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,VMONITOR2,8'h04);
+
+#10000
+  $display("read out VMONITOR2, chip2"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h0F,VMONITOR2,8'h00);
+
+#10000
+  $display("Change Chip ID for chip3 to 8'h06");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h06);
+
+#10000
+  $display("Disable Upstream PISO3[3:0] (chip 3 is leaf node)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_PISO_UP,8'h00);
+
+#10000
+  $display("Enable Downstream PISO3[3] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_PISO_DOWN,8'h08);
+
+#10000
+  $display("write to ANALOG_MONITOR, chip3"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ANALOG_MONITOR,8'h08);
+
+#10000
+  $display("read out ANALOG_MONITOR, chip3"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h06,ANALOG_MONITOR,8'h00);
+

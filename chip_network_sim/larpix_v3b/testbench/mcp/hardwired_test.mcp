@@ -1,0 +1,19 @@
+// mcp program to test hardwired config bits 
+
+  $display("hardwired_test.mcp RUNNING");
+
+#10000
+  $display("Set r_term_clk to 5'h1F");
+  // expected result: r_term_clk stays at 5'b0
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,TRX12,8'hFF);
+
+#10000
+  $display("Set i_rx0 to 4'hF");
+    // expected result: i_rx0 goes to 4'hC
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,TRX4,8'h8F);
+
+
+
+
+
+

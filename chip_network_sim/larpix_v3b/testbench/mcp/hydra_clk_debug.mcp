@@ -1,0 +1,141 @@
+// mcp program to test changing clock speed on HYDRA networks
+#10000
+  $display("RUNNING HYDRA_CLK_DEBUG.MCP"); 
+//#10000
+//    $display("Enable all PISO ports (for writing data to chip1)");
+//    sendWordToLarpix(CONFIG_WRITE_OP,8'hFF,ENABLE_PISO_UP,8'h0F);
+
+//#20000
+//    $display("PISO enabled.");
+
+
+
+// mcp program to test 4-node LArPix Hydra Network
+
+#10000
+  $display("Change Chip ID for chip0 to 8'h04");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h04);
+
+#10000
+  $display("Enable Downstream PISO0[0] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_DOWN,8'h01);
+
+
+#10000
+  $display("Enable Upstream PISO0[2] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h04);
+
+#10000
+  $display("Change Chip ID for chip1 to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+#10000
+  $display("Enable Downstream PISO1[0] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("Enable Upstream PISO1[3] (for writing data to chip2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h08);
+
+#10000
+  $display("Change Chip ID for chip2 to 8'h0F");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h0F);
+
+
+#10000
+  $display("Enable Downstream PISO2[1] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_PISO_DOWN,8'h02);
+
+#10000
+  $display("Enable Upstream PISO1[2] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h0C);
+
+#10000
+  $display("Change Chip ID for chip3 to 8'h06");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h06);
+
+#10000
+  $display("Enable Downstream PISO3[0] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_PISO_DOWN,8'h01);
+/*
+#10000
+  $display("READ OUT DAC VREF (CHIP0)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h04,DAC_VREF,8'h0a);
+
+#10000
+  $display("READ OUT DAC VREF (CHIP1)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,DAC_VREF,8'h0a);
+
+#10000
+  $display("READ OUT DAC VREF (CHIP2)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h0F,DAC_VREF,8'h0a);
+
+#10000
+  $display("READ OUT DAC VREF (CHIP3)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h06,DAC_VREF,8'h0a);
+*/
+
+#20000
+  $display("Change Clock to 4X, chip 3"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,DIGITAL,8'h58);
+
+#20000
+  $display("Disable Upstream PISO1[2] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h08);
+
+#20000
+  $display("Change Clock to 4X, chip 2"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,DIGITAL,8'h58);
+
+#20000
+  $display("Disable Upstream PISO1[2] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h00);
+
+#20000
+  $display("Change Clock to 4X, chip 1"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DIGITAL,8'h58);
+
+#20000
+  $display("Disable Upstream PISO0[2] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h00);
+
+#20000
+  $display("Change Clock to 4X, chip 0"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,DIGITAL,8'h58);
+
+#20000
+  $display("CHANGE DAC VREF (CHIP0) to 0x0F (AFTER CLK CHANGE)"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,DAC_VREF,8'h0F);
+
+//#20000
+//  $display("READ OUT DAC VREF (CHIP0) (AFTER CLK CHANGE)"); 
+//  sendWordToLarpix(CONFIG_READ_OP,8'h04,DAC_VREF,8'h0a);
+
+//#20000
+//  $display("CHANGE DAC VREF (CHIP0) to 0x0F (AFTER CLK CHANGE)"); 
+//  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,DAC_VREF,8'h0F);
+
+#20000
+  $display("Enable Upstream PISO0[2] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h04);
+
+#20000
+  $display("Enable Upstream PISO1[3] (for writing data to chip2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h08);
+
+#10000
+  $display("Enable Upstream PISO1[2] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h0C);
+
+#20000
+  $display("READ OUT DAC VREF (CHIP0) (AFTER CLK CHANGE)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h04,DAC_VREF,8'h0a);
+
+#20000
+  $display("CHANGE DAC VREF (CHIP3) to 0xFF (AFTER CLK CHANGE)"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,DAC_VREF,8'hFF);
+
+#20000
+  $display("READ OUT DAC VREF (CHIP3)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h06,DAC_VREF,8'h0a);
+

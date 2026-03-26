@@ -1,0 +1,31 @@
+// mcp program to test basic configuration  
+$display("RUNNING VER_CONFIG_TEST.MCP");
+$display("run length = 60 us");    
+$display("If test fails, confirm task sendWordToLarpix is configured for correct parity and correct magic number");
+$display("sendWordToLarpix defined in larpix_v3/testbench/larpix_tasks");
+
+  $display("LArPix_v3: config_test.mcp RUNNING");
+
+#10000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("READ OUT GLOBAL THRESHOLD UPDATED (should be 10d)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("Enable Dynamic Power Down");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,DIGITAL,8'h41);
+
+#10000
+  $display("READ OUT GLOBAL THRESHOLD UPDATED (should be 10d)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+
+
+

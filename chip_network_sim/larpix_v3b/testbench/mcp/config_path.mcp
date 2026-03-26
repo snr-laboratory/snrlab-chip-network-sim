@@ -1,0 +1,26 @@
+// checks configuration register path (don't use FIFO for config data)
+
+$display("RUNNING CONFIG_PATH.MCP");
+
+//#10000
+//    $display("Enable upstream PISO3");
+//    sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_UP,8'h08);
+
+#100
+    $display("write 10d to GLOBAL_THRESH"); 
+    sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#100
+    $display("Enable Downstream PISO1 (for returning data to FPGA)");
+    sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h02);
+
+
+#100  
+    $display("Read Back test: 10d/0x0A expected");  
+    sendWordToLarpix(CONFIG_READ_OP,8'h01,GLOBAL_THRESH,8'h01);
+
+//#10000
+//    $display("write 10d to GLOBAL_THRESH (different chip)"); 
+//    sendWordToLarpix(CONFIG_WRITE_OP,8'h06,GLOBAL_THRESH,8'h0a);
+
+

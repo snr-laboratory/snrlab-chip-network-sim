@@ -1,0 +1,288 @@
+// mcp program to test a single LArPix instance
+
+
+#10000
+  $display("Change Chip ID to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+/*
+#10000
+    $display("change clock divide ratio to 16");
+    sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DIGITAL,8'h18);
+    $display("CLK DIVIDE RATIO = 4: changing local_clk_ctrl to 2'b11");
+    local_clk_ctrl = 2'b11;
+*/
+// execute soft reset
+//$display("Execute Soft Reset");
+//#10000 reset_n = 0;
+//#582 reset_n = 1;
+
+
+#10000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,GLOBAL_THRESH,8'h0a);
+
+//#10000
+//  $display("enable digital monitor to read out comp");
+//  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DMONITOR0,8'h03);
+
+#10000
+  $display("enable digital monitor to read out hit");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DMONITOR0,8'h01);
+
+#10000
+  $display("monitor channel 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DMONITOR1,8'h02);
+  
+#10000 
+  $display("set ADC Burst mode to 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ADC_BURST,8'h02);
+
+#10000 
+  $display("enable channels 56-63 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK+7,0);
+
+#10000 
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK,0);
+
+#10000
+  $display("set ADC_HOLD_DELAY to 4d");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ADC_HOLD_DELAY,8'h04);
+
+//#10000
+//  charge_in_r[2] = -5.6e-15; // two mips (140 mV at CSA)
+//#500  charge_in_r[59] = -2.8e-15; // two mips (140 mV at CSA)
+//#20 charge_in_r[2] = 0.0;
+//#20    charge_in_r[59] = 0.0;
+
+//#10000
+//    $display("disable marker bit");
+//    sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_ADC_MODES,8'h0C);
+
+#10000
+  $display("read out CHIP_ID"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,CHIP_ID,0);
+
+//#10000
+//  charge_in_r[2] = -5.6e-15; // two mips (140 mV at CSA)
+//    $display("SHOULDN'T BE IN HERE");
+//#500  charge_in_r[59] = -2.8e-15; // two mips (140 mV at CSA)
+//#20 charge_in_r[2] = 0.0;
+//#20    charge_in_r[59] = 0.0;
+//
+
+/*
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,GLOBAL_THRESH,8'h0a);
+
+#10000 
+  $display("enable channels 56-63 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK+7,0);
+
+#10000 
+  $display("set ADC Burst mode to 4");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ADC_BURST,8'h04);
+/*
+#10000 
+  $display("enable ADC dynamic reset");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_ADC_MODES,8'h07);
+
+#10000 
+  $display("set MIN_DELTA_ADC = 15");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,MIN_DELTA_ADC,8'h0F);
+
+#100000
+  $display("read out GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,GLOBAL_THRESH,0);
+*/
+
+
+ 
+
+/*
+#100000 
+    $display("change clock divide ratio to 4");
+     sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DIGITAL,8'h08);
+    $display("CLK DIVIDE RATIO = 4: changing local_clk_ctrl to 2'b01");
+    local_clk_ctrl = 2'b01;
+
+
+#40000
+
+  $display("read out CHIP_ID"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,CHIP_ID,0);
+
+
+
+#1000
+  $display("write 15d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,GLOBAL_THRESH,8'h0f);
+
+
+
+
+#40000 
+    $display("change clock divide ratio to 16");
+    sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DIGITAL,8'h18);
+    $display("CLK DIVIDE RATIO = 16: changing local_clk_ctrl to 2'b11");
+    local_clk_ctrl = 2'b11;
+
+#10000
+  $display("read out GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,GLOBAL_THRESH,0);
+
+*/
+
+
+/*
+#10000 
+  $display("set ADC Burst mode to 8");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ADC_BURST,8'h08);
+
+#10000 
+  $display("set ADC settle threshold to 4");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,MIN_DELTA_ADC,8'h04);
+
+#10000 
+  $display("enable ADC settle");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_ADC_MODES,8'h02);
+
+#10000 
+  $display("enable external trigger for channel 63");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,EXTERN_TRIG_MASK+7,8'h7F);
+
+#10000
+  $display("read out IBIAS_TDAC1"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,IBIAS_TDAC1,0);
+
+#10000
+  $display("send data to wrong chip (pass along)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h00,IBIAS_TDAC0,0);
+*/
+
+
+/*
+
+
+
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id2,0,8'hf0);
+    $display("EXTERNAL CONFIG WRITE TO larpix, chip = %h, register=0 DATA = 0xf0",chip_id2);
+
+#10000
+
+
+
+   sendWordToLarpix(CONFIG_WRITE_OP,GLOBAL_ID,1,8'h0f);
+
+
+#10000
+
+#10000
+  $display("read out logic 1 of chip 2"); 
+  sendWordToLarpix(CONFIG_READ_OP,chip_id,1,0);
+
+
+#10000
+
+//  write word to logic 5 of chip 1 
+
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id,5,8'h0F);
+#10000
+
+//  pass packet along (not meant for this chip)
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,5,0);
+
+// global read
+#10000
+   sendWordToLarpix(CONFIG_READ_OP,GLOBAL_ID,1,8'h0f);
+
+*/
+
+
+// enable fifo diagnostics
+//    $display("FIFO DIAGNOSTICS ENABLED (CHIP 3)");
+//    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,47,8'h10);
+
+
+/*
+// enable external trigger for channels 8 through 15 (CHIP 3)
+    $display("EXTERNAL TRIGGER ENABLED, CHANNEL 24 through 31, CHIP 3");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,59,8'h00);
+    $display("EXTERNAL TRIGGER ENABLED, CHANNEL 16 through 23, CHIP 3");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,58,8'h00);
+    $display("EXTERNAL TRIGGER ENABLED, CHANNEL 8 through 15, CHIP 3");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,57,8'h00);
+    $display("EXTERNAL TRIGGER ENABLED, CHANNEL 0 through 7, CHIP 3");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,56,8'h00);
+*/
+/*#1000
+
+// enable fifo diagnostics
+    $display("FIFO DIAGNOSTICS ENABLED");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,47,8'h10);
+#1000
+// mask out channel 0 of chip 1
+    $display("MASK OUT CHANNEL 0, CHIP 1");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,52,8'h01);
+
+// send cross trigger of chip 1
+    $display("CROSS TRIGGER ENABLED, CHIP 1");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,47,8'h04);
+#1000
+// send word to register 38 of chip 1
+    $display("MONITOR SELECT ENABLED, CHANNEL 0, CHIP 1");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,38,8'h01);
+#1000
+// send word to register 4 of chip 3
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id3,4,8'hFE);
+#1000
+//  read out logic 0 of chip 1 
+    sendWordToLarpix(CONFIG_READ_OP,chip_id1,0,0);
+#1000
+//  read out logic 4 of chip 3 
+    sendWordToLarpix(CONFIG_READ_OP,chip_id3,4,0);
+#1000
+// send word to register 34 of chip 1
+    $display("CSA BYPASS ENABLED, CHANNEL 0 through 3, CHIP 1");
+    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,34,8'h0F);
+*/
+// test periodic reset
+//    $display("ENABLE PERIODIC RESET");
+//    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,47,8'h18);
+//#10000
+//     $display("DISABLE PERIODIC RESET");
+//    sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,47,8'h10);
+   
+
+//    #4000
+// write a word to chip 2 (pixel trim 1) 
+//   sendWordToLarpix(CONFIG_WRITE_OP,chip_id2,0,8'hFF);
+// write a word to chip 1 to mask hot channel
+//   sendWordToLarpix(CONFIG_WRITE_OP,chip_id1,51,8'h01);
+
+//#1000
+//    $display("config_test");   
+//    config_test(VERBOSE,WRITE_TO_LOG,chip_id1);
+//    #1000
+
+// test defaults. first load_defaults, then soft_reset
+//    defaults_test(VERBOSE,WRITE_TO_LOG,chip_id,0);
+//    defaults_test(VERBOSE,WRITE_TO_LOG,chip_id,1);
+
+// check raw test mode for uart (alternating 0s and 1s)
+//    uart_raw_test(VERBOSE,WRITE_TO_LOG,TEST_BURST_SIZE,chip_id1);
+ // allow rx to calm down
+//    $display("UART_RAW_TEST_COMPLETE");
+
+// check burst test
+//    uart_burst_test(VERBOSE,WRITE_TO_LOG,TEST_BURST_SIZE,chip_id1);
+
+// verify we can detect fifo overflow
+ //  fifo_panic_test(VERBOSE,WRITE_TO_LOG,FIFO_DEPTH,chip_id1);
+

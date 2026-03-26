@@ -1,0 +1,68 @@
+// mcp program to test a single LArPix instance
+
+
+#10000
+  $display("Change Chip ID to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+#10000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("enable digital monitor to read out hit");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DMONITOR0,8'h01);
+
+#10000
+  $display("monitor channel 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DMONITOR1,8'h02);
+  
+#10000 
+  $display("set ADC Burst mode to 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ADC_BURST,8'h02);
+
+#10000 
+  $display("enable channels 56-63 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK+7,0);
+
+#10000 
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK,0);
+
+#10000
+  $display("set ADC_HOLD_DELAY to 4d");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ADC_HOLD_DELAY,8'h04);
+
+#10000
+  $display("read out CHIP_ID"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,CHIP_ID,0);
+
+#10000
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+#10000
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+#9867 
+
+for (int i = 0; i < 8; i++) begin
+    charge_in_r[i] = -2.8e-15;
+    $display("charge deposition in channel %d", i);
+#20
+    charge_in_r[i] = 0.0;  
+end  
+
+#1211
+
+for (int i = 0; i < 8; i++) begin
+    charge_in_r[i] = -2.8e-15;
+    $display("charge deposition in channel %d", i);
+#20
+    charge_in_r[i] = 0.0;  
+end  

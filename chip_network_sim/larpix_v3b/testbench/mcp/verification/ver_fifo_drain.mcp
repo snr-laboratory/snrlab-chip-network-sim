@@ -1,0 +1,39 @@
+// mcp program to verify ability of FIFO to drain when all PISOs off
+
+$display("RUNNING VER_FIFO_DRAIN.MCP");
+$display("run length = 100 us");
+$display("Set burst mode = 4");
+$display("Expect 0 output packets (all downstream PISO off)");
+$display("Check to ensure FIFO drains itself (after timeout)");
+$display("Begin Simulation.");
+
+#10000
+$display("write 10d to GLOBAL_THRESH"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+#10000
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+#10000 
+  $display("set ADC Burst mode to 4");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ADC_BURST,8'h04);
+
+// simulate charge input
+//
+#9867
+
+for (int i = 0; i < 1; i++) begin
+    charge_in_r[i] = -2.8e-15;
+    $display("charge deposition in channel %d", i);
+#20
+    charge_in_r[i] = 0.0;  
+end  
+
+
+
+

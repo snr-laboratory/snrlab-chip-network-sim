@@ -1,0 +1,18 @@
+// Sanity check for basic LArPix interfacing
+// configures minimum required to enable a single channel
+
+$display("RUNNING SANITY_CHECK.MCP");
+
+#10000
+$display("write 10d to GLOBAL_THRESH"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h03);
+
+#10000  
+    $display("Read Back test: 10d/0x0A expected");  
+    sendWordToLarpix(CONFIG_READ_OP,8'h01,GLOBAL_THRESH,8'h01);
+
+

@@ -1,0 +1,51 @@
+// mcp program to test global read in a 4-node LArPix Hydra Network
+
+#10000
+  $display("Change Chip ID for chip0 to 8'h04");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h04);
+
+#10000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("Enable Upstream PISO3 (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h08);
+
+#10000
+  $display("Change Chip ID for chip1 to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+#10000
+  $display("Enable Downstream PISO1[1] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h02);
+
+#10000
+  $display("Enable Upstream PISO (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h04);
+
+#10000
+  $display("Change Chip ID for chip2 to 8'h03");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h03);
+
+#10000
+  $display("Enable Downstream PISO (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h03,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("write to SPARE, all chips"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'd255,SPARE,8'h0F);
+
+#100000
+  $display("read out SPARE, chip0"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h04,SPARE,8'h00);
+
+#100000
+  $display("read out SPARE, chip1"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,SPARE,8'h00);
+/*
+#100000
+  $display("read out SPARE, all chips"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'd255,SPARE,8'h00);
+*/
+

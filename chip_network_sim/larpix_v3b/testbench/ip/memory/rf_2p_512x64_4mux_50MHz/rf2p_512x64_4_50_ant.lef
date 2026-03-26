@@ -1,0 +1,260 @@
+MACRO rf2p_512x64_4_50
+  PIN AA[0]
+    AntennaGateArea  0.0792 ;
+  END AA[0]
+  PIN AA[1]
+    AntennaGateArea  0.0792 ;
+  END AA[1]
+  PIN AA[2]
+    AntennaGateArea  0.0792 ;
+  END AA[2]
+  PIN AA[3]
+    AntennaGateArea  0.0792 ;
+  END AA[3]
+  PIN AA[4]
+    AntennaGateArea  0.0792 ;
+  END AA[4]
+  PIN AA[5]
+    AntennaGateArea  0.0792 ;
+  END AA[5]
+  PIN AA[6]
+    AntennaGateArea  0.0792 ;
+  END AA[6]
+  PIN AA[7]
+    AntennaGateArea  0.0792 ;
+  END AA[7]
+  PIN AA[8]
+    AntennaGateArea  0.0792 ;
+  END AA[8]
+  PIN AB[0]
+    AntennaGateArea  0.0792 ;
+  END AB[0]
+  PIN AB[1]
+    AntennaGateArea  0.0792 ;
+  END AB[1]
+  PIN AB[2]
+    AntennaGateArea  0.0792 ;
+  END AB[2]
+  PIN AB[3]
+    AntennaGateArea  0.0792 ;
+  END AB[3]
+  PIN AB[4]
+    AntennaGateArea  0.0792 ;
+  END AB[4]
+  PIN AB[5]
+    AntennaGateArea  0.0792 ;
+  END AB[5]
+  PIN AB[6]
+    AntennaGateArea  0.0792 ;
+  END AB[6]
+  PIN AB[7]
+    AntennaGateArea  0.0792 ;
+  END AB[7]
+  PIN AB[8]
+    AntennaGateArea  0.0792 ;
+  END AB[8]
+  PIN CENA
+    AntennaGateArea  0.0792 ;
+  END CENA
+  PIN CENB
+    AntennaGateArea  0.0792 ;
+  END CENB
+  PIN CLKA
+    AntennaGateArea  0.0792 ;
+  END CLKA
+  PIN CLKB
+    AntennaGateArea  0.0792 ;
+  END CLKB
+  PIN DB[0]
+    AntennaGateArea  0.0792 ;
+  END DB[0]
+  PIN DB[10]
+    AntennaGateArea  0.0792 ;
+  END DB[10]
+  PIN DB[11]
+    AntennaGateArea  0.0792 ;
+  END DB[11]
+  PIN DB[12]
+    AntennaGateArea  0.0792 ;
+  END DB[12]
+  PIN DB[13]
+    AntennaGateArea  0.0792 ;
+  END DB[13]
+  PIN DB[14]
+    AntennaGateArea  0.0792 ;
+  END DB[14]
+  PIN DB[15]
+    AntennaGateArea  0.0792 ;
+  END DB[15]
+  PIN DB[16]
+    AntennaGateArea  0.0792 ;
+  END DB[16]
+  PIN DB[17]
+    AntennaGateArea  0.0792 ;
+  END DB[17]
+  PIN DB[18]
+    AntennaGateArea  0.0792 ;
+  END DB[18]
+  PIN DB[19]
+    AntennaGateArea  0.0792 ;
+  END DB[19]
+  PIN DB[1]
+    AntennaGateArea  0.0792 ;
+  END DB[1]
+  PIN DB[20]
+    AntennaGateArea  0.0792 ;
+  END DB[20]
+  PIN DB[21]
+    AntennaGateArea  0.0792 ;
+  END DB[21]
+  PIN DB[22]
+    AntennaGateArea  0.0792 ;
+  END DB[22]
+  PIN DB[23]
+    AntennaGateArea  0.0792 ;
+  END DB[23]
+  PIN DB[24]
+    AntennaGateArea  0.0792 ;
+  END DB[24]
+  PIN DB[25]
+    AntennaGateArea  0.0792 ;
+  END DB[25]
+  PIN DB[26]
+    AntennaGateArea  0.0792 ;
+  END DB[26]
+  PIN DB[27]
+    AntennaGateArea  0.0792 ;
+  END DB[27]
+  PIN DB[28]
+    AntennaGateArea  0.0792 ;
+  END DB[28]
+  PIN DB[29]
+    AntennaGateArea  0.0792 ;
+  END DB[29]
+  PIN DB[2]
+    AntennaGateArea  0.0792 ;
+  END DB[2]
+  PIN DB[30]
+    AntennaGateArea  0.0792 ;
+  END DB[30]
+  PIN DB[31]
+    AntennaGateArea  0.0792 ;
+  END DB[31]
+  PIN DB[32]
+    AntennaGateArea  0.0792 ;
+  END DB[32]
+  PIN DB[33]
+    AntennaGateArea  0.0792 ;
+  END DB[33]
+  PIN DB[34]
+    AntennaGateArea  0.0792 ;
+  END DB[34]
+  PIN DB[35]
+    AntennaGateArea  0.0792 ;
+  END DB[35]
+  PIN DB[36]
+    AntennaGateArea  0.0792 ;
+  END DB[36]
+  PIN DB[37]
+    AntennaGateArea  0.0792 ;
+  END DB[37]
+  PIN DB[38]
+    AntennaGateArea  0.0792 ;
+  END DB[38]
+  PIN DB[39]
+    AntennaGateArea  0.0792 ;
+  END DB[39]
+  PIN DB[3]
+    AntennaGateArea  0.0792 ;
+  END DB[3]
+  PIN DB[40]
+    AntennaGateArea  0.0792 ;
+  END DB[40]
+  PIN DB[41]
+    AntennaGateArea  0.0792 ;
+  END DB[41]
+  PIN DB[42]
+    AntennaGateArea  0.0792 ;
+  END DB[42]
+  PIN DB[43]
+    AntennaGateArea  0.0792 ;
+  END DB[43]
+  PIN DB[44]
+    AntennaGateArea  0.0792 ;
+  END DB[44]
+  PIN DB[45]
+    AntennaGateArea  0.0792 ;
+  END DB[45]
+  PIN DB[46]
+    AntennaGateArea  0.0792 ;
+  END DB[46]
+  PIN DB[47]
+    AntennaGateArea  0.0792 ;
+  END DB[47]
+  PIN DB[48]
+    AntennaGateArea  0.0792 ;
+  END DB[48]
+  PIN DB[49]
+    AntennaGateArea  0.0792 ;
+  END DB[49]
+  PIN DB[4]
+    AntennaGateArea  0.0792 ;
+  END DB[4]
+  PIN DB[50]
+    AntennaGateArea  0.0792 ;
+  END DB[50]
+  PIN DB[51]
+    AntennaGateArea  0.0792 ;
+  END DB[51]
+  PIN DB[52]
+    AntennaGateArea  0.0792 ;
+  END DB[52]
+  PIN DB[53]
+    AntennaGateArea  0.0792 ;
+  END DB[53]
+  PIN DB[54]
+    AntennaGateArea  0.0792 ;
+  END DB[54]
+  PIN DB[55]
+    AntennaGateArea  0.0792 ;
+  END DB[55]
+  PIN DB[56]
+    AntennaGateArea  0.0792 ;
+  END DB[56]
+  PIN DB[57]
+    AntennaGateArea  0.0792 ;
+  END DB[57]
+  PIN DB[58]
+    AntennaGateArea  0.0792 ;
+  END DB[58]
+  PIN DB[59]
+    AntennaGateArea  0.0792 ;
+  END DB[59]
+  PIN DB[5]
+    AntennaGateArea  0.0792 ;
+  END DB[5]
+  PIN DB[60]
+    AntennaGateArea  0.0792 ;
+  END DB[60]
+  PIN DB[61]
+    AntennaGateArea  0.0792 ;
+  END DB[61]
+  PIN DB[62]
+    AntennaGateArea  0.0792 ;
+  END DB[62]
+  PIN DB[63]
+    AntennaGateArea  0.0792 ;
+  END DB[63]
+  PIN DB[6]
+    AntennaGateArea  0.0792 ;
+  END DB[6]
+  PIN DB[7]
+    AntennaGateArea  0.0792 ;
+  END DB[7]
+  PIN DB[8]
+    AntennaGateArea  0.0792 ;
+  END DB[8]
+  PIN DB[9]
+    AntennaGateArea  0.0792 ;
+  END DB[9]
+END rf2p_512x64_4_50

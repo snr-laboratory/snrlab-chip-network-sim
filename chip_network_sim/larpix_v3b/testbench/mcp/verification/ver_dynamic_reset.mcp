@@ -1,0 +1,81 @@
+// mcp program to test dynamic reset 
+$display("RUNNING VER_DYNAMIC_RESET.MCP");
+$display("run length = 600 us");    
+$display("If test fails, confirm task sendWordToLarpix is configured for correct parity and correct magic number");
+$display("sendWordToLarpix defined in larpix_v3/testbench/larpix_tasks/n");
+
+#20000
+$display("write 10d to GLOBAL_THRESH"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#20000
+$display("Set Max burst to 15"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ADC_BURST,8'h0F);
+
+#20000
+$display("Enable dynamic reset"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_ADC_MODES,8'h4D);
+
+#10000
+$display("Set [9:8] MSBs of Reset Threshold to 2'b10"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ANALOG_MONITOR,8'h06);
+
+#20000
+
+$display("Set [7:0] LSBs of Reset Threshold to 8'h0C"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,RESET_THRESHOLD,8'h0C);
+
+#20000
+
+$display("Set LSBs of channel 4 Digital Threshold to 5'b01010"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,DIGITAL_THRESHOLD_LSB+4,8'h0A);
+
+#20000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h01);
+
+#20000
+  $display("Read Back test: 10d/0x0A expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,DIGITAL_THRESHOLD_LSB+4,8'h01);
+
+#20000
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+#20000 
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+#20000
+  $display("Verify that channel four threshold is: 10'b10_0000_1010");
+
+#20000
+    charge_in_r[4] = -3.0e-15;
+    $display("charge deposition in channel 4");
+#20
+   charge_in_r[4] = 0.0;  
+
+#10000
+    charge_in_r[4] = -20.0e-15;
+    $display("charge deposition in channel 4");
+#200
+   charge_in_r[4] = 0.0;  
+
+#20000
+    charge_in_r[4] = -5.0e-15;
+    $display("charge deposition in channel 4");
+#20
+    charge_in_r[4] = 0.0;  
+
+#20000
+    charge_in_r[4] = -6.0e-15;
+    $display("charge deposition in channel 4");
+#20
+    charge_in_r[4] = 0.0;  
+
+#20000
+    charge_in_r[4] = -9.8e-15;
+    $display("charge deposition in channel 4");
+#20
+    charge_in_r[4] = 0.0;  
+

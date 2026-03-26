@@ -1,0 +1,197 @@
+// mcp program to test data readout through HYDRA networks
+#10000
+  $display("RUNNING HYDRA_EXTERNAL_TRIGGER.MCP"); 
+
+#10000
+  $display("Change Chip ID for chip0 to 8'h04");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h04);
+
+#10000
+  $display("Enable Downstream PISO0[0] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("Read Back test: 10d/0x0A expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h04,GLOBAL_THRESH,8'h01);
+
+#10000
+  $display("Enable Upstream PISO0[2] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h04);
+
+#10000
+  $display("Change Chip ID for chip1 to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+#10000
+  $display("Enable Downstream PISO1[0] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("Enable Upstream PISO1[3] (for writing data to chip2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h08);
+
+#10000
+  $display("Change Chip ID for chip2 to 8'h0F");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h0F);
+
+#10000
+  $display("Enable Downstream PISO2[1] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_PISO_DOWN,8'h02);
+/*
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("Read Back test: 10d/0x0A expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h0F,GLOBAL_THRESH,8'h01);
+*/
+#10000
+  $display("Enable Upstream PISO1[2] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h0C);
+
+#10000
+  $display("Change Chip ID for chip3 to 8'h06");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h06);
+
+#10000
+  $display("Enable Downstream PISO3[0] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_PISO_DOWN,8'h01);
+
+#20000
+  $display("Enable Upstream PISO0[2] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h04);
+
+#20000
+  $display("Enable Upstream PISO1[3] (for writing data to chip2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h08);
+
+#20000
+  $display("Enable Upstream PISO1[2] (for writing data to chip3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h0C);
+
+#20000
+  $display("Disable hit veto");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_TRIG_MODES,8'h00);
+/*
+#20000 
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE,8'hFF);
+
+#20000 
+  $display("enable channels 8 - 15 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+1,8'hFF);
+
+#20000 
+  $display("enable channels 16 - 23 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+2,8'hFF);
+
+#20000 
+  $display("enable channels 24 - 31 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+3,8'hFF);
+
+#20000 
+  $display("enable channels 32 - 39 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+4,8'hFF);
+
+#20000 
+  $display("enable channels 40 - 47 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+5,8'hFF);
+
+#20000 
+  $display("enable channels 48 - 55 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+6,8'hFF);
+
+#20000 
+  $display("enable channels 56 - 63 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE+7,8'hFF);
+
+
+#20000 
+  $display("enable channels 0 - 7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK,8'h0);
+
+#20000
+  $display("enable channels 8 - 15 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+1,8'h0);
+
+#20000
+  $display("enable channels 16 - 23 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+2,0);
+
+#20000
+  $display("enable channels 24 - 31 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+3,0);
+
+#20000
+  $display("enable channels 32 - 39 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+4,0);
+
+#20000
+  $display("enable channels 40 - 47 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+5,0);
+
+#20000
+  $display("enable channels 48 - 55 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+6,0);
+
+#20000
+  $display("enable channels 56 - 63 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK+7,0);
+*/
+#20000 
+  $display("enable channels 0 - 7  (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK,8'h00);
+
+#20000
+  $display("enable channels 8 - 15 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+1,8'h0);
+
+#20000
+  $display("enable channels 16 - 23 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+2,0);
+
+#20000
+  $display("enable channels 24 - 31 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+3,0);
+
+#20000
+  $display("enable channels 32 - 39 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+4,0);
+
+#20000
+  $display("enable channels 40 - 47 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+5,0);
+
+#20000
+  $display("enable channels 48 - 55 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+6,0);
+
+#20000
+  $display("enable channels 56 - 63 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,EXTERN_TRIG_MASK+7,0);
+
+
+#20000
+  $display("CHIP 15: Disable hit veto");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_TRIG_MODES,8'h00);
+/*
+#20000 
+  $display("CHIP 15: enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,CSA_ENABLE,8'hFF);
+
+#20000 
+  $display("CHIP 15: enable channels 0 - 7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,CHANNEL_MASK,8'h00);
+*/
+#20000 
+  $display("CHIP 15: enable channels 0 - 7 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,EXTERN_TRIG_MASK,8'h00);
+
+#20000
+  $display("READY FOR ACTION");
+

@@ -1,0 +1,151 @@
+// mcp program to torture a hydra network using the external trigger
+
+$display("RUNNING VER_HYDRA_EXT_TRIG.MCP");
+$display("run length = 500 us");
+$display("Verify ability to handle trigger storm with hydra network");
+$display("to use, uncomment trigger issue in larpix_hydra_tb.sv"); 
+$display("Hydra network comprises four LArPix chips");
+$display("Two separate chips (Chip 1 and Chip 3) will get simultaneous");
+$display("hits on eight channels each.");
+$display("Expected return: 32 total data packets.");
+$display("8 packets (ch0 - ch7) from chip 0 (ID = 8'h04)");
+$display("8 packets (ch0 - ch7) from chip 1 (ID = 8'h02)");
+$display("8 packets (ch0 - ch7) from chip 2 (ID = 8'h0F)");
+$display("8 packets (ch0 - ch7) from chip 3 (ID = 8'h06)");
+$display("Begin Simulation.\n");
+
+#100
+  $display("First set up hydra network");
+  $display("Change Chip ID for Chip 0 to 8'h04");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h04);
+
+#100
+  $display("Enable Downstream PISO0[3] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_DOWN,8'h08);
+
+#100
+  $display("Enable Upstream PISO0[1] (for writing data to chip1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h02);
+
+#100
+  $display("Change Chip ID for Chip 1 to 8'h02");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h02);
+
+#100
+  $display("Disable Upstream PISO1[3:0] (Chip 1 is leaf node)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_UP,8'h00);
+
+#100
+  $display("Enable Downstream PISO1[3] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,ENABLE_PISO_DOWN,8'h08);
+
+#100
+  // note also keep PISO0[1] enabled
+  $display("Enable Upstream PISO0[0] (for writing data to Chip 2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h04,ENABLE_PISO_UP,8'h03);
+
+#100
+  $display("Change Chip ID for Chip 2 to 8'h0F");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h0F);
+#100
+  $display("Enable Upstream PISO2[1] (for writing data to Chip 3)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_PISO_UP,8'h02);
+
+#100
+  $display("Enable Downstream PISO2[2] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,ENABLE_PISO_DOWN,8'h04);
+
+#100
+  $display("Change Chip ID for Chip 03 to 8'h06");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHIP_ID,8'h06);
+
+#100
+  $display("Disable Upstream PISO3[3:0] (Chip 3 is leaf node)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_PISO_UP,8'h00);
+
+#100
+  $display("Enable Downstream PISO3[3] (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,ENABLE_PISO_DOWN,8'h08);
+
+#100
+  $display("Hydra network setup complete\n");
+  $display("Now prepare chips for trigger storm!");
+  $display("Use Broadcast target (255)");
+
+#100
+  $display("enable external trigger input port - Broadcast");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'hFF,DIGITAL,8'h20);
+
+#100
+  $display("enable channels 0-7 (enable CSA) - Broadcast");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'hFF,CSA_ENABLE,8'hFF);
+
+#100 
+  $display("enable channels 0-7 (turn off channel mask) - Broadcast");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'hFF,CHANNEL_MASK,8'h00);
+
+#100 
+  $display("enable channel 0 (turn off extern trigger mask) - Broadcast");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'hFF,EXTERN_TRIG_MASK,8'h00);
+/*
+#100
+  $display("enable external trigger input port - Chip 1");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,DIGITAL,8'h20);
+
+#100
+  $display("enable channels 0-7 (enable CSA) - Chip 1");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CSA_ENABLE,8'hFF);
+
+#100 
+  $display("enable channels 0-7 (turn off channel mask) - Chip 1");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK,8'h00);
+
+#100 
+  $display("enable channel 0 (turn off extern trigger mask - Chip 1)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,EXTERN_TRIG_MASK,8'h00);
+
+#100
+  $display("enable channels 0-7 (turn off channel mask) - Chip 1");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h02,CHANNEL_MASK,0);
+
+#100
+  $display("enable external trigger input port - Chip 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,DIGITAL,8'h20);
+
+#100
+  $display("enable channels 0-7 (enable CSA) - Chip 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,CSA_ENABLE,8'hFF);
+
+#100 
+  $display("enable channels 0-7 (turn off channel mask) - Chip 2");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,CHANNEL_MASK,8'h00);
+
+#100 
+  $display("enable channel 0 (turn off extern trigger mask - Chip 2)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h0F,EXTERN_TRIG_MASK,8'h00);
+
+#100
+  $display("write 10d to GLOBAL_THRESH - Chip 3"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,GLOBAL_THRESH,8'h0a);
+
+#100
+  $display("enable channels 0-7 (enable CSA) - Chip 3");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CSA_ENABLE,8'hFF);
+
+#100
+  $display("enable channels 0-7 (turn off channel mask) - Chip 3");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h06,CHANNEL_MASK,0);
+*/
+#100
+  $display("Wait for commands to filter through Hydra network");
+  $display("Then it's on like Donkey Kong!\n");
+
+//end  
+
+
+
+
+
+
+
+

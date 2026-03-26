@@ -1,0 +1,15 @@
+**/work/*
+.*.sw*
+.bak
+.nfs*
+*.wlf
+transcript
+modelsim/work
+modelsim/transcript
+*.txt
+*.sav
+*.q*
+_*
+wave.do
+par*
+etch*

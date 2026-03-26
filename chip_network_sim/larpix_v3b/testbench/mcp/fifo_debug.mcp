@@ -1,0 +1,145 @@
+// mcp program to debug FIFO double write problem 
+
+  $display("FIFO_DEBUG.MCP RUNNING");
+
+
+#10000
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h01);
+
+#10000
+  $display("write 10d to GLOBAL_THRESH"); 
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("Read Back test: 10d/0x0A expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,GLOBAL_THRESH,8'h01);
+
+
+
+//#10000
+//  $display("Enable FIFO diagnostics");
+//  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,DIGITAL,8'h44);
+
+#10000
+  $display("Disable hit veto");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_TRIG_MODES,8'h00);
+
+#10000 
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+#10000 
+  $display("enable channels 8 - 15 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+1,8'hFF);
+
+#10000 
+  $display("enable channels 16 - 23 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+2,8'hFF);
+
+#10000 
+  $display("enable channels 24 - 31 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+3,8'hFF);
+
+#10000 
+  $display("enable channels 32 - 39 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+4,8'hFF);
+
+#10000 
+  $display("enable channels 40 - 47 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+5,8'hFF);
+
+#10000 
+  $display("enable channels 48 - 55 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+6,8'hFF);
+
+#10000 
+  $display("enable channels 56 - 63 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE+7,8'hFF);
+
+#10000 
+  $display("enable channels 0 - 7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+#10000
+  $display("enable channels 8 - 15 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+1,8'h0);
+#10000
+  $display("enable channels 16 - 23 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+2,0);
+#10000
+  $display("enable channels 24 - 31 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+3,0);
+#10000
+  $display("enable channels 32 - 39 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+4,0);
+#10000
+  $display("enable channels 40 - 47 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+5,0);
+#10000
+  $display("enable channels 48 - 55 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+6,0);
+#10000
+  $display("enable channels 56 - 63 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK+7,0);
+
+#10000 
+  $display("enable channels 0 - 7 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK,0);
+
+#10000
+  $display("enable channels 8 - 15 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+1,8'h0);
+#10000
+  $display("enable channels 16 - 23 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+2,0);
+#10000
+  $display("enable channels 24 - 31 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+3,0);
+#10000
+  $display("enable channels 32 - 39 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+4,0);
+#10000
+  $display("enable channels 40 - 47 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+5,0);
+#10000
+  $display("enable channels 48 - 55 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+6,0);
+#10000
+  $display("enable channels 56 - 63 (turn off extern trigger mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,EXTERN_TRIG_MASK+7,0);
+
+#10000
+  $display("READY FOR ACTION");
+
+/*
+#10000
+  $display("READ OUT DAC VREF (AFTER CLK CHANGE)"); 
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,DAC_VREF,8'h0a);
+*/
+// simulate charge input
+//
+
+
+for (int i = 0; i < 4; i++) begin
+  charge_in_r[i] = -2.8e-15;
+  $display("charge deposition in channel %d", i);
+end  
+#20
+for (int i = 0; i < 64; i++) begin
+  charge_in_r[i] = 0.0;
+end
+
+//#10000
+//  for (int hit = 0; hit < 10; hit++) begin
+//#90006
+//    $display("\n***************** HIT %d ****************** \n",hit);
+//    for (int i = 1; i < 3; i++) begin
+//      charge_in_r[i] = -2.8e-15;
+//    end  
+//#20
+//    for (int i = 0; i < 64; i++) begin
+//      charge_in_r[i] = 0.0;
+//    end
+//  end
+//

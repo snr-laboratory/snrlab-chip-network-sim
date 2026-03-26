@@ -1,0 +1,97 @@
+// minimal mcp program to test a single LArPix instance
+// configures minimum required to enable a single channel
+
+$display("RUNNING LARPIX_MINIMAL.MCP");
+$display("Run for 200 us.");
+$display("Five total packets: 3 data, 2 config reads.\n");
+#6000
+$display("write 10d to GLOBAL_THRESH"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+//#200
+//  $display("Enable FIFO diagnostics");
+//  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,DIGITAL,8'h44);
+
+#8000
+
+  $display("Enable Downstream PISO0 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h01);
+
+#8000
+
+//#6000 
+  $display("Enable Upstream PISO1 (for testing pass along)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_UP,8'h02);
+
+//#6000
+//
+#8000
+  $display("pass along test (config read for chip 2!");
+  sendWordToLarpix(CONFIG_READ_OP,8'h02,GLOBAL_THRESH,8'h01);
+
+
+#8000
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+
+#8000
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+
+#6000
+
+  $display("Read Back test: 255d/0xFF expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,CSA_ENABLE,8'h01);
+
+// simulate charge input
+
+#20000
+
+for (int i = 0; i < 8; i++) begin // TP: changed from 1 channel to 8 channels
+    charge_in_r[i] = -2.8e-15;
+    $display("charge deposition in channel %d", i);
+    #50 
+    charge_in_r[i] = 0.0;
+end
+
+//#20000
+//for (int i = 0; i < 1; i++) begin // TP: changed from 1 channel to 8 channels
+//    charge_in_r[i] = -3.4e-15;
+//    $display("charge deposition in channel %d", i);
+//    #20 
+//    charge_in_r[i] = 0.0;
+//end
+//#20
+//for (int i = 0; i < 1; i++) begin // TP: changed from 1 channel to 8 channels
+//    charge_in_r[i] = 0.0;  
+//end  
+//#20000
+//for (int i = 0; i < 1; i++) begin // TP: changed from 1 channel to 8 channels
+//    charge_in_r[i] = -3.4e-15;
+//    $display("charge deposition in channel %d", i);
+//end
+//#20
+//for (int i = 0; i < 1; i++) begin // TP: changed from 1 channel to 8 channels
+//    charge_in_r[i] = 0.0;  
+//end  
+
+
+
+//#20000
+//  $display("Read Back test: 255d/0xFF expected");
+//  sendWordToLarpix(CONFIG_READ_OP,8'h01,CSA_ENABLE,8'h01);
+//
+//
+//// now let's see if our pass along functionality worked
+//#2000
+//  $display("Write packet for different chip (check PISO1)");
+//  sendWordToLarpix(CONFIG_READ_OP,8'h02,CSA_ENABLE,8'h01);
+
+
+
+
+//
+// simulate charge input
+//

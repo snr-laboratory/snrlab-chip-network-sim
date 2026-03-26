@@ -1,0 +1,44 @@
+// minimal mcp program to test a single LArPix instance
+// configures minimum required to enable a single channel
+// specifically tests basic functionality of CDS
+
+$display("RUNNING CDS_MINIMAL.MCP");
+
+#10000
+$display("write 10d to GLOBAL_THRESH"); 
+sendWordToLarpix(CONFIG_WRITE_OP,8'h01,GLOBAL_THRESH,8'h0a);
+
+#10000
+  $display("Enable Downstream PISO2 (for returning data to FPGA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,ENABLE_PISO_DOWN,8'h02);
+
+#10000
+ $display("Read Back test: 10d/0x0A expected");
+  sendWordToLarpix(CONFIG_READ_OP,8'h01,GLOBAL_THRESH,8'h01);
+
+#10000
+  $display("enable channels 0 - 7 (enable CSA)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CSA_ENABLE,8'hFF);
+
+#10000
+  $display("enable channels 0-7 (turn off channel mask)");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,CHANNEL_MASK,0);
+
+#10000 $display("put LArPix in CDS mode");
+  sendWordToLarpix(CONFIG_WRITE_OP,8'h01,DIGITAL,8'h01);
+
+//#10000
+//  $display("Read Back test: 255d/0xFF expected");
+//  sendWordToLarpix(CONFIG_READ_OP,8'h01,CSA_ENABLE,8'h01);
+
+// simulate charge input
+//
+#10000
+
+for (int i = 0; i < 1; i++) begin
+    charge_in_r[i] = -2.8e-15;
+    $display("charge deposition in channel %d", i);
+#20
+    charge_in_r[i] = 0.0;  
+end  
+
