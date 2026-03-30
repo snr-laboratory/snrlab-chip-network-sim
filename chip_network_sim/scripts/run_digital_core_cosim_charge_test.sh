@@ -8,7 +8,7 @@ set -euo pipefail
 # produces a correctly formatted local data packet and launches it toward TX.
 #
 # Relevant files used by this flow:
-# - larpix_v3b/cpp/digital_core_cosim_harness.cpp
+# - larpix_v3b/testbench/cosim/digital_core_cosim_harness.cpp
 #   Main self-checking C++ co-simulation harness. It applies configuration,
 #   injects charge, captures the generated packet, and checks TX-path progress.
 # - larpix_v3b/cpp/analog_core_model.h
@@ -82,13 +82,13 @@ sv_sources=(
 
 cpp_sources=(
   "$repo_root/larpix_v3b/cpp/analog_core_model.cpp"
-  "$repo_root/larpix_v3b/cpp/digital_core_cosim_harness.cpp"
+  "$repo_root/larpix_v3b/testbench/cosim/digital_core_cosim_harness.cpp"
 )
 
 rm -rf "$build_dir"
 mkdir -p "$build_dir"
 
-"$verilator_bin" --cc --exe --sv -Wall -Wno-fatal -DVERILATOR   -I"$repo_root/larpix_v3b/src"   -Mdir "$build_dir"   -CFLAGS "-std=c++17 -I$repo_root/larpix_v3b/cpp"   --top-module digital_core   "${sv_sources[@]}"   "${cpp_sources[@]}"
+"$verilator_bin" --cc --exe --sv -Wall -Wno-fatal -DVERILATOR   -I"$repo_root/larpix_v3b/src"   -Mdir "$build_dir"   -CFLAGS "-std=c++17 -I$repo_root/larpix_v3b/cpp -I$repo_root/larpix_v3b/testbench/cosim"   --top-module digital_core   "${sv_sources[@]}"   "${cpp_sources[@]}"
 
 make -C "$build_dir" -f Vdigital_core.mk CXX="$cxx_bin" LINK="$link_bin"
 "$build_dir/Vdigital_core" "$@"
