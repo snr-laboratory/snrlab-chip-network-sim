@@ -5,7 +5,9 @@
 ///////////////////////////////////////////////////////////////////
 
         for (int i = 0; i < 64; i++) config_bits[PIXEL_TRIM + i] <= 8'h10;
-        config_bits[GLOBAL_THRESH] <= 8'hFF;
+        // With default PIXEL_TRIM=8'h10 and the analog-model threshold formula,
+        // GLOBAL_THRESH=8'h0F yields an analog threshold of about 0.60047 V.
+        config_bits[GLOBAL_THRESH] <= 8'h0F;
         config_bits[CSA_CTRL] <= 8'h04;
         for (int i = 0; i < 8; i++) config_bits[CSA_ENABLE + i] <= 8'h00;
         config_bits[IBIAS_TDAC] <= 8'h08;
