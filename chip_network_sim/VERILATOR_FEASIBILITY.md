@@ -68,7 +68,7 @@ Why they are still realistic:
   - `posi`
 - `external_interface.sv` and `hydra_ctrl.sv` are purely digital packet-routing and control logic.
 
-## Modules Likely To Need Small Verilator Compatibility Work
+## Modules with Changes for Verilator Compatibility
 
 These are the files most likely to need stubbing or minor patching:
 
@@ -78,16 +78,39 @@ These are the files most likely to need stubbing or minor patching:
 
 Why:
 
-- `gate_posedge_clk.sv` instantiates a technology-specific cell `CKLNQD8` and uses an explicit delay:
+- `gate_posedge_clk.sv` originally instantiated a technology-specific cell `CKLNQD8` and used an explicit delay:
   - `always @(EN) EN_dly = #1.5 EN;`
-- `gate_negedge_clk.sv` instantiates `CKLHQD4` and also uses explicit delay:
+- `gate_negedge_clk.sv` originally instantiated `CKLHQD4` and also used explicit delay:
   - `always EN_dly = #0.5 EN;`
 - `uart.sv` depends on `gate_posedge_clk.sv`.
 
-Practical fix:
+What was changed:
 
-- For simulation, replace the gate-cell wrappers with simple behavioral pass-through clock-enable logic or guarded simulation stubs.
-- Keep the real gate-cell versions for ASIC/library flows under `ifdef`s.
+- Both gate-wrapper files were updated to add a `VERILATOR` branch while preserving the original foundry-cell implementation in the non-`VERILATOR` path.
+- In `gate_posedge_clk.sv`, the Verilator branch now uses a latch-based functional model:
+  - latch `EN` only while `CLK` is low
+  - drive `ENCLK = CLK & en_latched`
+- In `gate_negedge_clk.sv`, the Verilator branch now uses the complementary latch-based model:
+  - latch `EN` only while `CLK` is high
+  - drive `ENCLK = CLK | ~en_latched`
+- The Verilator branches use blocking assignment inside `always_latch` so Verilator does not emit the earlier `COMBDLY` warning.
+
+Why this fixes the original errors:
+
+- The `VERILATOR` branch avoids the technology-specific library cells entirely, so Verilator no longer needs models for `CKLNQD8` or `CKLHQD4`.
+- The `VERILATOR` branch also avoids the explicit delay statements, which were only there for timing-violation suppression in the original ASIC-oriented flow.
+- The latch-based models preserve the intended glitch-free clock-gating behavior closely enough for RTL simulation.
+
+Validation status:
+
+- A focused timed Verilator testbench was added at `larpix_v3b/testbench/unit_tests/gate_clk_tb.sv`.
+- That testbench checks that both gates:
+  - block edges while disabled
+  - pass the next correct active edge when enabled in the valid phase
+  - block future edges when disabled mid-pulse
+  - do not create spurious pulses from short enable glitches
+- The testbench passes when built with Verilator using `clang++` for the generated C++ build.
+- Run testbench using scripts/run_gate_clk_tb.sh
 
 ## Not Worth Starting With Under Verilator
 
