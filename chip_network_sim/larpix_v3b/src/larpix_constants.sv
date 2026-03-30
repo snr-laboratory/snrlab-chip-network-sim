@@ -3,12 +3,11 @@
 // Engineer:  Carl Grace (crgrace@lbl.gov)
 // Description:  Constants for LArPix operation and simulation
 //
+// NOTE:
+// This file is intended to be `include`d inside modules. It intentionally
+// does not use a global include guard so each including module gets its own
+// localparams during Verilator compilation.
 ///////////////////////////////////////////////////////////////////
-
-`ifndef _larpix_constants_
-`ifndef SYNTHESIS 
-`define _larpix_constants_
-`endif
 
 // declare needed variables
 localparam bit TRUE = 1;
@@ -36,7 +35,7 @@ localparam int DAC_VREF = 82;
 localparam int ADC_IBIAS_DELAY = 83;
 localparam int BYPASS_SELECT = 84;
 localparam int CSA_MONITOR_SEL = 92;
-localparam int CSA_TEST_ENABLE = 100;   
+localparam int CSA_TEST_ENABLE = 100;
 localparam int CSA_TEST_DAC = 108;
 localparam int IMONITOR0 = 109;
 localparam int IMONITOR1 = 110;
@@ -91,7 +90,6 @@ localparam int TRX14 = 253;
 localparam int TRX15 = 254;
 localparam int TRX16 = 255;
 
-
 // UART ops
 localparam logic[1:0] DATA_OP = 2'b01;
 localparam logic[1:0] CONFIG_WRITE_OP = 2'b10;
@@ -100,6 +98,3 @@ localparam logic[1:0] CONFIG_READ_OP = 2'b11;
 // SPI ops
 localparam bit WRITE = 1;
 localparam bit READ = 0;
-
-
-`endif // _larpix_constants_
