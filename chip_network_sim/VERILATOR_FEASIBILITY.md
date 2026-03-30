@@ -150,6 +150,11 @@ If you build your own testbenches and:
 
 then a Verilator-based workflow is realistic.
 
+## RTL Logic Changes Made
+
+- `larpix_v3b/src/config_regfile_assign.sv`: changed the default `GLOBAL_THRESH` reset value from `8'hFF` to `8'h0F` so the software/C++ analog-core threshold is about `0.60047 V` with the current default `PIXEL_TRIM = 8'h10`. This was done to make the co-simulation charge-injection test operate at a realistic threshold.
+- `larpix_v3b/src/priority_onehot.sv`: fixed an off-by-one bug in the shared priority encoder loop by changing `for (int i = 0; i < PL; i++)` to `for (int i = 0; i <= PL; i++)`. Without this, the highest-index request bit was never examined. In the 64-channel `event_router` path this prevented channel 63 from ever being selected, which the extended all-channel co-simulation exposed as a `63/64` packet-drain failure.
+
 ## Useful File References
 
 - `larpix_v3b/src/digital_core.sv`
