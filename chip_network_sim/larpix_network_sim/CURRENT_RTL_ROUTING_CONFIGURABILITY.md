@@ -40,6 +40,17 @@ These registers are mapped in `digital_core.sv` to:
 
 So each of these is effectively a 4-bit lane mask.
 
+A concrete example using `ENABLE_PISO_UP`:
+
+- `ENABLE_PISO_UP = 124` means register address `124` in the 256-byte config register file
+- a configuration write packet can write one byte to that register
+- if that packet writes data `0x0B`, then the register becomes:
+  - `config_bits[124] = 8'b0000_1011`
+- the RTL then interprets the low 4 bits as:
+  - `enable_piso_upstream = config_bits[ENABLE_PISO_UP][3:0] = 4'b1011`
+
+So in that example, upstream PISO lanes `0`, `1`, and `3` are enabled, while lane `2` is disabled.
+
 ## What These Bits Actually Control
 
 From `hydra_ctrl.sv`, these masks control:
