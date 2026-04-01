@@ -50,6 +50,16 @@ from larpix_uart import (
 FRAME_BITS = 66
 
 
+def strip_json_line_comments(text: str) -> str:
+    lines = []
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("//"):
+            continue
+        lines.append(line)
+    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+
+
 def compile_frame(spec: dict[str, Any]) -> dict[str, Any]:
     tick_start = int(spec["tick_start"])
     kind = spec["type"]
@@ -103,7 +113,7 @@ def main() -> int:
     parser.add_argument("output_json", help="compiled startup schedule JSON output")
     args = parser.parse_args()
 
-    raw = json.loads(Path(args.input_json).read_text())
+    raw = json.loads(strip_json_line_comments(Path(args.input_json).read_text()))
     input_frames = raw.get("frames", [])
     if not isinstance(input_frames, list):
         raise SystemExit("input JSON must contain a list field 'frames'")

@@ -1,0 +1,1791 @@
+// 1-chip exhaustive LArPix startup/readback test configuration.
+//
+// Test intent:
+// - enable south TX on the single directly connected chip so config-read replies
+//   can return to the FPGA over the south edge
+// - issue a CONFIG_READ for every explicit startup-default register described in
+//   the mirrored RTL default-assignment file
+// - skip register 125 because the first write in this test intentionally changes
+//   ENABLE_PISO_DOWN from its RTL default 0x00 to 0x04
+//
+// Expected behavior:
+// - every CONFIG_READ reply should match the RTL startup-default value for that
+//   register, except register 125 which is intentionally modified first
+// - the paired runner script checks the returned reply set exhaustively
+
+{
+  "frames": [
+    {
+      "tick_start": 20,
+      "type": "write",
+      "chip_id": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "enable source south tx lane"
+    },
+    {
+      "tick_start": 140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 0,
+      "label": "read startup register 0"
+    },
+    {
+      "tick_start": 260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 1,
+      "label": "read startup register 1"
+    },
+    {
+      "tick_start": 380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 2,
+      "label": "read startup register 2"
+    },
+    {
+      "tick_start": 500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 3,
+      "label": "read startup register 3"
+    },
+    {
+      "tick_start": 620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 4,
+      "label": "read startup register 4"
+    },
+    {
+      "tick_start": 740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 5,
+      "label": "read startup register 5"
+    },
+    {
+      "tick_start": 860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 6,
+      "label": "read startup register 6"
+    },
+    {
+      "tick_start": 980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 7,
+      "label": "read startup register 7"
+    },
+    {
+      "tick_start": 1100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 8,
+      "label": "read startup register 8"
+    },
+    {
+      "tick_start": 1220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 9,
+      "label": "read startup register 9"
+    },
+    {
+      "tick_start": 1340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 10,
+      "label": "read startup register 10"
+    },
+    {
+      "tick_start": 1460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 11,
+      "label": "read startup register 11"
+    },
+    {
+      "tick_start": 1580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 12,
+      "label": "read startup register 12"
+    },
+    {
+      "tick_start": 1700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 13,
+      "label": "read startup register 13"
+    },
+    {
+      "tick_start": 1820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 14,
+      "label": "read startup register 14"
+    },
+    {
+      "tick_start": 1940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 15,
+      "label": "read startup register 15"
+    },
+    {
+      "tick_start": 2060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 16,
+      "label": "read startup register 16"
+    },
+    {
+      "tick_start": 2180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 17,
+      "label": "read startup register 17"
+    },
+    {
+      "tick_start": 2300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 18,
+      "label": "read startup register 18"
+    },
+    {
+      "tick_start": 2420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 19,
+      "label": "read startup register 19"
+    },
+    {
+      "tick_start": 2540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 20,
+      "label": "read startup register 20"
+    },
+    {
+      "tick_start": 2660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 21,
+      "label": "read startup register 21"
+    },
+    {
+      "tick_start": 2780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 22,
+      "label": "read startup register 22"
+    },
+    {
+      "tick_start": 2900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 23,
+      "label": "read startup register 23"
+    },
+    {
+      "tick_start": 3020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 24,
+      "label": "read startup register 24"
+    },
+    {
+      "tick_start": 3140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 25,
+      "label": "read startup register 25"
+    },
+    {
+      "tick_start": 3260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 26,
+      "label": "read startup register 26"
+    },
+    {
+      "tick_start": 3380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 27,
+      "label": "read startup register 27"
+    },
+    {
+      "tick_start": 3500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 28,
+      "label": "read startup register 28"
+    },
+    {
+      "tick_start": 3620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 29,
+      "label": "read startup register 29"
+    },
+    {
+      "tick_start": 3740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 30,
+      "label": "read startup register 30"
+    },
+    {
+      "tick_start": 3860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 31,
+      "label": "read startup register 31"
+    },
+    {
+      "tick_start": 3980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 32,
+      "label": "read startup register 32"
+    },
+    {
+      "tick_start": 4100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 33,
+      "label": "read startup register 33"
+    },
+    {
+      "tick_start": 4220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 34,
+      "label": "read startup register 34"
+    },
+    {
+      "tick_start": 4340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 35,
+      "label": "read startup register 35"
+    },
+    {
+      "tick_start": 4460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 36,
+      "label": "read startup register 36"
+    },
+    {
+      "tick_start": 4580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 37,
+      "label": "read startup register 37"
+    },
+    {
+      "tick_start": 4700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 38,
+      "label": "read startup register 38"
+    },
+    {
+      "tick_start": 4820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 39,
+      "label": "read startup register 39"
+    },
+    {
+      "tick_start": 4940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 40,
+      "label": "read startup register 40"
+    },
+    {
+      "tick_start": 5060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 41,
+      "label": "read startup register 41"
+    },
+    {
+      "tick_start": 5180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 42,
+      "label": "read startup register 42"
+    },
+    {
+      "tick_start": 5300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 43,
+      "label": "read startup register 43"
+    },
+    {
+      "tick_start": 5420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 44,
+      "label": "read startup register 44"
+    },
+    {
+      "tick_start": 5540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 45,
+      "label": "read startup register 45"
+    },
+    {
+      "tick_start": 5660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 46,
+      "label": "read startup register 46"
+    },
+    {
+      "tick_start": 5780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 47,
+      "label": "read startup register 47"
+    },
+    {
+      "tick_start": 5900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 48,
+      "label": "read startup register 48"
+    },
+    {
+      "tick_start": 6020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 49,
+      "label": "read startup register 49"
+    },
+    {
+      "tick_start": 6140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 50,
+      "label": "read startup register 50"
+    },
+    {
+      "tick_start": 6260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 51,
+      "label": "read startup register 51"
+    },
+    {
+      "tick_start": 6380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 52,
+      "label": "read startup register 52"
+    },
+    {
+      "tick_start": 6500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 53,
+      "label": "read startup register 53"
+    },
+    {
+      "tick_start": 6620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 54,
+      "label": "read startup register 54"
+    },
+    {
+      "tick_start": 6740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 55,
+      "label": "read startup register 55"
+    },
+    {
+      "tick_start": 6860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 56,
+      "label": "read startup register 56"
+    },
+    {
+      "tick_start": 6980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 57,
+      "label": "read startup register 57"
+    },
+    {
+      "tick_start": 7100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 58,
+      "label": "read startup register 58"
+    },
+    {
+      "tick_start": 7220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 59,
+      "label": "read startup register 59"
+    },
+    {
+      "tick_start": 7340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 60,
+      "label": "read startup register 60"
+    },
+    {
+      "tick_start": 7460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 61,
+      "label": "read startup register 61"
+    },
+    {
+      "tick_start": 7580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 62,
+      "label": "read startup register 62"
+    },
+    {
+      "tick_start": 7700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 63,
+      "label": "read startup register 63"
+    },
+    {
+      "tick_start": 7820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 64,
+      "label": "read startup register 64"
+    },
+    {
+      "tick_start": 7940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 65,
+      "label": "read startup register 65"
+    },
+    {
+      "tick_start": 8060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 66,
+      "label": "read startup register 66"
+    },
+    {
+      "tick_start": 8180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 67,
+      "label": "read startup register 67"
+    },
+    {
+      "tick_start": 8300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 68,
+      "label": "read startup register 68"
+    },
+    {
+      "tick_start": 8420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 69,
+      "label": "read startup register 69"
+    },
+    {
+      "tick_start": 8540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 70,
+      "label": "read startup register 70"
+    },
+    {
+      "tick_start": 8660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 71,
+      "label": "read startup register 71"
+    },
+    {
+      "tick_start": 8780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 72,
+      "label": "read startup register 72"
+    },
+    {
+      "tick_start": 8900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 73,
+      "label": "read startup register 73"
+    },
+    {
+      "tick_start": 9020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 74,
+      "label": "read startup register 74"
+    },
+    {
+      "tick_start": 9140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 75,
+      "label": "read startup register 75"
+    },
+    {
+      "tick_start": 9260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 76,
+      "label": "read startup register 76"
+    },
+    {
+      "tick_start": 9380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 77,
+      "label": "read startup register 77"
+    },
+    {
+      "tick_start": 9500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 78,
+      "label": "read startup register 78"
+    },
+    {
+      "tick_start": 9620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 79,
+      "label": "read startup register 79"
+    },
+    {
+      "tick_start": 9740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 80,
+      "label": "read startup register 80"
+    },
+    {
+      "tick_start": 9860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 81,
+      "label": "read startup register 81"
+    },
+    {
+      "tick_start": 9980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 82,
+      "label": "read startup register 82"
+    },
+    {
+      "tick_start": 10100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 83,
+      "label": "read startup register 83"
+    },
+    {
+      "tick_start": 10220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 84,
+      "label": "read startup register 84"
+    },
+    {
+      "tick_start": 10340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 85,
+      "label": "read startup register 85"
+    },
+    {
+      "tick_start": 10460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 86,
+      "label": "read startup register 86"
+    },
+    {
+      "tick_start": 10580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 87,
+      "label": "read startup register 87"
+    },
+    {
+      "tick_start": 10700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 88,
+      "label": "read startup register 88"
+    },
+    {
+      "tick_start": 10820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 89,
+      "label": "read startup register 89"
+    },
+    {
+      "tick_start": 10940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 90,
+      "label": "read startup register 90"
+    },
+    {
+      "tick_start": 11060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 91,
+      "label": "read startup register 91"
+    },
+    {
+      "tick_start": 11180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 92,
+      "label": "read startup register 92"
+    },
+    {
+      "tick_start": 11300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 93,
+      "label": "read startup register 93"
+    },
+    {
+      "tick_start": 11420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 94,
+      "label": "read startup register 94"
+    },
+    {
+      "tick_start": 11540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 95,
+      "label": "read startup register 95"
+    },
+    {
+      "tick_start": 11660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 96,
+      "label": "read startup register 96"
+    },
+    {
+      "tick_start": 11780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 97,
+      "label": "read startup register 97"
+    },
+    {
+      "tick_start": 11900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 98,
+      "label": "read startup register 98"
+    },
+    {
+      "tick_start": 12020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 99,
+      "label": "read startup register 99"
+    },
+    {
+      "tick_start": 12140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 100,
+      "label": "read startup register 100"
+    },
+    {
+      "tick_start": 12260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 101,
+      "label": "read startup register 101"
+    },
+    {
+      "tick_start": 12380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 102,
+      "label": "read startup register 102"
+    },
+    {
+      "tick_start": 12500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 103,
+      "label": "read startup register 103"
+    },
+    {
+      "tick_start": 12620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 104,
+      "label": "read startup register 104"
+    },
+    {
+      "tick_start": 12740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 105,
+      "label": "read startup register 105"
+    },
+    {
+      "tick_start": 12860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 106,
+      "label": "read startup register 106"
+    },
+    {
+      "tick_start": 12980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 107,
+      "label": "read startup register 107"
+    },
+    {
+      "tick_start": 13100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 108,
+      "label": "read startup register 108"
+    },
+    {
+      "tick_start": 13220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 109,
+      "label": "read startup register 109"
+    },
+    {
+      "tick_start": 13340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 110,
+      "label": "read startup register 110"
+    },
+    {
+      "tick_start": 13460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 111,
+      "label": "read startup register 111"
+    },
+    {
+      "tick_start": 13580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 112,
+      "label": "read startup register 112"
+    },
+    {
+      "tick_start": 13700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 113,
+      "label": "read startup register 113"
+    },
+    {
+      "tick_start": 13820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 114,
+      "label": "read startup register 114"
+    },
+    {
+      "tick_start": 13940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 115,
+      "label": "read startup register 115"
+    },
+    {
+      "tick_start": 14060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 116,
+      "label": "read startup register 116"
+    },
+    {
+      "tick_start": 14180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 117,
+      "label": "read startup register 117"
+    },
+    {
+      "tick_start": 14300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 118,
+      "label": "read startup register 118"
+    },
+    {
+      "tick_start": 14420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 119,
+      "label": "read startup register 119"
+    },
+    {
+      "tick_start": 14540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 120,
+      "label": "read startup register 120"
+    },
+    {
+      "tick_start": 14660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 121,
+      "label": "read startup register 121"
+    },
+    {
+      "tick_start": 14780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 122,
+      "label": "read startup register 122"
+    },
+    {
+      "tick_start": 14900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 123,
+      "label": "read startup register 123"
+    },
+    {
+      "tick_start": 15020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 124,
+      "label": "read startup register 124"
+    },
+    {
+      "tick_start": 15140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 126,
+      "label": "read startup register 126"
+    },
+    {
+      "tick_start": 15260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 127,
+      "label": "read startup register 127"
+    },
+    {
+      "tick_start": 15380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 128,
+      "label": "read startup register 128"
+    },
+    {
+      "tick_start": 15500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 129,
+      "label": "read startup register 129"
+    },
+    {
+      "tick_start": 15620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 130,
+      "label": "read startup register 130"
+    },
+    {
+      "tick_start": 15740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 131,
+      "label": "read startup register 131"
+    },
+    {
+      "tick_start": 15860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 132,
+      "label": "read startup register 132"
+    },
+    {
+      "tick_start": 15980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 133,
+      "label": "read startup register 133"
+    },
+    {
+      "tick_start": 16100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 134,
+      "label": "read startup register 134"
+    },
+    {
+      "tick_start": 16220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 135,
+      "label": "read startup register 135"
+    },
+    {
+      "tick_start": 16340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 136,
+      "label": "read startup register 136"
+    },
+    {
+      "tick_start": 16460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 137,
+      "label": "read startup register 137"
+    },
+    {
+      "tick_start": 16580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 138,
+      "label": "read startup register 138"
+    },
+    {
+      "tick_start": 16700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 139,
+      "label": "read startup register 139"
+    },
+    {
+      "tick_start": 16820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 140,
+      "label": "read startup register 140"
+    },
+    {
+      "tick_start": 16940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 141,
+      "label": "read startup register 141"
+    },
+    {
+      "tick_start": 17060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 142,
+      "label": "read startup register 142"
+    },
+    {
+      "tick_start": 17180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 143,
+      "label": "read startup register 143"
+    },
+    {
+      "tick_start": 17300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 144,
+      "label": "read startup register 144"
+    },
+    {
+      "tick_start": 17420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 145,
+      "label": "read startup register 145"
+    },
+    {
+      "tick_start": 17540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 146,
+      "label": "read startup register 146"
+    },
+    {
+      "tick_start": 17660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 147,
+      "label": "read startup register 147"
+    },
+    {
+      "tick_start": 17780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 148,
+      "label": "read startup register 148"
+    },
+    {
+      "tick_start": 17900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 149,
+      "label": "read startup register 149"
+    },
+    {
+      "tick_start": 18020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 150,
+      "label": "read startup register 150"
+    },
+    {
+      "tick_start": 18140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 151,
+      "label": "read startup register 151"
+    },
+    {
+      "tick_start": 18260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 152,
+      "label": "read startup register 152"
+    },
+    {
+      "tick_start": 18380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 153,
+      "label": "read startup register 153"
+    },
+    {
+      "tick_start": 18500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 154,
+      "label": "read startup register 154"
+    },
+    {
+      "tick_start": 18620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 155,
+      "label": "read startup register 155"
+    },
+    {
+      "tick_start": 18740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 156,
+      "label": "read startup register 156"
+    },
+    {
+      "tick_start": 18860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 157,
+      "label": "read startup register 157"
+    },
+    {
+      "tick_start": 18980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 158,
+      "label": "read startup register 158"
+    },
+    {
+      "tick_start": 19100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 159,
+      "label": "read startup register 159"
+    },
+    {
+      "tick_start": 19220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 160,
+      "label": "read startup register 160"
+    },
+    {
+      "tick_start": 19340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 161,
+      "label": "read startup register 161"
+    },
+    {
+      "tick_start": 19460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 162,
+      "label": "read startup register 162"
+    },
+    {
+      "tick_start": 19580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 166,
+      "label": "read startup register 166"
+    },
+    {
+      "tick_start": 19700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 167,
+      "label": "read startup register 167"
+    },
+    {
+      "tick_start": 19820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 168,
+      "label": "read startup register 168"
+    },
+    {
+      "tick_start": 19940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 169,
+      "label": "read startup register 169"
+    },
+    {
+      "tick_start": 20060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 170,
+      "label": "read startup register 170"
+    },
+    {
+      "tick_start": 20180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 171,
+      "label": "read startup register 171"
+    },
+    {
+      "tick_start": 20300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 172,
+      "label": "read startup register 172"
+    },
+    {
+      "tick_start": 20420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 173,
+      "label": "read startup register 173"
+    },
+    {
+      "tick_start": 20540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 174,
+      "label": "read startup register 174"
+    },
+    {
+      "tick_start": 20660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 175,
+      "label": "read startup register 175"
+    },
+    {
+      "tick_start": 20780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 176,
+      "label": "read startup register 176"
+    },
+    {
+      "tick_start": 20900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 177,
+      "label": "read startup register 177"
+    },
+    {
+      "tick_start": 21020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 178,
+      "label": "read startup register 178"
+    },
+    {
+      "tick_start": 21140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 179,
+      "label": "read startup register 179"
+    },
+    {
+      "tick_start": 21260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 180,
+      "label": "read startup register 180"
+    },
+    {
+      "tick_start": 21380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 181,
+      "label": "read startup register 181"
+    },
+    {
+      "tick_start": 21500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 182,
+      "label": "read startup register 182"
+    },
+    {
+      "tick_start": 21620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 183,
+      "label": "read startup register 183"
+    },
+    {
+      "tick_start": 21740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 184,
+      "label": "read startup register 184"
+    },
+    {
+      "tick_start": 21860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 185,
+      "label": "read startup register 185"
+    },
+    {
+      "tick_start": 21980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 186,
+      "label": "read startup register 186"
+    },
+    {
+      "tick_start": 22100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 187,
+      "label": "read startup register 187"
+    },
+    {
+      "tick_start": 22220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 188,
+      "label": "read startup register 188"
+    },
+    {
+      "tick_start": 22340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 189,
+      "label": "read startup register 189"
+    },
+    {
+      "tick_start": 22460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 190,
+      "label": "read startup register 190"
+    },
+    {
+      "tick_start": 22580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 191,
+      "label": "read startup register 191"
+    },
+    {
+      "tick_start": 22700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 192,
+      "label": "read startup register 192"
+    },
+    {
+      "tick_start": 22820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 193,
+      "label": "read startup register 193"
+    },
+    {
+      "tick_start": 22940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 194,
+      "label": "read startup register 194"
+    },
+    {
+      "tick_start": 23060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 195,
+      "label": "read startup register 195"
+    },
+    {
+      "tick_start": 23180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 196,
+      "label": "read startup register 196"
+    },
+    {
+      "tick_start": 23300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 197,
+      "label": "read startup register 197"
+    },
+    {
+      "tick_start": 23420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 198,
+      "label": "read startup register 198"
+    },
+    {
+      "tick_start": 23540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 199,
+      "label": "read startup register 199"
+    },
+    {
+      "tick_start": 23660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 200,
+      "label": "read startup register 200"
+    },
+    {
+      "tick_start": 23780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 201,
+      "label": "read startup register 201"
+    },
+    {
+      "tick_start": 23900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 202,
+      "label": "read startup register 202"
+    },
+    {
+      "tick_start": 24020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 203,
+      "label": "read startup register 203"
+    },
+    {
+      "tick_start": 24140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 204,
+      "label": "read startup register 204"
+    },
+    {
+      "tick_start": 24260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 205,
+      "label": "read startup register 205"
+    },
+    {
+      "tick_start": 24380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 206,
+      "label": "read startup register 206"
+    },
+    {
+      "tick_start": 24500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 207,
+      "label": "read startup register 207"
+    },
+    {
+      "tick_start": 24620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 208,
+      "label": "read startup register 208"
+    },
+    {
+      "tick_start": 24740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 209,
+      "label": "read startup register 209"
+    },
+    {
+      "tick_start": 24860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 210,
+      "label": "read startup register 210"
+    },
+    {
+      "tick_start": 24980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 211,
+      "label": "read startup register 211"
+    },
+    {
+      "tick_start": 25100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 212,
+      "label": "read startup register 212"
+    },
+    {
+      "tick_start": 25220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 213,
+      "label": "read startup register 213"
+    },
+    {
+      "tick_start": 25340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 214,
+      "label": "read startup register 214"
+    },
+    {
+      "tick_start": 25460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 215,
+      "label": "read startup register 215"
+    },
+    {
+      "tick_start": 25580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 216,
+      "label": "read startup register 216"
+    },
+    {
+      "tick_start": 25700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 217,
+      "label": "read startup register 217"
+    },
+    {
+      "tick_start": 25820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 218,
+      "label": "read startup register 218"
+    },
+    {
+      "tick_start": 25940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 219,
+      "label": "read startup register 219"
+    },
+    {
+      "tick_start": 26060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 220,
+      "label": "read startup register 220"
+    },
+    {
+      "tick_start": 26180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 221,
+      "label": "read startup register 221"
+    },
+    {
+      "tick_start": 26300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 222,
+      "label": "read startup register 222"
+    },
+    {
+      "tick_start": 26420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 223,
+      "label": "read startup register 223"
+    },
+    {
+      "tick_start": 26540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 224,
+      "label": "read startup register 224"
+    },
+    {
+      "tick_start": 26660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 225,
+      "label": "read startup register 225"
+    },
+    {
+      "tick_start": 26780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 226,
+      "label": "read startup register 226"
+    },
+    {
+      "tick_start": 26900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 227,
+      "label": "read startup register 227"
+    },
+    {
+      "tick_start": 27020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 228,
+      "label": "read startup register 228"
+    },
+    {
+      "tick_start": 27140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 229,
+      "label": "read startup register 229"
+    },
+    {
+      "tick_start": 27260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 230,
+      "label": "read startup register 230"
+    },
+    {
+      "tick_start": 27380,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 231,
+      "label": "read startup register 231"
+    },
+    {
+      "tick_start": 27500,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 232,
+      "label": "read startup register 232"
+    },
+    {
+      "tick_start": 27620,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 233,
+      "label": "read startup register 233"
+    },
+    {
+      "tick_start": 27740,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 234,
+      "label": "read startup register 234"
+    },
+    {
+      "tick_start": 27860,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 235,
+      "label": "read startup register 235"
+    },
+    {
+      "tick_start": 27980,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 236,
+      "label": "read startup register 236"
+    },
+    {
+      "tick_start": 28100,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 237,
+      "label": "read startup register 237"
+    },
+    {
+      "tick_start": 28220,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 238,
+      "label": "read startup register 238"
+    },
+    {
+      "tick_start": 28340,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 239,
+      "label": "read startup register 239"
+    },
+    {
+      "tick_start": 28460,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 240,
+      "label": "read startup register 240"
+    },
+    {
+      "tick_start": 28580,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 241,
+      "label": "read startup register 241"
+    },
+    {
+      "tick_start": 28700,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 242,
+      "label": "read startup register 242"
+    },
+    {
+      "tick_start": 28820,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 243,
+      "label": "read startup register 243"
+    },
+    {
+      "tick_start": 28940,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 244,
+      "label": "read startup register 244"
+    },
+    {
+      "tick_start": 29060,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 245,
+      "label": "read startup register 245"
+    },
+    {
+      "tick_start": 29180,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 246,
+      "label": "read startup register 246"
+    },
+    {
+      "tick_start": 29300,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 247,
+      "label": "read startup register 247"
+    },
+    {
+      "tick_start": 29420,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 248,
+      "label": "read startup register 248"
+    },
+    {
+      "tick_start": 29540,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 249,
+      "label": "read startup register 249"
+    },
+    {
+      "tick_start": 29660,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 250,
+      "label": "read startup register 250"
+    },
+    {
+      "tick_start": 29780,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 251,
+      "label": "read startup register 251"
+    },
+    {
+      "tick_start": 29900,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 252,
+      "label": "read startup register 252"
+    },
+    {
+      "tick_start": 30020,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 253,
+      "label": "read startup register 253"
+    },
+    {
+      "tick_start": 30140,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 254,
+      "label": "read startup register 254"
+    },
+    {
+      "tick_start": 30260,
+      "type": "read",
+      "chip_id": 1,
+      "register_addr": 255,
+      "label": "read startup register 255"
+    }
+  ]
+}
