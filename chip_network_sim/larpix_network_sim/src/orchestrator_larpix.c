@@ -1,3 +1,12 @@
+/*
+ * orchestrator_larpix.c
+ *
+ * LArPix-specific orchestrator for the 4-edge serial-bit network model. It
+ * launches one chip process per chip plus an optional fpga_larpix controller,
+ * wires the source chip's south edge to that controller for startup packet
+ * injection, and advances all runtimes in strict TICK/DONE lock-step.
+ */
+
 #define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
@@ -35,28 +44,14 @@ typedef struct {
     int         ack_timeout_ms;
     uint32_t    seed;
     const char *chip_bin;
+    const char *fpga_bin;
     const char *backend;
     const char *stimulus_json;
-    const char *bootstrap_json;
+    const char *startup_json;
     const char *base_uri;
+    int         source_x;
+    int         source_y;
 } orchestrator_larpix_options_t;
-
-static const char *
-edge_name(int edge)
-{
-    switch (edge) {
-    case LARPIX_EDGE_NORTH:
-        return "north";
-    case LARPIX_EDGE_EAST:
-        return "east";
-    case LARPIX_EDGE_SOUTH:
-        return "south";
-    case LARPIX_EDGE_WEST:
-        return "west";
-    default:
-        return "unknown";
-    }
-}
 
 static double
 mono_now_sec(void)
@@ -76,9 +71,12 @@ usage(const char *prog)
         "  -ack_timeout_ms <N>     timeout waiting for DONE/METRIC (default 5000)\n"
         "  -seed <N>               base seed (default 1)\n"
         "  -chip_bin <path>        chip executable (default ./larpix_chip)\n"
+        "  -fpga_bin <path>        FPGA/controller executable (default ./fpga_larpix)\n"
         "  -backend <name>         chip backend (default cosim)\n"
         "  -stimulus_json <path>   charge stimulus JSON passed to each chip\n"
-        "  -bootstrap_json <path>  startup bootstrap/config JSON passed to each chip\n"
+        "  -startup_json <path>    compiled startup schedule JSON passed to the FPGA controller\n"
+        "  -source_x <N>           source-chip x coordinate on bottom row (default 0)\n"
+        "  -source_y <N>           source-chip y coordinate (default 0, must be 0 when startup_json is used)\n"
         "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default auto)\n",
         prog);
 }
@@ -138,10 +136,13 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
     opts->ack_timeout_ms = 5000;
     opts->seed = 1u;
     opts->chip_bin = "./larpix_chip";
+    opts->fpga_bin = "./fpga_larpix";
     opts->backend = "cosim";
     opts->stimulus_json = NULL;
-    opts->bootstrap_json = NULL;
+    opts->startup_json = NULL;
     opts->base_uri = NULL;
+    opts->source_x = 0;
+    opts->source_y = 0;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-rows") == 0 && i + 1 < argc) {
@@ -170,20 +171,40 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
             }
         } else if (strcmp(argv[i], "-chip_bin") == 0 && i + 1 < argc) {
             opts->chip_bin = argv[++i];
+        } else if (strcmp(argv[i], "-fpga_bin") == 0 && i + 1 < argc) {
+            opts->fpga_bin = argv[++i];
         } else if (strcmp(argv[i], "-backend") == 0 && i + 1 < argc) {
             opts->backend = argv[++i];
         } else if (strcmp(argv[i], "-stimulus_json") == 0 && i + 1 < argc) {
             opts->stimulus_json = argv[++i];
-        } else if (strcmp(argv[i], "-bootstrap_json") == 0 && i + 1 < argc) {
-            opts->bootstrap_json = argv[++i];
+        } else if (strcmp(argv[i], "-startup_json") == 0 && i + 1 < argc) {
+            opts->startup_json = argv[++i];
         } else if (strcmp(argv[i], "-base_uri") == 0 && i + 1 < argc) {
             opts->base_uri = argv[++i];
+        } else if (strcmp(argv[i], "-source_x") == 0 && i + 1 < argc) {
+            if (parse_int(argv[++i], &opts->source_x) != 0) {
+                return -1;
+            }
+        } else if (strcmp(argv[i], "-source_y") == 0 && i + 1 < argc) {
+            if (parse_int(argv[++i], &opts->source_y) != 0) {
+                return -1;
+            }
         } else {
             return -1;
         }
     }
 
-    return (opts->rows > 0 && opts->cols > 0 && opts->ticks > 0) ? 0 : -1;
+    if (!(opts->rows > 0 && opts->cols > 0 && opts->ticks > 0)) {
+        return -1;
+    }
+    if (opts->source_x < 0 || opts->source_x >= opts->cols || opts->source_y < 0 || opts->source_y >= opts->rows) {
+        return -1;
+    }
+    if (opts->startup_json != NULL && opts->source_y != 0) {
+        fprintf(stderr, "source_y must be 0 when an FPGA startup source is used\n");
+        return -1;
+    }
+    return 0;
 }
 
 static int
@@ -277,6 +298,8 @@ static int
 launch_chip(const orchestrator_larpix_options_t *opts,
     int runtime_id,
     const larpix_route_t *route,
+    int source_chip_id,
+    int fpga_runtime_id,
     const char *control_url,
     const char *metric_url,
     const char *edge_prefix,
@@ -287,8 +310,9 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     char id_s[32], seed_s[32], timeout_s[32];
     char north_in[128], east_in[128], south_in[128], west_in[128];
     char north_out[128], east_out[128], south_out[128], west_out[128];
-    char *argv_exec[48];
+    char *argv_exec[46];
     int idx = 0;
+    const bool attach_fpga = (opts->startup_json != NULL && runtime_id == source_chip_id);
 
     snprintf(id_s, sizeof(id_s), "%d", runtime_id);
     snprintf(seed_s, sizeof(seed_s), "%u", (unsigned)(opts->seed + (uint32_t)runtime_id));
@@ -321,7 +345,12 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     } else {
         snprintf(east_in, sizeof(east_in), "-1");
     }
-    if (route->neighbor[LARPIX_EDGE_SOUTH] >= 0) {
+    if (attach_fpga) {
+        if (build_endpoint_url(south_in, sizeof(south_in), edge_prefix,
+                edge_output_port(edge_port_base, fpga_runtime_id, LARPIX_EDGE_NORTH)) != 0) {
+            return -1;
+        }
+    } else if (route->neighbor[LARPIX_EDGE_SOUTH] >= 0) {
         if (build_endpoint_url(south_in, sizeof(south_in), edge_prefix,
                 edge_output_port(edge_port_base, route->neighbor[LARPIX_EDGE_SOUTH], LARPIX_EDGE_NORTH)) != 0) {
             return -1;
@@ -367,10 +396,6 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     argv_exec[idx++] = timeout_s;
     argv_exec[idx++] = "-seed";
     argv_exec[idx++] = seed_s;
-    if (opts->bootstrap_json != NULL) {
-        argv_exec[idx++] = "-bootstrap_json";
-        argv_exec[idx++] = (char *)opts->bootstrap_json;
-    }
     if (opts->stimulus_json != NULL) {
         argv_exec[idx++] = "-stimulus_json";
         argv_exec[idx++] = (char *)opts->stimulus_json;
@@ -392,6 +417,66 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     return 0;
 }
 
+static int
+launch_fpga(const orchestrator_larpix_options_t *opts,
+    int fpga_runtime_id,
+    int source_chip_id,
+    const char *control_url,
+    const char *metric_url,
+    const char *edge_prefix,
+    int edge_port_base,
+    pid_t *child_pid)
+{
+    pid_t pid;
+    char id_s[32], timeout_s[32];
+    char north_in[128], north_out[128];
+    char *argv_exec[20];
+    int idx = 0;
+
+    snprintf(id_s, sizeof(id_s), "%d", fpga_runtime_id);
+    snprintf(timeout_s, sizeof(timeout_s), "%d", opts->ack_timeout_ms);
+
+    if (build_endpoint_url(north_out, sizeof(north_out), edge_prefix,
+            edge_output_port(edge_port_base, fpga_runtime_id, LARPIX_EDGE_NORTH)) != 0 ||
+        build_endpoint_url(north_in, sizeof(north_in), edge_prefix,
+            edge_output_port(edge_port_base, source_chip_id, LARPIX_EDGE_SOUTH)) != 0) {
+        return -1;
+    }
+
+    argv_exec[idx++] = (char *)opts->fpga_bin;
+    argv_exec[idx++] = "-id";
+    argv_exec[idx++] = id_s;
+    argv_exec[idx++] = "-clock_url";
+    argv_exec[idx++] = (char *)control_url;
+    argv_exec[idx++] = "-metric_url";
+    argv_exec[idx++] = (char *)metric_url;
+    argv_exec[idx++] = "-north_in_url";
+    argv_exec[idx++] = north_in;
+    argv_exec[idx++] = "-north_out_url";
+    argv_exec[idx++] = north_out;
+    argv_exec[idx++] = "-data_timeout_ms";
+    argv_exec[idx++] = timeout_s;
+    if (opts->startup_json != NULL) {
+        argv_exec[idx++] = "-startup_json";
+        argv_exec[idx++] = (char *)opts->startup_json;
+    }
+    argv_exec[idx++] = NULL;
+
+    pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        return -1;
+    }
+    if (pid == 0) {
+        execvp(opts->fpga_bin, argv_exec);
+        perror("execvp(fpga_larpix)");
+        _exit(127);
+    }
+
+    *child_pid = pid;
+    return 0;
+}
+
 static void
 terminate_children(pid_t *pids, int count)
 {
@@ -404,11 +489,11 @@ terminate_children(pid_t *pids, int count)
 }
 
 static int
-recv_done_response(nng_socket control_req, int expected_chip_id, uint64_t expected_seq)
+recv_done_response(nng_socket control_req, int expected_runtime_id, uint64_t expected_seq)
 {
     chipsim_done_msg_t msg;
-    size_t             msg_sz = sizeof(msg);
-    int                rv;
+    size_t msg_sz = sizeof(msg);
+    int rv;
 
     rv = nng_recv(control_req, &msg, &msg_sz, 0);
     if (rv != 0) {
@@ -424,9 +509,9 @@ recv_done_response(nng_socket control_req, int expected_chip_id, uint64_t expect
             msg.seq, expected_seq);
         return -1;
     }
-    if (msg.chip_id != (uint32_t)expected_chip_id) {
+    if (msg.chip_id != (uint32_t)expected_runtime_id) {
         fprintf(stderr, "orchestrator_larpix received DONE chip_id=%u expected=%d\n",
-            msg.chip_id, expected_chip_id);
+            msg.chip_id, expected_runtime_id);
         return -1;
     }
     return 0;
@@ -437,6 +522,10 @@ main(int argc, char **argv)
 {
     orchestrator_larpix_options_t opts;
     int chip_count;
+    int runtime_count;
+    int source_chip_id;
+    int fpga_runtime_id;
+    bool use_fpga;
     larpix_route_t *routes = NULL;
     pid_t *child_pids = NULL;
     nng_socket *control_reqs = NULL;
@@ -467,9 +556,14 @@ main(int argc, char **argv)
     }
 
     chip_count = opts.rows * opts.cols;
+    source_chip_id = chip_id_from_xy(opts.source_x, opts.source_y, opts.cols);
+    use_fpga = (opts.startup_json != NULL);
+    fpga_runtime_id = chip_count;
+    runtime_count = chip_count + (use_fpga ? 1 : 0);
+
     routes = calloc((size_t)chip_count, sizeof(*routes));
-    child_pids = calloc((size_t)chip_count, sizeof(*child_pids));
-    control_reqs = calloc((size_t)chip_count, sizeof(*control_reqs));
+    child_pids = calloc((size_t)runtime_count, sizeof(*child_pids));
+    control_reqs = calloc((size_t)runtime_count, sizeof(*control_reqs));
     if (routes == NULL || child_pids == NULL || control_reqs == NULL) {
         fprintf(stderr, "allocation failure\n");
         goto fail;
@@ -485,6 +579,8 @@ main(int argc, char **argv)
 
     printf("orchestrator_larpix: rows=%d cols=%d chips=%d ticks=%" PRIu64 " backend=%s\n",
         opts.rows, opts.cols, chip_count, opts.ticks, opts.backend);
+    printf("orchestrator_larpix: source=(%d,%d) source_chip_id=%d use_fpga=%d\n",
+        opts.source_x, opts.source_y, source_chip_id, use_fpga ? 1 : 0);
     printf("orchestrator_larpix: control_prefix=%s control_port_base=%d edge_port_base=%d\n",
         control_prefix, control_port_base, edge_port_base);
 
@@ -508,7 +604,19 @@ main(int argc, char **argv)
         if (build_endpoint_url(control_url, sizeof(control_url), control_prefix, control_port_base + i) != 0) {
             goto fail;
         }
-        if (launch_chip(&opts, i, &routes[i], control_url, metric_url, edge_prefix, edge_port_base, &child_pids[i]) != 0) {
+        if (launch_chip(&opts, i, &routes[i], source_chip_id, fpga_runtime_id,
+                control_url, metric_url, edge_prefix, edge_port_base, &child_pids[i]) != 0) {
+            goto fail;
+        }
+    }
+
+    if (use_fpga) {
+        char control_url[256];
+        if (build_endpoint_url(control_url, sizeof(control_url), control_prefix, control_port_base + fpga_runtime_id) != 0) {
+            goto fail;
+        }
+        if (launch_fpga(&opts, fpga_runtime_id, source_chip_id,
+                control_url, metric_url, edge_prefix, edge_port_base, &child_pids[fpga_runtime_id]) != 0) {
             goto fail;
         }
     }
@@ -520,14 +628,14 @@ main(int argc, char **argv)
         nanosleep(&ts, NULL);
     }
 
-    for (i = 0; i < chip_count; i++) {
+    for (i = 0; i < runtime_count; i++) {
         char control_url[256];
         if (build_endpoint_url(control_url, sizeof(control_url), control_prefix, control_port_base + i) != 0) {
             goto fail;
         }
         rv = nng_req0_open(&control_reqs[i]);
         if (rv != 0) {
-            fprintf(stderr, "control req open failed for chip %d: %s\n", i, nng_strerror(rv));
+            fprintf(stderr, "control req open failed for runtime %d: %s\n", i, nng_strerror(rv));
             goto fail;
         }
         rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_SENDTIMEO, opts.ack_timeout_ms);
@@ -544,7 +652,7 @@ main(int argc, char **argv)
         }
         rv = nng_dial(control_reqs[i], control_url, NULL, 0);
         if (rv != 0) {
-            fprintf(stderr, "control dial failed for chip %d at %s: %s\n", i, control_url, nng_strerror(rv));
+            fprintf(stderr, "control dial failed for runtime %d at %s: %s\n", i, control_url, nng_strerror(rv));
             goto fail;
         }
     }
@@ -555,14 +663,14 @@ main(int argc, char **argv)
         tick.type = CHIPSIM_MSG_TICK;
         tick.seq = seq;
 
-        for (i = 0; i < chip_count; i++) {
+        for (i = 0; i < runtime_count; i++) {
             rv = nng_send(control_reqs[i], &tick, sizeof(tick), 0);
             if (rv != 0) {
-                fprintf(stderr, "send(TICK) failed for chip %d: %s\n", i, nng_strerror(rv));
+                fprintf(stderr, "send(TICK) failed for runtime %d: %s\n", i, nng_strerror(rv));
                 goto fail;
             }
         }
-        for (i = 0; i < chip_count; i++) {
+        for (i = 0; i < runtime_count; i++) {
             if (recv_done_response(control_reqs[i], i, seq) != 0) {
                 goto fail;
             }
@@ -575,22 +683,21 @@ main(int argc, char **argv)
         stop_msg.type = CHIPSIM_MSG_STOP;
         stop_msg.seq = opts.ticks;
 
-        for (i = 0; i < chip_count; i++) {
+        for (i = 0; i < runtime_count; i++) {
             rv = nng_send(control_reqs[i], &stop_msg, sizeof(stop_msg), 0);
             if (rv != 0) {
-                fprintf(stderr, "send(STOP) failed for chip %d: %s\n", i, nng_strerror(rv));
+                fprintf(stderr, "send(STOP) failed for runtime %d: %s\n", i, nng_strerror(rv));
                 goto fail;
             }
         }
-        for (i = 0; i < chip_count; i++) {
+        for (i = 0; i < runtime_count; i++) {
             if (recv_done_response(control_reqs[i], i, opts.ticks) != 0) {
                 goto fail;
             }
         }
     }
 
-    /* Collect and discard one metric per chip for now. */
-    for (i = 0; i < chip_count; i++) {
+    for (i = 0; i < runtime_count; i++) {
         chipsim_metric_msg_t metric;
         size_t msg_sz = sizeof(metric);
         rv = nng_recv(metric_pull, &metric, &msg_sz, 0);
@@ -600,7 +707,7 @@ main(int argc, char **argv)
         }
     }
 
-    for (i = 0; i < chip_count; i++) {
+    for (i = 0; i < runtime_count; i++) {
         int status = 0;
         if (child_pids[i] > 0) {
             waitpid(child_pids[i], &status, 0);
@@ -610,7 +717,7 @@ main(int argc, char **argv)
     t_all_end = mono_now_sec();
     printf("orchestrator_larpix: completed in %.6f sec\n", t_all_end - t_all_start);
 
-    for (i = 0; i < chip_count; i++) {
+    for (i = 0; i < runtime_count; i++) {
         if (nng_socket_id(control_reqs[i]) > 0) {
             nng_socket_close(control_reqs[i]);
         }
@@ -626,10 +733,10 @@ main(int argc, char **argv)
 
 fail:
     if (child_pids != NULL) {
-        terminate_children(child_pids, chip_count);
+        terminate_children(child_pids, runtime_count);
     }
     if (control_reqs != NULL) {
-        for (i = 0; i < chip_count; i++) {
+        for (i = 0; i < runtime_count; i++) {
             if (nng_socket_id(control_reqs[i]) > 0) {
                 nng_socket_close(control_reqs[i]);
             }
@@ -639,7 +746,7 @@ fail:
         nng_socket_close(metric_pull);
     }
     if (child_pids != NULL) {
-        for (i = 0; i < chip_count; i++) {
+        for (i = 0; i < runtime_count; i++) {
             if (child_pids[i] > 0) {
                 int status = 0;
                 waitpid(child_pids[i], &status, 0);

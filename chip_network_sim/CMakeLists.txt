@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
-project(chip_network_sim C)
+project(chip_network_sim C CXX)
 
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 find_package(Threads REQUIRED)
@@ -36,8 +38,16 @@ target_link_libraries(chip PRIVATE chipsim_common Threads::Threads)
 add_executable(orchestrator src/orchestrator.c)
 target_link_libraries(orchestrator PRIVATE chipsim_common)
 
+add_executable(fpga_larpix larpix_network_sim/src/fpga_larpix.cpp)
+target_include_directories(fpga_larpix PRIVATE include larpix_network_sim/include)
+target_link_libraries(fpga_larpix PRIVATE chipsim_common Threads::Threads)
+
+add_executable(orchestrator_larpix larpix_network_sim/src/orchestrator_larpix.c)
+target_include_directories(orchestrator_larpix PRIVATE include larpix_network_sim/include)
+target_link_libraries(orchestrator_larpix PRIVATE chipsim_common)
+
 # Let runtime find local nng shared library without env setup.
-set_target_properties(chip orchestrator PROPERTIES
+set_target_properties(chip orchestrator fpga_larpix orchestrator_larpix PROPERTIES
   BUILD_RPATH "${CMAKE_SOURCE_DIR}/nng/build"
   INSTALL_RPATH "${CMAKE_SOURCE_DIR}/nng/build"
 )

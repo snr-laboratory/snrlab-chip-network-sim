@@ -52,7 +52,6 @@ typedef struct {
     const char *metric_url;
     const char *trace_file;
     const char *backend_name;
-    const char *bootstrap_json;
     const char *stimulus_json;
     const char *in_url[LARPIXSIM_EDGE_COUNT];
     const char *out_url[LARPIXSIM_EDGE_COUNT];
@@ -79,6 +78,23 @@ typedef struct {
     int             chip_id;
     int             edge_id;
 } bit_server_state_t;
+
+static int
+opposite_edge(int edge)
+{
+    switch (edge) {
+    case LARPIX_EDGE_NORTH:
+        return LARPIX_EDGE_SOUTH;
+    case LARPIX_EDGE_EAST:
+        return LARPIX_EDGE_WEST;
+    case LARPIX_EDGE_SOUTH:
+        return LARPIX_EDGE_NORTH;
+    case LARPIX_EDGE_WEST:
+        return LARPIX_EDGE_EAST;
+    default:
+        return edge;
+    }
+}
 
 static const char *
 edge_name(int edge)
@@ -114,7 +130,6 @@ usage(const char *prog)
         "  -east_out_url <URI|-1>     east output bit service\n"
         "  -south_out_url <URI|-1>    south output bit service\n"
         "  -west_out_url <URI|-1>     west output bit service\n"
-        "  -bootstrap_json <path>     startup configuration schedule\n"
         "  -stimulus_json <path>      charge stimulus configuration\n"
         "  -data_timeout_ms <N>       edge pull timeout in ms (default 5000)\n"
         "  -seed <N>                  RNG seed / backend seed (default 1)\n"
@@ -201,8 +216,6 @@ parse_args(int argc, char **argv, chip_options_t *opts)
             opts->out_url[LARPIX_EDGE_SOUTH] = parse_edge_url_arg(argv[++i]);
         } else if (strcmp(argv[i], "-west_out_url") == 0 && i + 1 < argc) {
             opts->out_url[LARPIX_EDGE_WEST] = parse_edge_url_arg(argv[++i]);
-        } else if (strcmp(argv[i], "-bootstrap_json") == 0 && i + 1 < argc) {
-            opts->bootstrap_json = argv[++i];
         } else if (strcmp(argv[i], "-stimulus_json") == 0 && i + 1 < argc) {
             opts->stimulus_json = argv[++i];
         } else if (strcmp(argv[i], "-data_timeout_ms") == 0 && i + 1 < argc) {
@@ -375,7 +388,7 @@ pull_bit_from_edge(nng_socket data_req, const chip_options_t *opts, int edge,
 
     memset(&req, 0, sizeof(req));
     req.type         = LARPIXSIM_MSG_BIT_PULL;
-    req.edge         = (uint8_t)edge;
+    req.edge         = (uint8_t)opposite_edge(edge);
     req.requester_id = (uint32_t)opts->id;
     req.seq          = seq;
 
@@ -397,7 +410,7 @@ pull_bit_from_edge(nng_socket data_req, const chip_options_t *opts, int edge,
         fprintf(stderr, "chip_larpix[%d] malformed bit reply on %s edge\n", opts->id, edge_name(edge));
         return -1;
     }
-    if (rep.seq != seq || rep.edge != (uint8_t)edge) {
+    if (rep.seq != seq || rep.edge != (uint8_t)opposite_edge(edge)) {
         fprintf(stderr, "chip_larpix[%d] bit reply mismatch on %s edge\n", opts->id, edge_name(edge));
         return -1;
     }

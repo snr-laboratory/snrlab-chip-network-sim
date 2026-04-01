@@ -1,13 +1,25 @@
+/*
+ * fpga_larpix.cpp
+ *
+ * Minimal FPGA/controller runtime for larpix_network_sim. This process sits on
+ * the source chip's south edge, injects compiled startup UART frames bit-by-bit
+ * into the network, receives UART bits returning from that same edge, and
+ * participates in the orchestrator's normal TICK/DONE lock-step.
+ */
+
+#include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <nng/nng.h>
 #include <pthread.h>
-#include <regex>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -18,8 +30,11 @@
 #define CHIPSIM_DEFAULT_DATA_TIMEOUT_MS 5000
 #define LARPIXSIM_MSG_BIT_PULL 101u
 #define LARPIXSIM_MSG_BIT_REPLY 102u
-#define LARPIXSIM_UART_FRAME_BITS 66u
 #define ERRSTR(x) nng_strerror((nng_err)(x))
+
+enum {
+    LARPIX_EDGE_NORTH = 0,
+};
 
 typedef struct {
     uint8_t  type;
@@ -39,13 +54,6 @@ typedef struct {
 } larpixsim_bit_reply_msg_t;
 
 typedef struct {
-    uint64_t             tick_start;
-    uint64_t             packet_word;
-    std::string          label;
-    std::vector<uint8_t> bits;
-} scheduled_frame_t;
-
-typedef struct {
     int         id;
     int         data_timeout_ms;
     const char *clock_url;
@@ -58,7 +66,8 @@ typedef struct {
 typedef struct {
     uint64_t tx_count;
     uint64_t rx_count;
-    uint64_t decoded_packet_count;
+    uint64_t frame_tx_count;
+    uint64_t frame_rx_count;
     uint64_t last_seq;
 } fpga_metrics_t;
 
@@ -71,23 +80,39 @@ typedef struct {
     uint8_t         has_bit;
     uint8_t         bit_value;
     nng_socket      data_rep;
-    int             fpga_id;
+    int             runtime_id;
+    int             edge_id;
 } bit_server_state_t;
 
-struct uart_rx_state_t {
-    bool                 active = false;
-    std::vector<uint8_t> bits;
+struct scheduled_frame_t {
+    uint64_t             tick_start;
+    uint64_t             packet_word;
+    std::string          label;
+    std::vector<uint8_t> uart_bits;
+};
+
+struct uart_decoder_t {
+    enum state_t {
+        IDLE,
+        DATA,
+        STOP,
+    } state = IDLE;
+    uint64_t packet = 0;
+    int      bit_idx = 0;
 };
 
 static void
 usage(const char *prog)
 {
     fprintf(stderr,
-        "Usage: %s -id <id> -north_out_url <url> -north_in_url <url> -startup_json <compiled_json> [options]\n"
+        "Usage: %s -id <runtime_id> -north_out_url <URI> [options]\n"
         "Options:\n"
-        "  -clock_url <URI>       orchestrator control endpoint\n"
-        "  -metric_url <URI>      orchestrator metric endpoint\n"
-        "  -data_timeout_ms <N>   edge pull timeout (default 5000)\n",
+        "  -clock_url <URI>          orchestrator control endpoint\n"
+        "  -metric_url <URI>         orchestrator metric endpoint\n"
+        "  -north_in_url <URI|-1>    source-chip south_out bit service\n"
+        "  -north_out_url <URI>      source-chip south_in bit service\n"
+        "  -startup_json <path>      compiled startup schedule JSON\n"
+        "  -data_timeout_ms <N>      bit-pull timeout in ms (default 5000)\n",
         prog);
 }
 
@@ -98,12 +123,21 @@ parse_int(const char *value, int *out)
     char *end;
 
     errno = 0;
-    v     = strtol(value, &end, 10);
-    if (errno != 0 || end == value || *end != '\0' || v < INT32_MIN || v > INT32_MAX) {
+    v = strtol(value, &end, 10);
+    if (errno != 0 || end == value || *end != '\0') {
         return -1;
     }
-    *out = (int) v;
+    if (v < INT32_MIN || v > INT32_MAX) {
+        return -1;
+    }
+    *out = (int)v;
     return 0;
+}
+
+static const char *
+parse_url_arg(const char *value)
+{
+    return (strcmp(value, "-1") == 0) ? NULL : value;
 }
 
 static int
@@ -112,10 +146,10 @@ parse_args(int argc, char **argv, fpga_options_t *opts)
     int i;
 
     memset(opts, 0, sizeof(*opts));
-    opts->id              = -1;
+    opts->id = -1;
+    opts->clock_url = CHIPSIM_DEFAULT_CLOCK_URL;
+    opts->metric_url = CHIPSIM_DEFAULT_METRIC_URL;
     opts->data_timeout_ms = CHIPSIM_DEFAULT_DATA_TIMEOUT_MS;
-    opts->clock_url       = CHIPSIM_DEFAULT_CLOCK_URL;
-    opts->metric_url      = CHIPSIM_DEFAULT_METRIC_URL;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-id") == 0 && i + 1 < argc) {
@@ -127,9 +161,9 @@ parse_args(int argc, char **argv, fpga_options_t *opts)
         } else if (strcmp(argv[i], "-metric_url") == 0 && i + 1 < argc) {
             opts->metric_url = argv[++i];
         } else if (strcmp(argv[i], "-north_in_url") == 0 && i + 1 < argc) {
-            opts->north_in_url = argv[++i];
+            opts->north_in_url = parse_url_arg(argv[++i]);
         } else if (strcmp(argv[i], "-north_out_url") == 0 && i + 1 < argc) {
-            opts->north_out_url = argv[++i];
+            opts->north_out_url = parse_url_arg(argv[++i]);
         } else if (strcmp(argv[i], "-startup_json") == 0 && i + 1 < argc) {
             opts->startup_json = argv[++i];
         } else if (strcmp(argv[i], "-data_timeout_ms") == 0 && i + 1 < argc) {
@@ -141,27 +175,27 @@ parse_args(int argc, char **argv, fpga_options_t *opts)
         }
     }
 
-    return (opts->id >= 0 && opts->north_in_url != NULL && opts->north_out_url != NULL &&
-            opts->startup_json != NULL)
-               ? 0
-               : -1;
+    if (opts->id < 0 || opts->north_out_url == NULL) {
+        return -1;
+    }
+    return 0;
 }
 
 static int
 send_done(nng_socket control_rep, const fpga_options_t *opts, uint64_t seq, const fpga_metrics_t *metrics)
 {
     chipsim_done_msg_t done;
-    int                rv;
+    int rv;
 
     memset(&done, 0, sizeof(done));
-    done.type            = CHIPSIM_MSG_DONE;
-    done.chip_id         = (uint32_t) opts->id;
-    done.seq             = seq;
-    done.tx_count        = metrics->tx_count;
-    done.rx_count        = metrics->rx_count;
-    done.local_gen_count = metrics->decoded_packet_count;
-    done.drop_count      = 0;
-    done.fifo_occupancy  = 0;
+    done.type = CHIPSIM_MSG_DONE;
+    done.chip_id = (uint32_t)opts->id;
+    done.seq = seq;
+    done.tx_count = metrics->tx_count;
+    done.rx_count = metrics->rx_count;
+    done.local_gen_count = metrics->frame_tx_count;
+    done.drop_count = 0;
+    done.fifo_occupancy = 0;
 
     rv = nng_send(control_rep, &done, sizeof(done), 0);
     if (rv != 0) {
@@ -175,18 +209,18 @@ static int
 send_metric(nng_socket metric_push, const fpga_options_t *opts, const fpga_metrics_t *metrics)
 {
     chipsim_metric_msg_t msg;
-    int                  rv;
+    int rv;
 
     memset(&msg, 0, sizeof(msg));
-    msg.type            = CHIPSIM_MSG_METRIC;
-    msg.chip_id         = (uint32_t) opts->id;
-    msg.seq             = metrics->last_seq;
-    msg.tx_count        = metrics->tx_count;
-    msg.rx_count        = metrics->rx_count;
-    msg.local_gen_count = metrics->decoded_packet_count;
-    msg.drop_count      = 0;
-    msg.fifo_occupancy  = 0;
-    msg.fifo_peak       = 0;
+    msg.type = CHIPSIM_MSG_METRIC;
+    msg.chip_id = (uint32_t)opts->id;
+    msg.seq = metrics->last_seq;
+    msg.tx_count = metrics->tx_count;
+    msg.rx_count = metrics->rx_count;
+    msg.local_gen_count = metrics->frame_tx_count;
+    msg.drop_count = 0;
+    msg.fifo_occupancy = 0;
+    msg.fifo_peak = metrics->frame_rx_count;
 
     rv = nng_send(metric_push, &msg, sizeof(msg), 0);
     if (rv != 0) {
@@ -197,11 +231,12 @@ send_metric(nng_socket metric_push, const fpga_options_t *opts, const fpga_metri
 }
 
 static int
-bit_server_init(bit_server_state_t *state, nng_socket data_rep, int fpga_id)
+bit_server_init(bit_server_state_t *state, nng_socket data_rep, int runtime_id, int edge_id)
 {
     memset(state, 0, sizeof(*state));
     state->data_rep = data_rep;
-    state->fpga_id  = fpga_id;
+    state->runtime_id = runtime_id;
+    state->edge_id = edge_id;
     if (pthread_mutex_init(&state->lock, NULL) != 0) {
         return -1;
     }
@@ -224,9 +259,9 @@ bit_server_publish(bit_server_state_t *state, uint64_t seq, uint8_t has_bit, uin
 {
     pthread_mutex_lock(&state->lock);
     state->has_published = true;
-    state->seq           = seq;
-    state->has_bit       = has_bit ? 1u : 0u;
-    state->bit_value     = bit_value ? 1u : 0u;
+    state->seq = seq;
+    state->has_bit = has_bit ? 1u : 0u;
+    state->bit_value = bit_value ? 1u : 0u;
     pthread_cond_broadcast(&state->cond);
     pthread_mutex_unlock(&state->lock);
 }
@@ -243,34 +278,34 @@ bit_server_request_stop(bit_server_state_t *state)
 static void *
 bit_server_thread_main(void *arg)
 {
-    bit_server_state_t *state = (bit_server_state_t *) arg;
+    bit_server_state_t *state = (bit_server_state_t *)arg;
 
     for (;;) {
-        larpixsim_bit_pull_msg_t  req;
+        larpixsim_bit_pull_msg_t req;
         larpixsim_bit_reply_msg_t rep;
-        size_t                   req_sz = sizeof(req);
-        int                      rv;
+        size_t req_sz = sizeof(req);
+        int rv;
 
         rv = nng_recv(state->data_rep, &req, &req_sz, 0);
         if (rv != 0) {
             break;
         }
-        if (req_sz != sizeof(req) || req.type != LARPIXSIM_MSG_BIT_PULL || req.edge != 0) {
+        if (req_sz != sizeof(req) || req.type != LARPIXSIM_MSG_BIT_PULL || req.edge != (uint8_t)state->edge_id) {
             continue;
         }
 
         memset(&rep, 0, sizeof(rep));
-        rep.type         = LARPIXSIM_MSG_BIT_REPLY;
-        rep.edge         = 0;
-        rep.responder_id = (uint32_t) state->fpga_id;
-        rep.seq          = req.seq;
+        rep.type = LARPIXSIM_MSG_BIT_REPLY;
+        rep.edge = (uint8_t)state->edge_id;
+        rep.responder_id = (uint32_t)state->runtime_id;
+        rep.seq = req.seq;
 
         pthread_mutex_lock(&state->lock);
         while (!state->stop_requested && (!state->has_published || state->seq < req.seq)) {
             pthread_cond_wait(&state->cond, &state->lock);
         }
         if (!state->stop_requested && state->has_published && state->seq == req.seq) {
-            rep.has_bit   = state->has_bit;
+            rep.has_bit = state->has_bit;
             rep.bit_value = state->bit_value;
         }
         pthread_mutex_unlock(&state->lock);
@@ -285,19 +320,18 @@ bit_server_thread_main(void *arg)
 }
 
 static int
-pull_bit_from_chip(nng_socket data_req, const fpga_options_t *opts, uint64_t seq, uint8_t *have_bit,
-    uint8_t *bit_value)
+pull_bit_from_chip(nng_socket data_req, const fpga_options_t *opts, uint64_t seq, uint8_t *have_bit, uint8_t *bit_value)
 {
-    larpixsim_bit_pull_msg_t  req;
+    larpixsim_bit_pull_msg_t req;
     larpixsim_bit_reply_msg_t rep;
-    size_t                   rep_sz;
-    int                      rv;
+    size_t rep_sz = sizeof(rep);
+    int rv;
 
     memset(&req, 0, sizeof(req));
-    req.type         = LARPIXSIM_MSG_BIT_PULL;
-    req.edge         = 0;
-    req.requester_id = (uint32_t) opts->id;
-    req.seq          = seq;
+    req.type = LARPIXSIM_MSG_BIT_PULL;
+    req.edge = (uint8_t)2u;
+    req.requester_id = (uint32_t)opts->id;
+    req.seq = seq;
 
     rv = nng_send(data_req, &req, sizeof(req), 0);
     if (rv != 0) {
@@ -305,219 +339,526 @@ pull_bit_from_chip(nng_socket data_req, const fpga_options_t *opts, uint64_t seq
         return -1;
     }
 
-    rep_sz = sizeof(rep);
-    rv     = nng_recv(data_req, &rep, &rep_sz, 0);
+    rv = nng_recv(data_req, &rep, &rep_sz, 0);
     if (rv != 0) {
         fprintf(stderr, "fpga_larpix[%d] recv(bit_reply) failed: %s\n", opts->id, ERRSTR(rv));
         return -1;
     }
-    if (rep_sz != sizeof(rep) || rep.type != LARPIXSIM_MSG_BIT_REPLY || rep.seq != seq ||
-        rep.edge != 0) {
+    if (rep_sz != sizeof(rep) || rep.type != LARPIXSIM_MSG_BIT_REPLY || rep.seq != seq || rep.edge != (uint8_t)2u) {
         fprintf(stderr, "fpga_larpix[%d] malformed bit reply\n", opts->id);
         return -1;
     }
 
-    *have_bit  = rep.has_bit ? 1u : 0u;
+    *have_bit = rep.has_bit ? 1u : 0u;
     *bit_value = rep.bit_value ? 1u : 0u;
     return 0;
 }
 
-static std::vector<scheduled_frame_t>
-load_schedule(const char *path)
+static std::string
+read_file_text(const char *path)
 {
-    FILE *fp = fopen(path, "r");
-    std::vector<scheduled_frame_t> frames;
-    std::string                    text;
-    char                           buf[4096];
-    std::regex frame_re(
-        R"(\{[^\}]*"tick_start"\s*:\s*([0-9]+)[^\}]*"packet_word"\s*:\s*"(0x[0-9A-Fa-f]+)"(?:[^\}]*"label"\s*:\s*"([^"]*)")?[^\}]*\})");
+    std::ifstream in(path);
+    std::ostringstream ss;
 
-    if (fp == NULL) {
-        throw std::runtime_error(std::string("failed to open startup_json: ") + path);
+    if (!in.is_open()) {
+        return std::string();
     }
-    while (fgets(buf, sizeof(buf), fp) != NULL) {
-        text += buf;
-    }
-    fclose(fp);
-
-    for (auto it = std::sregex_iterator(text.begin(), text.end(), frame_re);
-         it != std::sregex_iterator(); ++it) {
-        scheduled_frame_t frame;
-        frame.tick_start  = std::stoull((*it)[1].str());
-        frame.packet_word = std::stoull((*it)[2].str(), nullptr, 0);
-        frame.label       = (*it)[3].matched ? (*it)[3].str() : std::string();
-        frame.bits.reserve(LARPIXSIM_UART_FRAME_BITS);
-        frame.bits.push_back(0u);
-        for (int i = 0; i < 64; ++i) {
-            frame.bits.push_back((frame.packet_word >> i) & 1ULL ? 1u : 0u);
-        }
-        frame.bits.push_back(1u);
-        frames.push_back(frame);
-    }
-
-    if (frames.empty()) {
-        throw std::runtime_error("startup_json contained no compiled frames");
-    }
-    return frames;
+    ss << in.rdbuf();
+    return ss.str();
 }
 
-static void
-uart_rx_push(uart_rx_state_t *rx, uint8_t bit, fpga_metrics_t *metrics)
+static bool
+extract_json_string(const std::string &obj, const char *key, std::string *value)
 {
-    if (!rx->active) {
-        if (bit == 0u) {
-            rx->active = true;
-            rx->bits.clear();
-            rx->bits.push_back(bit);
+    const std::string needle = std::string("\"") + key + "\"";
+    size_t pos = obj.find(needle);
+    size_t first_quote;
+    size_t second_quote;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos = obj.find(':', pos + needle.size());
+    if (pos == std::string::npos) {
+        return false;
+    }
+    first_quote = obj.find('"', pos + 1);
+    if (first_quote == std::string::npos) {
+        return false;
+    }
+    second_quote = obj.find('"', first_quote + 1);
+    if (second_quote == std::string::npos) {
+        return false;
+    }
+    *value = obj.substr(first_quote + 1, second_quote - first_quote - 1);
+    return true;
+}
+
+static bool
+extract_json_u64(const std::string &obj, const char *key, uint64_t *value)
+{
+    const std::string needle = std::string("\"") + key + "\"";
+    size_t pos = obj.find(needle);
+    size_t start;
+    size_t end;
+    std::string digits;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos = obj.find(':', pos + needle.size());
+    if (pos == std::string::npos) {
+        return false;
+    }
+    start = pos + 1;
+    while (start < obj.size() && isspace((unsigned char)obj[start])) {
+        start++;
+    }
+    end = start;
+    while (end < obj.size() && isdigit((unsigned char)obj[end])) {
+        end++;
+    }
+    if (end == start) {
+        return false;
+    }
+    digits = obj.substr(start, end - start);
+    *value = strtoull(digits.c_str(), NULL, 10);
+    return true;
+}
+
+static bool
+extract_uart_bits(const std::string &obj, std::vector<uint8_t> *bits)
+{
+    const std::string needle = "\"uart_bits\"";
+    size_t pos = obj.find(needle);
+    size_t lb;
+    size_t rb;
+    std::string body;
+    size_t i;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    lb = obj.find('[', pos + needle.size());
+    rb = obj.find(']', lb == std::string::npos ? pos : lb + 1);
+    if (lb == std::string::npos || rb == std::string::npos || rb <= lb) {
+        return false;
+    }
+    body = obj.substr(lb + 1, rb - lb - 1);
+    bits->clear();
+    for (i = 0; i < body.size(); ) {
+        while (i < body.size() && (isspace((unsigned char)body[i]) || body[i] == ',')) {
+            i++;
         }
-        return;
+        if (i >= body.size()) {
+            break;
+        }
+        if (body[i] != '0' && body[i] != '1') {
+            return false;
+        }
+        bits->push_back((uint8_t)(body[i] - '0'));
+        i++;
+    }
+    return true;
+}
+
+static int
+load_schedule(const char *path, std::vector<scheduled_frame_t> *frames)
+{
+    std::string text;
+    size_t frames_key;
+    size_t lb;
+    size_t rb;
+    size_t pos;
+
+    frames->clear();
+    if (path == NULL) {
+        return 0;
     }
 
-    rx->bits.push_back(bit);
-    if (rx->bits.size() == LARPIXSIM_UART_FRAME_BITS) {
-        if (rx->bits.front() == 0u && rx->bits.back() == 1u) {
-            uint64_t word = 0;
-            for (int i = 0; i < 64; ++i) {
-                if (rx->bits[1 + i]) {
-                    word |= (1ULL << i);
+    text = read_file_text(path);
+    if (text.empty()) {
+        fprintf(stderr, "fpga_larpix: failed to read startup_json %s\n", path);
+        return -1;
+    }
+
+    frames_key = text.find("\"frames\"");
+    if (frames_key == std::string::npos) {
+        fprintf(stderr, "fpga_larpix: startup_json missing frames array\n");
+        return -1;
+    }
+    lb = text.find('[', frames_key);
+    if (lb == std::string::npos) {
+        return -1;
+    }
+    {
+        int bracket_depth = 0;
+        rb = lb;
+        while (rb < text.size()) {
+            if (text[rb] == '[') {
+                bracket_depth++;
+            } else if (text[rb] == ']') {
+                bracket_depth--;
+                if (bracket_depth == 0) {
+                    break;
                 }
             }
-            metrics->decoded_packet_count++;
-            printf("fpga_larpix: received packet=0x%016" PRIx64 "\n", word);
+            rb++;
         }
-        rx->active = false;
-        rx->bits.clear();
     }
+    if (rb == std::string::npos || rb >= text.size()) {
+        return -1;
+    }
+
+    pos = lb + 1;
+    while (pos < rb) {
+        size_t obj_start = text.find('{', pos);
+        size_t obj_end;
+        int depth;
+        scheduled_frame_t frame;
+        std::string obj;
+        std::string packet_word_text;
+
+        if (obj_start == std::string::npos || obj_start >= rb) {
+            break;
+        }
+        obj_end = obj_start;
+        depth = 0;
+        while (obj_end < rb) {
+            if (text[obj_end] == '{') {
+                depth++;
+            } else if (text[obj_end] == '}') {
+                depth--;
+                if (depth == 0) {
+                    obj_end++;
+                    break;
+                }
+            }
+            obj_end++;
+        }
+        if (obj_end <= obj_start || depth != 0) {
+            fprintf(stderr, "fpga_larpix: malformed frame object in startup_json\n");
+            return -1;
+        }
+        obj = text.substr(obj_start, obj_end - obj_start);
+        if (!extract_json_u64(obj, "tick_start", &frame.tick_start) ||
+            !extract_json_string(obj, "packet_word", &packet_word_text) ||
+            !extract_uart_bits(obj, &frame.uart_bits)) {
+            fprintf(stderr, "fpga_larpix: malformed frame entry in startup_json\n");
+            return -1;
+        }
+        if (!extract_json_string(obj, "label", &frame.label)) {
+            frame.label = std::string();
+        }
+        frame.packet_word = strtoull(packet_word_text.c_str(), NULL, 0);
+        if (frame.uart_bits.empty()) {
+            fprintf(stderr, "fpga_larpix: empty uart_bits frame in startup_json\n");
+            return -1;
+        }
+        frames->push_back(frame);
+        pos = obj_end;
+    }
+
+    return 0;
+}
+
+static int
+build_bit_schedule(const std::vector<scheduled_frame_t> &frames, std::vector<uint8_t> *bits, uint64_t *base_tick)
+{
+    uint64_t max_tick = 0;
+    size_t i;
+
+    bits->clear();
+    *base_tick = 0;
+    if (frames.empty()) {
+        return 0;
+    }
+
+    *base_tick = frames[0].tick_start;
+    for (i = 0; i < frames.size(); i++) {
+        uint64_t end_tick = frames[i].tick_start + (uint64_t)frames[i].uart_bits.size();
+        if (frames[i].tick_start < *base_tick) {
+            *base_tick = frames[i].tick_start;
+        }
+        if (end_tick > max_tick) {
+            max_tick = end_tick;
+        }
+    }
+
+    bits->assign((size_t)(max_tick - *base_tick), 2u);
+    for (i = 0; i < frames.size(); i++) {
+        size_t j;
+        for (j = 0; j < frames[i].uart_bits.size(); j++) {
+            size_t idx = (size_t)((frames[i].tick_start - *base_tick) + j);
+            if ((*bits)[idx] != 2u) {
+                fprintf(stderr, "fpga_larpix: overlapping startup frames at tick=%" PRIu64 "\n",
+                    *base_tick + (uint64_t)idx);
+                return -1;
+            }
+            (*bits)[idx] = frames[i].uart_bits[j] ? 1u : 0u;
+        }
+    }
+    return 0;
 }
 
 static void
-frame_bit_for_tick(const std::vector<scheduled_frame_t>& frames, uint64_t seq, uint8_t *has_bit,
-    uint8_t *bit_value)
+uart_decoder_reset(uart_decoder_t *decoder)
 {
-    *has_bit   = 0u;
-    *bit_value = 0u;
-    for (const auto& frame : frames) {
-        if (seq >= frame.tick_start && seq < frame.tick_start + frame.bits.size()) {
-            *has_bit   = 1u;
-            *bit_value = frame.bits[(size_t) (seq - frame.tick_start)];
-            return;
-        }
+    decoder->state = uart_decoder_t::IDLE;
+    decoder->packet = 0;
+    decoder->bit_idx = 0;
+}
+
+static bool
+uart_decoder_consume(uart_decoder_t *decoder, uint8_t have_bit, uint8_t bit_value, uint64_t *packet_out)
+{
+    if (!have_bit) {
+        return false;
     }
+
+    switch (decoder->state) {
+    case uart_decoder_t::IDLE:
+        if ((bit_value & 1u) == 0u) {
+            decoder->state = uart_decoder_t::DATA;
+            decoder->packet = 0;
+            decoder->bit_idx = 0;
+        }
+        break;
+    case uart_decoder_t::DATA:
+        decoder->packet |= ((uint64_t)(bit_value & 1u) << decoder->bit_idx);
+        decoder->bit_idx++;
+        if (decoder->bit_idx >= 64) {
+            decoder->state = uart_decoder_t::STOP;
+        }
+        break;
+    case uart_decoder_t::STOP:
+        *packet_out = decoder->packet;
+        uart_decoder_reset(decoder);
+        return (bit_value & 1u) == 1u;
+    }
+
+    return false;
 }
 
 int
 main(int argc, char **argv)
 {
-    fpga_options_t               opts;
-    fpga_metrics_t               metrics{};
+    fpga_options_t opts;
+    fpga_metrics_t metrics;
+    nng_socket control_rep = NNG_SOCKET_INITIALIZER;
+    nng_socket metric_push = NNG_SOCKET_INITIALIZER;
+    nng_socket north_in_req = NNG_SOCKET_INITIALIZER;
+    nng_socket north_out_rep = NNG_SOCKET_INITIALIZER;
+    bit_server_state_t north_state;
+    pthread_t north_thread;
+    bool north_state_inited = false;
+    bool north_thread_started = false;
     std::vector<scheduled_frame_t> frames;
-    uart_rx_state_t              rx_state;
-    nng_socket                   control_rep   = NNG_SOCKET_INITIALIZER;
-    nng_socket                   metric_push   = NNG_SOCKET_INITIALIZER;
-    nng_socket                   north_in_req  = NNG_SOCKET_INITIALIZER;
-    nng_socket                   north_out_rep = NNG_SOCKET_INITIALIZER;
-    bit_server_state_t           bit_state;
-    bool                         bit_state_inited  = false;
-    bool                         bit_thread_started = false;
-    pthread_t                    bit_thread;
-    int                          rv;
-    int                          exit_code = 1;
+    std::vector<uint8_t> schedule_bits;
+    uint64_t schedule_base_tick = 0;
+    uart_decoder_t decoder;
+    int rv;
+    int exit_code = 1;
+    nng_err init_err;
+
+    memset(&metrics, 0, sizeof(metrics));
+    uart_decoder_reset(&decoder);
 
     if (parse_args(argc, argv, &opts) != 0) {
         usage(argv[0]);
         return 2;
     }
 
-    try {
-        frames = load_schedule(opts.startup_json);
-    } catch (const std::exception& ex) {
-        fprintf(stderr, "fpga_larpix[%d] %s\n", opts.id, ex.what());
+    if (load_schedule(opts.startup_json, &frames) != 0) {
+        return 1;
+    }
+    if (build_bit_schedule(frames, &schedule_bits, &schedule_base_tick) != 0) {
         return 1;
     }
 
-    if (nng_init(NULL) != 0) {
-        fprintf(stderr, "fpga_larpix[%d] nng_init failed\n", opts.id);
+    init_err = nng_init(NULL);
+    if (init_err != 0) {
+        fprintf(stderr, "fpga_larpix nng_init failed: %s\n", nng_strerror(init_err));
         return 1;
     }
 
     rv = nng_rep0_open(&control_rep);
-    if (rv != 0) goto cleanup;
+    if (rv != 0) {
+        fprintf(stderr, "fpga_larpix[%d] open(control) failed: %s\n", opts.id, ERRSTR(rv));
+        goto cleanup;
+    }
     rv = nng_listen(control_rep, opts.clock_url, NULL, 0);
-    if (rv != 0) goto cleanup;
+    if (rv != 0) {
+        fprintf(stderr, "fpga_larpix[%d] listen(control) failed at %s: %s\n", opts.id, opts.clock_url, ERRSTR(rv));
+        goto cleanup;
+    }
 
     rv = nng_push0_open(&metric_push);
-    if (rv != 0) goto cleanup;
+    if (rv != 0) {
+        fprintf(stderr, "fpga_larpix[%d] open(metric) failed: %s\n", opts.id, ERRSTR(rv));
+        goto cleanup;
+    }
     rv = nng_dial(metric_push, opts.metric_url, NULL, 0);
-    if (rv != 0) goto cleanup;
+    if (rv != 0) {
+        fprintf(stderr, "fpga_larpix[%d] dial(metric) failed: %s\n", opts.id, ERRSTR(rv));
+        goto cleanup;
+    }
 
     rv = nng_rep0_open(&north_out_rep);
-    if (rv != 0) goto cleanup;
+    if (rv != 0) {
+        fprintf(stderr, "fpga_larpix[%d] open(north_out_rep) failed: %s\n", opts.id, ERRSTR(rv));
+        goto cleanup;
+    }
     rv = nng_listen(north_out_rep, opts.north_out_url, NULL, 0);
-    if (rv != 0) goto cleanup;
-    if (bit_server_init(&bit_state, north_out_rep, opts.id) != 0) goto cleanup;
-    bit_state_inited = true;
-    if (pthread_create(&bit_thread, NULL, bit_server_thread_main, &bit_state) != 0) goto cleanup;
-    bit_thread_started = true;
+    if (rv != 0) {
+        fprintf(stderr, "fpga_larpix[%d] listen(north_out_rep) failed at %s: %s\n", opts.id, opts.north_out_url, ERRSTR(rv));
+        goto cleanup;
+    }
+    if (bit_server_init(&north_state, north_out_rep, opts.id, LARPIX_EDGE_NORTH) != 0) {
+        fprintf(stderr, "fpga_larpix[%d] bit server init failed\n", opts.id);
+        goto cleanup;
+    }
+    north_state_inited = true;
+    if (pthread_create(&north_thread, NULL, bit_server_thread_main, &north_state) != 0) {
+        fprintf(stderr, "fpga_larpix[%d] bit server thread create failed\n", opts.id);
+        goto cleanup;
+    }
+    north_thread_started = true;
 
-    rv = nng_req0_open(&north_in_req);
-    if (rv != 0) goto cleanup;
-    rv = nng_socket_set_ms(north_in_req, NNG_OPT_SENDTIMEO, opts.data_timeout_ms);
-    if (rv != 0) goto cleanup;
-    rv = nng_socket_set_ms(north_in_req, NNG_OPT_RECVTIMEO, opts.data_timeout_ms);
-    if (rv != 0) goto cleanup;
-    rv = nng_socket_set_ms(north_in_req, NNG_OPT_REQ_RESENDTIME, NNG_DURATION_INFINITE);
-    if (rv != 0) goto cleanup;
-    rv = nng_dial(north_in_req, opts.north_in_url, NULL, NNG_FLAG_NONBLOCK);
-    if (rv != 0) goto cleanup;
+    if (opts.north_in_url != NULL) {
+        rv = nng_req0_open(&north_in_req);
+        if (rv != 0) {
+            fprintf(stderr, "fpga_larpix[%d] open(north_in_req) failed: %s\n", opts.id, ERRSTR(rv));
+            goto cleanup;
+        }
+        rv = nng_socket_set_ms(north_in_req, NNG_OPT_SENDTIMEO, opts.data_timeout_ms);
+        if (rv != 0) {
+            goto cleanup;
+        }
+        rv = nng_socket_set_ms(north_in_req, NNG_OPT_RECVTIMEO, opts.data_timeout_ms);
+        if (rv != 0) {
+            goto cleanup;
+        }
+        rv = nng_socket_set_ms(north_in_req, NNG_OPT_REQ_RESENDTIME, NNG_DURATION_INFINITE);
+        if (rv != 0) {
+            goto cleanup;
+        }
+        rv = nng_dial(north_in_req, opts.north_in_url, NULL, NNG_FLAG_NONBLOCK);
+        if (rv != 0) {
+            fprintf(stderr, "fpga_larpix[%d] dial(north_in_req) failed at %s: %s\n", opts.id, opts.north_in_url, ERRSTR(rv));
+            goto cleanup;
+        }
+    }
 
     for (;;) {
         chipsim_tick_msg_t tick;
-        size_t             tick_sz = sizeof(tick);
-        uint8_t            tx_has_bit = 0u;
-        uint8_t            tx_bit     = 0u;
-        uint8_t            rx_has_bit = 0u;
-        uint8_t            rx_bit     = 0u;
+        size_t tick_sz = sizeof(tick);
+        uint8_t tx_have_bit = 0u;
+        uint8_t tx_bit = 0u;
 
         rv = nng_recv(control_rep, &tick, &tick_sz, 0);
-        if (rv != 0) goto cleanup;
-        if (tick_sz != sizeof(tick)) goto cleanup;
+        if (rv != 0) {
+            fprintf(stderr, "fpga_larpix[%d] recv(control) failed: %s\n", opts.id, ERRSTR(rv));
+            goto cleanup;
+        }
+        if (tick_sz != sizeof(tick)) {
+            fprintf(stderr, "fpga_larpix[%d] malformed control message\n", opts.id);
+            goto cleanup;
+        }
         metrics.last_seq = tick.seq;
 
         if (tick.type == CHIPSIM_MSG_STOP) {
-            bit_server_publish(&bit_state, tick.seq, 0u, 0u);
-            if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) goto cleanup;
+            bit_server_publish(&north_state, tick.seq, 0u, 0u);
+            if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
+                goto cleanup;
+            }
             break;
         }
-        if (tick.type != CHIPSIM_MSG_TICK) goto cleanup;
+        if (tick.type != CHIPSIM_MSG_TICK) {
+            fprintf(stderr, "fpga_larpix[%d] unknown control type=%u\n", opts.id, (unsigned)tick.type);
+            goto cleanup;
+        }
 
-        frame_bit_for_tick(frames, tick.seq, &tx_has_bit, &tx_bit);
-        bit_server_publish(&bit_state, tick.seq, tx_has_bit, tx_bit);
-        if (tx_has_bit) {
+        if (tick.seq >= schedule_base_tick) {
+            uint64_t idx = tick.seq - schedule_base_tick;
+            if (idx < schedule_bits.size() && schedule_bits[(size_t)idx] <= 1u) {
+                tx_have_bit = 1u;
+                tx_bit = schedule_bits[(size_t)idx];
+            }
+        }
+        bit_server_publish(&north_state, tick.seq, tx_have_bit, tx_bit);
+        if (tx_have_bit) {
             metrics.tx_count++;
         }
 
-        if (pull_bit_from_chip(north_in_req, &opts, tick.seq, &rx_has_bit, &rx_bit) != 0) goto cleanup;
-        if (rx_has_bit) {
-            metrics.rx_count++;
-            uart_rx_push(&rx_state, rx_bit, &metrics);
+        if (nng_socket_id(north_in_req) > 0) {
+            uint8_t rx_have_bit = 0u;
+            uint8_t rx_bit = 0u;
+            uint64_t packet = 0;
+            if (pull_bit_from_chip(north_in_req, &opts, tick.seq, &rx_have_bit, &rx_bit) != 0) {
+                goto cleanup;
+            }
+            if (rx_have_bit) {
+                metrics.rx_count++;
+                if (uart_decoder_consume(&decoder, rx_have_bit, rx_bit, &packet)) {
+                    metrics.frame_rx_count++;
+                    printf("fpga_larpix[%d] received packet at seq=%" PRIu64 ": 0x%016" PRIx64 "\n",
+                        opts.id, tick.seq, packet);
+                    fflush(stdout);
+                }
+            }
         }
 
-        if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) goto cleanup;
+        if (tx_have_bit) {
+            size_t i;
+            for (i = 0; i < frames.size(); i++) {
+                uint64_t end_tick = frames[i].tick_start + (uint64_t)frames[i].uart_bits.size();
+                if (tick.seq + 1 == end_tick) {
+                    metrics.frame_tx_count++;
+                    printf("fpga_larpix[%d] transmitted frame at seq=%" PRIu64 ": 0x%016" PRIx64,
+                        opts.id, tick.seq, frames[i].packet_word);
+                    if (!frames[i].label.empty()) {
+                        printf(" label=%s", frames[i].label.c_str());
+                    }
+                    printf("\n");
+                    fflush(stdout);
+                }
+            }
+        }
+
+        if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
+            goto cleanup;
+        }
     }
 
-    if (send_metric(metric_push, &opts, &metrics) != 0) goto cleanup;
+    if (send_metric(metric_push, &opts, &metrics) != 0) {
+        goto cleanup;
+    }
+
     exit_code = 0;
 
 cleanup:
-    if (bit_thread_started) {
-        bit_server_request_stop(&bit_state);
+    if (north_thread_started) {
+        bit_server_request_stop(&north_state);
     }
-    if (nng_socket_id(north_in_req) > 0) nng_socket_close(north_in_req);
-    if (nng_socket_id(north_out_rep) > 0) nng_socket_close(north_out_rep);
-    if (bit_thread_started) pthread_join(bit_thread, NULL);
-    if (bit_state_inited) bit_server_destroy(&bit_state);
-    if (nng_socket_id(metric_push) > 0) nng_socket_close(metric_push);
-    if (nng_socket_id(control_rep) > 0) nng_socket_close(control_rep);
+    if (nng_socket_id(north_in_req) > 0) {
+        nng_socket_close(north_in_req);
+    }
+    if (nng_socket_id(north_out_rep) > 0) {
+        nng_socket_close(north_out_rep);
+    }
+    if (north_thread_started) {
+        pthread_join(north_thread, NULL);
+    }
+    if (north_state_inited) {
+        bit_server_destroy(&north_state);
+    }
+    if (nng_socket_id(metric_push) > 0) {
+        nng_socket_close(metric_push);
+    }
+    if (nng_socket_id(control_rep) > 0) {
+        nng_socket_close(control_rep);
+    }
     nng_fini();
     return exit_code;
 }
