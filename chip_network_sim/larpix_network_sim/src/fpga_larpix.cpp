@@ -89,6 +89,20 @@ struct scheduled_frame_t {
     uint64_t             packet_word;
     std::string          label;
     std::vector<uint8_t> uart_bits;
+    bool                 wait_for_chip_id_reply = false;
+    uint8_t              expected_chip_id_reply = 0;
+};
+
+struct readback_request_t {
+    uint64_t             packet_word;
+    std::string          label;
+    std::vector<uint8_t> uart_bits;
+};
+
+struct readback_plan_t {
+    bool                            enabled = false;
+    uint64_t                        start_tick = 0;
+    std::vector<readback_request_t> requests;
 };
 
 struct uart_decoder_t {
@@ -462,8 +476,160 @@ extract_uart_bits(const std::string &obj, std::vector<uint8_t> *bits)
     return true;
 }
 
+static bool
+extract_json_object(const std::string &obj, const char *key, std::string *value)
+{
+    const std::string needle = std::string("\"") + key + "\"";
+    size_t pos = obj.find(needle);
+    size_t start;
+    size_t end;
+    int depth;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos = obj.find(':', pos + needle.size());
+    if (pos == std::string::npos) {
+        return false;
+    }
+    start = obj.find('{', pos + 1);
+    if (start == std::string::npos) {
+        return false;
+    }
+    end = start;
+    depth = 0;
+    while (end < obj.size()) {
+        if (obj[end] == '{') {
+            depth++;
+        } else if (obj[end] == '}') {
+            depth--;
+            if (depth == 0) {
+                end++;
+                break;
+            }
+        }
+        end++;
+    }
+    if (depth != 0 || end <= start) {
+        return false;
+    }
+    *value = obj.substr(start, end - start);
+    return true;
+}
+
+static bool
+extract_json_array(const std::string &obj, const char *key, std::string *value)
+{
+    const std::string needle = std::string("\"") + key + "\"";
+    size_t pos = obj.find(needle);
+    size_t start;
+    size_t end;
+    int depth;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos = obj.find(':', pos + needle.size());
+    if (pos == std::string::npos) {
+        return false;
+    }
+    start = obj.find('[', pos + 1);
+    if (start == std::string::npos) {
+        return false;
+    }
+    end = start;
+    depth = 0;
+    while (end < obj.size()) {
+        if (obj[end] == '[') {
+            depth++;
+        } else if (obj[end] == ']') {
+            depth--;
+            if (depth == 0) {
+                end++;
+                break;
+            }
+        }
+        end++;
+    }
+    if (depth != 0 || end <= start) {
+        return false;
+    }
+    *value = obj.substr(start, end - start);
+    return true;
+}
+
 static int
-load_schedule(const char *path, std::vector<scheduled_frame_t> *frames)
+parse_readback_plan(const std::string &text, readback_plan_t *plan)
+{
+    std::string phase_obj;
+    std::string requests_array;
+    size_t pos;
+
+    if (!extract_json_object(text, "readback_phase", &phase_obj)) {
+        return 0;
+    }
+    plan->enabled = true;
+    if (!extract_json_u64(phase_obj, "start_tick", &plan->start_tick)) {
+        fprintf(stderr, "fpga_larpix: malformed readback_phase.start_tick\n");
+        return -1;
+    }
+    if (!extract_json_array(phase_obj, "requests", &requests_array)) {
+        fprintf(stderr, "fpga_larpix: malformed readback_phase.requests\n");
+        return -1;
+    }
+
+    pos = 0;
+    while (pos < requests_array.size()) {
+        size_t obj_start = requests_array.find('{', pos);
+        size_t obj_end;
+        int depth;
+        readback_request_t req;
+        std::string obj;
+        std::string packet_word_text;
+
+        if (obj_start == std::string::npos) {
+            break;
+        }
+        obj_end = obj_start;
+        depth = 0;
+        while (obj_end < requests_array.size()) {
+            if (requests_array[obj_end] == '{') {
+                depth++;
+            } else if (requests_array[obj_end] == '}') {
+                depth--;
+                if (depth == 0) {
+                    obj_end++;
+                    break;
+                }
+            }
+            obj_end++;
+        }
+        if (depth != 0 || obj_end <= obj_start) {
+            fprintf(stderr, "fpga_larpix: malformed readback request object\n");
+            return -1;
+        }
+        obj = requests_array.substr(obj_start, obj_end - obj_start);
+        if (!extract_json_string(obj, "packet_word", &packet_word_text) || !extract_uart_bits(obj, &req.uart_bits)) {
+            fprintf(stderr, "fpga_larpix: malformed readback request entry\n");
+            return -1;
+        }
+        if (!extract_json_string(obj, "label", &req.label)) {
+            req.label = std::string();
+        }
+        req.packet_word = strtoull(packet_word_text.c_str(), NULL, 0);
+        if (req.uart_bits.empty()) {
+            fprintf(stderr, "fpga_larpix: empty readback uart_bits entry\n");
+            return -1;
+        }
+        plan->requests.push_back(req);
+        pos = obj_end;
+    }
+
+    return 0;
+}
+
+static int
+load_schedule(const char *path, std::vector<scheduled_frame_t> *frames, readback_plan_t *readback_plan)
 {
     std::string text;
     size_t frames_key;
@@ -472,6 +638,7 @@ load_schedule(const char *path, std::vector<scheduled_frame_t> *frames)
     size_t pos;
 
     frames->clear();
+    *readback_plan = readback_plan_t();
     if (path == NULL) {
         return 0;
     }
@@ -550,6 +717,17 @@ load_schedule(const char *path, std::vector<scheduled_frame_t> *frames)
         if (!extract_json_string(obj, "label", &frame.label)) {
             frame.label = std::string();
         }
+        {
+            uint64_t wait_chip = 0;
+            if (extract_json_u64(obj, "wait_for_chip_id_reply", &wait_chip)) {
+                if (wait_chip > 255u) {
+                    fprintf(stderr, "fpga_larpix: invalid wait_for_chip_id_reply value\n");
+                    return -1;
+                }
+                frame.wait_for_chip_id_reply = true;
+                frame.expected_chip_id_reply = (uint8_t)wait_chip;
+            }
+        }
         frame.packet_word = strtoull(packet_word_text.c_str(), NULL, 0);
         if (frame.uart_bits.empty()) {
             fprintf(stderr, "fpga_larpix: empty uart_bits frame in startup_json\n");
@@ -557,6 +735,10 @@ load_schedule(const char *path, std::vector<scheduled_frame_t> *frames)
         }
         frames->push_back(frame);
         pos = obj_end;
+    }
+
+    if (parse_readback_plan(text, readback_plan) != 0) {
+        return -1;
     }
 
     return 0;
@@ -640,6 +822,33 @@ uart_decoder_consume(uart_decoder_t *decoder, uint8_t have_bit, uint8_t bit_valu
     return false;
 }
 
+static bool
+packet_has_odd_parity(uint64_t word)
+{
+    unsigned ones = 0u;
+    while (word != 0u) {
+        ones += (unsigned)(word & 1u);
+        word >>= 1;
+    }
+    return (ones & 1u) == 1u;
+}
+
+static bool
+is_matching_chip_id_reply(uint64_t word, uint8_t expected_chip_id)
+{
+    uint64_t payload = word & ((UINT64_C(1) << 63) - 1u);
+    uint8_t packet_type = (uint8_t)(payload & 0x3u);
+    uint8_t chip_id = (uint8_t)((payload >> 2) & 0xFFu);
+    uint8_t register_addr = (uint8_t)((payload >> 10) & 0xFFu);
+    uint8_t register_data = (uint8_t)((payload >> 18) & 0xFFu);
+
+    return packet_has_odd_parity(word) &&
+           packet_type == 0x3u &&
+           chip_id == expected_chip_id &&
+           register_addr == 122u &&
+           register_data == expected_chip_id;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -654,8 +863,15 @@ main(int argc, char **argv)
     bool north_state_inited = false;
     bool north_thread_started = false;
     std::vector<scheduled_frame_t> frames;
-    std::vector<uint8_t> schedule_bits;
-    uint64_t schedule_base_tick = 0;
+    readback_plan_t readback_plan;
+    size_t startup_frame_index = 0;
+    size_t startup_bit_index = 0;
+    bool startup_tx_active = false;
+    bool startup_waiting_for_reply = false;
+    size_t readback_request_index = 0;
+    size_t readback_bit_index = 0;
+    bool readback_tx_active = false;
+    bool readback_waiting_for_reply = false;
     uart_decoder_t decoder;
     int rv;
     int exit_code = 1;
@@ -669,10 +885,7 @@ main(int argc, char **argv)
         return 2;
     }
 
-    if (load_schedule(opts.startup_json, &frames) != 0) {
-        return 1;
-    }
-    if (build_bit_schedule(frames, &schedule_bits, &schedule_base_tick) != 0) {
+    if (load_schedule(opts.startup_json, &frames, &readback_plan) != 0) {
         return 1;
     }
 
@@ -779,13 +992,66 @@ main(int argc, char **argv)
             goto cleanup;
         }
 
-        if (tick.seq >= schedule_base_tick) {
-            uint64_t idx = tick.seq - schedule_base_tick;
-            if (idx < schedule_bits.size() && schedule_bits[(size_t)idx] <= 1u) {
+        if (!startup_tx_active && !startup_waiting_for_reply && startup_frame_index < frames.size() &&
+            tick.seq >= frames[startup_frame_index].tick_start) {
+            startup_tx_active = true;
+            startup_bit_index = 0;
+        }
+
+        if (startup_tx_active) {
+            const scheduled_frame_t &frame = frames[startup_frame_index];
+            if (startup_bit_index < frame.uart_bits.size()) {
                 tx_have_bit = 1u;
-                tx_bit = schedule_bits[(size_t)idx];
+                tx_bit = frame.uart_bits[startup_bit_index] ? 1u : 0u;
+                startup_bit_index++;
+                if (startup_bit_index == frame.uart_bits.size()) {
+                    startup_tx_active = false;
+                    metrics.frame_tx_count++;
+                    printf("fpga_larpix[%d] transmitted frame at seq=%" PRIu64 " : 0x%016" PRIx64,
+                        opts.id, tick.seq, frame.packet_word);
+                    if (!frame.label.empty()) {
+                        printf(" label=%s", frame.label.c_str());
+                    }
+                    printf("\n");
+                    fflush(stdout);
+                    if (frame.wait_for_chip_id_reply) {
+                        startup_waiting_for_reply = true;
+                    } else {
+                        startup_frame_index++;
+                    }
+                }
             }
         }
+
+        if (!tx_have_bit && readback_plan.enabled && !startup_tx_active && !startup_waiting_for_reply &&
+            startup_frame_index >= frames.size() && tick.seq >= readback_plan.start_tick &&
+            readback_request_index < readback_plan.requests.size()) {
+            if (!readback_tx_active && !readback_waiting_for_reply) {
+                readback_tx_active = true;
+                readback_bit_index = 0;
+            }
+            if (readback_tx_active) {
+                const readback_request_t &req = readback_plan.requests[readback_request_index];
+                if (readback_bit_index < req.uart_bits.size()) {
+                    tx_have_bit = 1u;
+                    tx_bit = req.uart_bits[readback_bit_index] ? 1u : 0u;
+                    readback_bit_index++;
+                    if (readback_bit_index == req.uart_bits.size()) {
+                        readback_tx_active = false;
+                        readback_waiting_for_reply = true;
+                        metrics.frame_tx_count++;
+                        printf("fpga_larpix[%d] transmitted frame at seq=%" PRIu64 ": 0x%016" PRIx64,
+                            opts.id, tick.seq, req.packet_word);
+                        if (!req.label.empty()) {
+                            printf(" label=%s", req.label.c_str());
+                        }
+                        printf("\n");
+                        fflush(stdout);
+                    }
+                }
+            }
+        }
+
         bit_server_publish(&north_state, tick.seq, tx_have_bit, tx_bit);
         if (tx_have_bit) {
             metrics.tx_count++;
@@ -805,23 +1071,16 @@ main(int argc, char **argv)
                     printf("fpga_larpix[%d] received packet at seq=%" PRIu64 ": 0x%016" PRIx64 "\n",
                         opts.id, tick.seq, packet);
                     fflush(stdout);
-                }
-            }
-        }
-
-        if (tx_have_bit) {
-            size_t i;
-            for (i = 0; i < frames.size(); i++) {
-                uint64_t end_tick = frames[i].tick_start + (uint64_t)frames[i].uart_bits.size();
-                if (tick.seq + 1 == end_tick) {
-                    metrics.frame_tx_count++;
-                    printf("fpga_larpix[%d] transmitted frame at seq=%" PRIu64 ": 0x%016" PRIx64,
-                        opts.id, tick.seq, frames[i].packet_word);
-                    if (!frames[i].label.empty()) {
-                        printf(" label=%s", frames[i].label.c_str());
+                    if (startup_waiting_for_reply && startup_frame_index < frames.size() &&
+                        is_matching_chip_id_reply(packet, frames[startup_frame_index].expected_chip_id_reply)) {
+                        startup_waiting_for_reply = false;
+                        startup_frame_index++;
                     }
-                    printf("\n");
-                    fflush(stdout);
+                    if (readback_waiting_for_reply && readback_request_index < readback_plan.requests.size() &&
+                        is_matching_chip_id_reply(packet, (uint8_t)readback_request_index)) {
+                        readback_waiting_for_reply = false;
+                        readback_request_index++;
+                    }
                 }
             }
         }

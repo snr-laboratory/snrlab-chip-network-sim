@@ -77,7 +77,7 @@ usage(const char *prog)
         "  -startup_json <path>    compiled startup schedule JSON passed to the FPGA controller\n"
         "  -source_x <N>           source-chip x coordinate on bottom row (default 0)\n"
         "  -source_y <N>           source-chip y coordinate (default 0, must be 0 when startup_json is used)\n"
-        "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default auto)\n",
+        "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default unique per run)\n",
         prog);
 }
 
@@ -230,7 +230,12 @@ build_endpoints(const orchestrator_larpix_options_t *opts,
             return -1;
         }
     } else {
-        base_port = 25000 + ((int)(getpid() % 10000));
+        struct timespec ts;
+        uint64_t mix;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        mix = ((uint64_t)ts.tv_sec * 1000000000ull) ^ (uint64_t)ts.tv_nsec ^ (uint64_t)getpid();
+        /* Reserve a reasonably large port block for one run. */
+        base_port = 30000 + (int)(mix % 20000ull);
     }
 
     n = snprintf(control_prefix, control_prefix_len, "tcp://127.0.0.1:%%d");

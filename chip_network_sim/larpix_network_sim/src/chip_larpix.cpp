@@ -9,6 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+#include <cctype>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "chipsim/protocol.h"
 #include "chipsim/trace.h"
 #include "larpixsim/backend.h"
@@ -78,6 +85,12 @@ typedef struct {
     int             chip_id;
     int             edge_id;
 } bit_server_state_t;
+
+typedef struct {
+    uint64_t tick;
+    int      channel;
+    double   charge;
+} stimulus_event_t;
 
 static int
 opposite_edge(int edge)
@@ -234,6 +247,222 @@ parse_args(int argc, char **argv, chip_options_t *opts)
     }
 
     return (opts->id >= 0) ? 0 : -1;
+}
+
+static std::string
+read_file_text(const char *path)
+{
+    std::ifstream in(path);
+    std::ostringstream ss;
+
+    if (!in.is_open()) {
+        return std::string();
+    }
+    ss << in.rdbuf();
+    return ss.str();
+}
+
+static std::string
+strip_json_line_comments(const std::string &text)
+{
+    std::ostringstream out;
+    std::istringstream in(text);
+    std::string line;
+
+    while (std::getline(in, line)) {
+        std::size_t pos = 0;
+        while (pos < line.size() && std::isspace((unsigned char)line[pos])) {
+            pos++;
+        }
+        if (pos + 1 < line.size() && line[pos] == '/' && line[pos + 1] == '/') {
+            continue;
+        }
+        out << line << '\n';
+    }
+    return out.str();
+}
+
+static bool
+extract_json_u64(const std::string &obj, const char *key, uint64_t *value)
+{
+    const std::string needle = std::string("\"") + key + "\"";
+    std::size_t pos = obj.find(needle);
+    std::size_t start;
+    std::size_t end;
+    std::string digits;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos = obj.find(':', pos + needle.size());
+    if (pos == std::string::npos) {
+        return false;
+    }
+    start = pos + 1;
+    while (start < obj.size() && std::isspace((unsigned char)obj[start])) {
+        start++;
+    }
+    end = start;
+    while (end < obj.size() && std::isdigit((unsigned char)obj[end])) {
+        end++;
+    }
+    if (end == start) {
+        return false;
+    }
+    digits = obj.substr(start, end - start);
+    *value = strtoull(digits.c_str(), NULL, 10);
+    return true;
+}
+
+static bool
+extract_json_int_optional(const std::string &obj, const char *key, int *value)
+{
+    uint64_t tmp = 0;
+    if (!extract_json_u64(obj, key, &tmp)) {
+        return false;
+    }
+    *value = (int)tmp;
+    return true;
+}
+
+static bool
+extract_json_double(const std::string &obj, const char *key, double *value)
+{
+    const std::string needle = std::string("\"") + key + "\"";
+    std::size_t pos = obj.find(needle);
+    std::size_t start;
+    std::size_t end;
+    std::string token;
+
+    if (pos == std::string::npos) {
+        return false;
+    }
+    pos = obj.find(':', pos + needle.size());
+    if (pos == std::string::npos) {
+        return false;
+    }
+    start = pos + 1;
+    while (start < obj.size() && std::isspace((unsigned char)obj[start])) {
+        start++;
+    }
+    end = start;
+    while (end < obj.size()) {
+        char c = obj[end];
+        if (!(std::isdigit((unsigned char)c) || c == '+' || c == '-' || c == '.' || c == 'e' || c == 'E')) {
+            break;
+        }
+        end++;
+    }
+    if (end == start) {
+        return false;
+    }
+    token = obj.substr(start, end - start);
+    *value = strtod(token.c_str(), NULL);
+    return true;
+}
+
+static int
+load_stimulus_events(const chip_options_t *opts, std::vector<stimulus_event_t> *events)
+{
+    std::string text;
+    std::size_t charges_key;
+    std::size_t lb;
+    std::size_t rb;
+    std::size_t pos;
+
+    events->clear();
+    if (opts->stimulus_json == NULL) {
+        return 0;
+    }
+
+    text = strip_json_line_comments(read_file_text(opts->stimulus_json));
+    if (text.empty()) {
+        fprintf(stderr, "chip_larpix[%d] failed to read stimulus_json %s\n", opts->id, opts->stimulus_json);
+        return -1;
+    }
+
+    charges_key = text.find("\"charges\"");
+    if (charges_key == std::string::npos) {
+        fprintf(stderr, "chip_larpix[%d] stimulus_json missing charges array\n", opts->id);
+        return -1;
+    }
+    lb = text.find('[', charges_key);
+    if (lb == std::string::npos) {
+        return -1;
+    }
+    {
+        int bracket_depth = 0;
+        rb = lb;
+        while (rb < text.size()) {
+            if (text[rb] == '[') {
+                bracket_depth++;
+            } else if (text[rb] == ']') {
+                bracket_depth--;
+                if (bracket_depth == 0) {
+                    break;
+                }
+            }
+            rb++;
+        }
+    }
+    if (rb == std::string::npos || rb >= text.size()) {
+        return -1;
+    }
+
+    pos = lb + 1;
+    while (pos < rb) {
+        std::size_t obj_start = text.find('{', pos);
+        std::size_t obj_end;
+        int depth;
+        std::string obj;
+        stimulus_event_t ev{};
+        int runtime_id = -1;
+
+        if (obj_start == std::string::npos || obj_start >= rb) {
+            break;
+        }
+        obj_end = obj_start;
+        depth = 0;
+        while (obj_end < rb) {
+            if (text[obj_end] == '{') {
+                depth++;
+            } else if (text[obj_end] == '}') {
+                depth--;
+                if (depth == 0) {
+                    obj_end++;
+                    break;
+                }
+            }
+            obj_end++;
+        }
+        if (obj_end <= obj_start || depth != 0) {
+            fprintf(stderr, "chip_larpix[%d] malformed stimulus object\n", opts->id);
+            return -1;
+        }
+        obj = text.substr(obj_start, obj_end - obj_start);
+        if (!extract_json_u64(obj, "tick", &ev.tick) ||
+            !extract_json_int_optional(obj, "channel", &ev.channel) ||
+            !extract_json_double(obj, "charge", &ev.charge)) {
+            fprintf(stderr, "chip_larpix[%d] malformed stimulus entry\n", opts->id);
+            return -1;
+        }
+        if (ev.channel < 0 || ev.channel >= LARPIXSIM_CHANNEL_COUNT) {
+            fprintf(stderr, "chip_larpix[%d] stimulus channel out of range: %d\n", opts->id, ev.channel);
+            return -1;
+        }
+        if (extract_json_int_optional(obj, "runtime_id", &runtime_id) && runtime_id != opts->id) {
+            pos = obj_end;
+            continue;
+        }
+        events->push_back(ev);
+        pos = obj_end;
+    }
+
+    std::sort(events->begin(), events->end(), [](const stimulus_event_t &a, const stimulus_event_t &b) {
+        if (a.tick != b.tick) return a.tick < b.tick;
+        return a.channel < b.channel;
+    });
+    return 0;
 }
 
 static int
@@ -421,14 +650,17 @@ pull_bit_from_edge(nng_socket data_req, const chip_options_t *opts, int edge,
 }
 
 static void
-load_charge_stimulus(const chip_options_t *opts, uint64_t seq, double charge_in[LARPIXSIM_CHANNEL_COUNT])
+load_charge_stimulus(const std::vector<stimulus_event_t> &events, uint64_t seq, double charge_in[LARPIXSIM_CHANNEL_COUNT])
 {
     int i;
 
-    (void)opts;
-    (void)seq;
     for (i = 0; i < LARPIXSIM_CHANNEL_COUNT; i++) {
         charge_in[i] = 0.0;
+    }
+    for (const auto &ev : events) {
+        if (ev.tick == seq) {
+            charge_in[ev.channel] += ev.charge;
+        }
     }
 }
 
@@ -451,6 +683,7 @@ main(int argc, char **argv)
     uint8_t                published_valid[LARPIXSIM_EDGE_COUNT] = {0, 0, 0, 0};
     uint8_t                published_bits[LARPIXSIM_EDGE_COUNT]  = {0, 0, 0, 0};
     chipsim_trace_writer_t trace;
+    std::vector<stimulus_event_t> stimulus_events;
     int                    edge;
     int                    rv;
     int                    exit_code = 1;
@@ -469,6 +702,9 @@ main(int argc, char **argv)
     if (parse_args(argc, argv, &opts) != 0) {
         usage(argv[0]);
         return 2;
+    }
+    if (load_stimulus_events(&opts, &stimulus_events) != 0) {
+        return 1;
     }
 
     init_err = nng_init(NULL);
@@ -632,7 +868,7 @@ main(int argc, char **argv)
             }
         }
 
-        load_charge_stimulus(&opts, tick.seq, in.charge_in);
+        load_charge_stimulus(stimulus_events, tick.seq, in.charge_in);
 
         if (backend.vtbl->tick(backend.ctx, &in, &out) != 0) {
             fprintf(stderr, "chip_larpix[%d] backend tick failed at seq=%" PRIu64 "\n", opts.id, tick.seq);
