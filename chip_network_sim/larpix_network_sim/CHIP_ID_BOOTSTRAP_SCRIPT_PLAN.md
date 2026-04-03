@@ -47,6 +47,31 @@ At a high level:
 
 This only works if the bootstrap path is controlled so that exactly one still-default-ID chip is reachable at each step.
 
+### Bidirectional TX rule after every reassignment
+
+The bootstrap protocol must now be treated as **bidirectional**, not purely forward-going.
+
+After every successful `CHIP_ID` reassignment, the next lane-enable write for the newly assigned chip must enable **two** TX directions:
+- the forward TX lane already required by the original protocol, pointing toward the next chip whose ID will be reassigned
+- the reverse TX lane pointing back toward the chip from which the reassignment packet just arrived
+
+So each newly assigned chip must preserve both:
+- forward progress of the bootstrap path
+- reverse reachability for immediate readback and later return traffic
+
+Concrete example:
+- chip `2` sends a reassignment packet that changes a neighboring chip from `chip_id = 1` to `chip_id = 3`
+- the subsequent lane-enable write for chip `3` must open:
+  - `lane1` if that is the forward direction to the next chip to be assigned, and
+  - `lane3` for the reverse direction back toward chip `2`
+- under the agreed lane convention, that means the write data should be `0x0A` (`lane1 | lane3`)
+
+This new rule updates the earlier one-direction-at-a-time description. From this point onward, whenever the protocol says to "enable the TX lane toward the next chip," it should be interpreted as:
+- enable the forward lane toward the next chip, and
+- also enable the reverse lane back toward the predecessor chip that delivered the reassignment
+
+The source chip is the only exception at the very beginning of bootstrap, because before the first reassignment there is no predecessor chip inside the network. Once a chip has been reached through the network, however, both lanes must be enabled after its reassignment.
+
 ### First bootstrap rule
 
 Let the directly reachable source chip have desired final chip ID `s`.
@@ -79,7 +104,7 @@ Using the fixed lane convention:
 
 So the next configuration write should be:
 - destination chip ID = `s`
-- register address = `ENABLE_PISO_DOWN = 125`
+- register address = `ENABLE_PISO_UP = 124`
 - register data = `0x02`
 
 That value enables only `lane1`, which is the east TX lane under the agreed convention.
@@ -89,7 +114,7 @@ This step should be performed **except** when the source chip is already at the 
 
 In that boundary case, there is no chip directly east of the source chip, so the east-lane-enable step is skipped.
 
-This rule assumes that the bootstrap configuration traffic is being propagated using the downstream TX mask. If a different traffic-direction convention is later chosen for bootstrap packets, the same geometric rule would still apply, but the register used for the temporary lane enable would need to be updated accordingly.
+This rule assumes that the bootstrap configuration traffic is being propagated using the upstream TX mask. 
 
 ### Third bootstrap rule
 
@@ -120,8 +145,8 @@ For each already-configured bottom-row chip with chip ID `k`, where `k` runs fro
 
 1. Enable only the east TX lane on chip `k`.
 - send a `CONFIG_WRITE` addressed to chip ID `k`
-- write register `ENABLE_PISO_DOWN = 125`
-- write data `0x02` so only `lane1 = east` is enabled
+- write register `ENABLE_PISO_UP = 124`
+- write data `0x02` so only `lane1 = east` is enabled for upstream TX
 
 2. Assign the chip directly east of `k` its new chip ID `k + 1`.
 - send a `CONFIG_WRITE` into chip `k` from the controller / already-configured path
@@ -129,7 +154,13 @@ For each already-configured bottom-row chip with chip ID `k`, where `k` runs fro
 - write register `CHIP_ID = 122`
 - write data byte `k + 1`
 
-The intended effect is that chip `k` forwards the packet only eastward, and the one still-default-ID chip reachable in that direction changes from chip ID `1` to chip ID `k + 1`.
+3. Enable the readback TX lane on chip `k+1`
+- send a `CONFIG_WRITE` addressed to chip ID `k+1` 
+- write a register `ENABLE_PISO_DOWN = 125`
+- write data `0x08` so only `lane3 = west` is enabled for downstream TX
+
+
+The intended effect is that chip `k` forwards the packet only upstream eastward, and the one still-default-ID chip reachable in that direction changes from chip ID `1` to chip ID `k + 1`.
 
 This repeated process continues until the eastmost chip in the bottom row has been assigned. Under the current numbering convention being described, that means continuing until chip ID `m - 1` has been set.
 
@@ -148,10 +179,10 @@ Using the fixed lane convention:
 
 The westward bootstrap begins by reconfiguring chip `s` so that only its west TX lane is enabled.
 
-1. Open only the west TX lane on chip `s`.
+1. Open only the west upstream TX lane on chip `s`.
 - send a `CONFIG_WRITE` addressed to chip ID `s`
-- write register `ENABLE_PISO_DOWN = 125`
-- write data `0x08` so only `lane3 = west` is enabled
+- write register `ENABLE_PISO_UP = 124`
+- write data `0x08` so only `lane3 = west` is enabled for upstream TX
 
 2. Assign the chip directly west of `s` the chip ID `s - 1`.
 - send a `CONFIG_WRITE` addressed to destination chip ID `1`
@@ -164,15 +195,22 @@ The same two-step pattern is then repeated for each already-configured chip to t
 
 For each chip with chip ID `k`, where `k` runs from `s - 1` down to `1`, do the following:
 
-1. Enable only the west TX lane on chip `k`.
+1. Enable only the west upstream TX lane on chip `k`.
 - send a `CONFIG_WRITE` addressed to chip ID `k`
-- write register `ENABLE_PISO_DOWN = 125`
+- write register `ENABLE_PISO_UP = 124`
 - write data `0x08`
 
 2. Assign the chip directly west of `k` the chip ID `k - 1`.
 - send a `CONFIG_WRITE` addressed to destination chip ID `1`
 - write register `CHIP_ID = 122`
 - write data byte `k - 1`
+
+3. Enable only the east downstream (readback) TX lane on chip `k-1`. 
+- send a `CONFIG_WRITE` addressed to chip ID `k-1`
+- write register `ENABLE_PISO_DOWN = 125`
+- write data `0x02` to enable the east TX lane for downstream TX
+
+
 
 This process continues until chip ID `0` has been assigned.
 
@@ -202,29 +240,35 @@ Using the fixed lane convention:
 
 The sequence is:
 
-1. Reconfigure chip `0` so that only its north TX lane is enabled.
+1. Reconfigure chip `0` so that its north upstream TX lane is now also enabled.
 - send a `CONFIG_WRITE` addressed to chip ID `0`
-- write register `ENABLE_PISO_DOWN = 125`
-- write data `0x01` so only `lane0 = north` is enabled
+- write register `ENABLE_PISO_UP = 124`
+- write data `0x01` 
 
 2. Assign the chip directly north of chip `0` the chip ID `m`.
 - send a `CONFIG_WRITE` addressed to destination chip ID `1`
 - write register `CHIP_ID = 122`
 - write data byte `m`
 
-3. Reconfigure chip `m` so that only its north TX lane is enabled.
+3. Reconfigure chip `m` so that its north upstream TX lane is enabled.
 - send a `CONFIG_WRITE` addressed to chip ID `m`
-- write register `ENABLE_PISO_DOWN = 125`
+- write register `ENABLE_PISO_UP = 124`
 - write data `0x01`
 
-4. Assign the chip directly north of chip `m` the chip ID `2m`.
+4. Reconfigure chip `m` so that its south downstream (readback) TX lane is enabled. 
+- send a `CONFIG_WRITE` addressed to chip ID `m` 
+- write register `ENABLE_PISO_DOWN = 125`
+- write data `0x04` to enable the south TX lane 
+
+5. Assign the chip directly north of chip `m` the chip ID `2m`.
 - send a `CONFIG_WRITE` addressed to destination chip ID `1`
 - write register `CHIP_ID = 122`
 - write data byte `2m`
 
 This pattern repeats up the leftmost column:
-- configure the current column chip to north-only TX
+- configure the current column chip to north-only upstream TX
 - send a `CONFIG_WRITE` addressed to chip ID `1`
+- configure the current column chip to south-only downstream TX
 - assign the directly north neighbor the next row-major column-0 ID
 
 So the assigned chip IDs in the leftmost column become:
@@ -238,42 +282,38 @@ Note: these chip-ID changes are still carried by `CONFIG_WRITE` packets. They ar
 
 A similar pattern should then be applied to the second column, beginning from bottom-row chip `1`.
 
-The intended behavior here is slightly different from the leftmost-column case:
-- chip `1` should newly enable its north TX lane
-- chip `1` should continue to keep its west TX lane enabled from the earlier bottom-row bootstrap phase
-
-So for chip `1`, the effective enabled TX lanes become:
-- `lane0 = north`
-- `lane3 = west`
-
-That corresponds to the 4-bit mask:
-- `4'b1001` = `0x09`
-
 The sequence for the second column is:
 
-1. Reconfigure chip `1` so that it enables north while retaining west.
+1. Reconfigure chip `1` so that it enables north while retaining previously enabled upstream TX lane.
 - send a `CONFIG_WRITE` addressed to chip ID `1`
-- write register `ENABLE_PISO_DOWN = 125`
-- write data `0x09`
+- write register `ENABLE_PISO_UP = 124`
+- write data which is a bitwise OR with the existing data in that register with the north TX lane `0x01`
+- e.g. if chip `1` previously had `ENABLE_PISO_UP` with data `0x08` (westward upstream flow) then this step would write `0x08 | 0x01 = 0x09` to register `124`
 
 2. Assign the chip directly north of chip `1` the chip ID `m + 1`.
 - send a `CONFIG_WRITE` addressed to destination chip ID `1`
 - write register `CHIP_ID = 122`
 - write data byte `m + 1`
 
-3. Reconfigure chip `m + 1` so that only its north TX lane is enabled.
+3. Reconfigure chip `m + 1` so that its north upstream TX lane is enabled.
 - send a `CONFIG_WRITE` addressed to chip ID `m + 1`
-- write register `ENABLE_PISO_DOWN = 125`
+- write register `ENABLE_PISO_UP = 124`
 - write data `0x01`
 
-4. Assign the chip directly north of chip `m + 1` the chip ID `2m + 1`.
+4. Reconfigure chip `m + 1` so that its south downstream TX lane is enabled. 
+- send a `CONFIG_WRITE` addressed to chip ID `m + 1`
+- write a register `ENABLE_PISO_DOWN = 125`
+- write data `0x04`
+
+5. Assign the chip directly north of chip `m + 1` the chip ID `2m + 1`.
 - send a `CONFIG_WRITE` addressed to destination chip ID `1`
 - write register `CHIP_ID = 122`
 - write data byte `2m + 1`
 
 This pattern repeats up the second column:
-- configure the current chip in column `x = 1` to north-only TX, except for the bottom-row chip `1`, which keeps west enabled as described above
+- configure the current chip in column `x = 1` to have only north upstream TX, except for the bottom-row chip `1`, which keeps previously enabled upstream TX lanes as described above
 - send a `CONFIG_WRITE` addressed to chip ID `1`
+- configure the current chip to enable a south downstream TX lane (for readback)
 - assign the directly north neighbor the next row-major ID for column `1`
 
 So the assigned chip IDs in the second column become:
@@ -285,13 +325,31 @@ This process continues until chip ID `m * (n - 1) + 1` has been assigned.
 
 After the second-column procedure is established, the same northward column bootstrap pattern should continue across the remaining bottom-row starting chips until the protocol reaches chip `s`, and then continue further until the starting chip is `m - 1`, the rightmost chip in the bottom row.
 
-For a general bottom-row starting chip `c`, where the column index is identified with the chip ID on the bottom row, the intent is:
+For a general bottom-row starting chip `c`, the bottom-row preparation must now be stated explicitly in terms of whether the chip lies west or east of the source chip `s`.
 
-1. Prepare chip `c` with the TX-lane state needed to support both:
-- its already-established horizontal bootstrap connectivity along the bottom row
-- the new northward bootstrap for the column above chip `c`
+Case 1: `c < s`
+- chip `c` lies to the west of the source chip
+- from the earlier bottom-row bootstrap, chip `c` already has a west-facing upstream TX lane enabled
+- before bootstrapping the column above chip `c`, do a bitwise-OR write to `ENABLE_PISO_UP = 124` which also enables `lane0 = north`
+- in other words, retain the already-enabled west upstream lane and add the north upstream lane
+- then send the `CHIP_ID` reassignment packet addressed to chip ID `1` so that the chip directly north of `c` is assigned chip ID `m + c`
 
-2. Use chip `c` to assign the chip directly north of it the row-major chip ID `m + c`.
+Case 2: `c > s`
+- chip `c` lies to the east of the source chip
+- from the earlier bottom-row bootstrap, chip `c` already has an east-facing upstream TX lane enabled
+- before bootstrapping the column above chip `c`, do a bitwise-OR write to `ENABLE_PISO_UP = 124` which also enables `lane0 = north`
+- in other words, retain the already-enabled east upstream lane and add the north upstream lane
+- then send the `CHIP_ID` reassignment packet addressed to chip ID `1` so that the chip directly north of `c` is assigned chip ID `m + c`
+
+Case 3: `c = s`
+- this is the special source-chip case described separately below
+- chip `s` must preserve the horizontal bootstrap lanes needed on the bottom row while also enabling north upstream and keeping south downstream enabled
+
+After the bottom-row chip for column `c` has been prepared in one of the above ways:
+
+1. Use chip `c` to assign the chip directly north of it the row-major chip ID `m + c`.
+
+2. Configure the newly assigned chip with a south downstream TX lane for readback.
 
 3. Then continue upward in that column using north-only propagation from the newly assigned chips, so the assigned IDs become:
 - `c`, `m + c`, `2m + c`, `3m + c`, ... , `m * (n - 1) + c`
@@ -302,12 +360,16 @@ This repeats column by column until the entire array has been assigned unique ch
 
 When the protocol reaches the bottom-row source chip `s`, there is an added condition before assigning the chip directly north of `s`.
 
-At that point, chip `s` must have the following TX lanes enabled simultaneously:
+At that point, chip `s` must have the following upstream TX lanes enabled simultaneously:
 - `lane0 = north`
 - `lane1 = east`
 - `lane3 = west`
+- unless s=0 or m-1 (end of row) in which it will have either `lane1 = east` OR `lane3 = west` enabled
 
-So before creating the column above chip `s`, chip `s` should be configured with a TX mask that enables:
+And chip `s` must have the following downstream TX lane enabled: 
+- `lane2 = south` 
+
+So before creating the column above chip `s`, chip `s` should be configured with an upstream TX mask that enables:
 - north
 - east
 - west
@@ -406,6 +468,25 @@ This convention should be used consistently in:
 - helper scripts
 - documentation for `larpix_network_sim`
 
+## Register-Write Interpretation Rule
+
+Unless a protocol step explicitly says to **enable only** a specific TX lane or lane set, the word **enable** should be interpreted as a read-modify-write operation on the existing register contents.
+
+That means:
+- if the step writes `ENABLE_PISO_UP = 124`, then enabling a lane means bitwise-OR the requested lane bit into the chip's current `ENABLE_PISO_UP` value
+- if the step writes `ENABLE_PISO_DOWN = 125`, then enabling a lane means bitwise-OR the requested lane bit into the chip's current `ENABLE_PISO_DOWN` value
+
+So the default interpretation of a lane-enable step is:
+- `new_register_value = old_register_value | lane_mask`
+
+This rule is needed because many bootstrap steps must preserve previously enabled lanes while adding one new direction for continued propagation or readback.
+
+Examples:
+- if a chip already has `ENABLE_PISO_UP = 0x08` and a later step says to enable the north upstream lane, the write should use `0x08 | 0x01 = 0x09`
+- if a chip already has `ENABLE_PISO_DOWN = 0x04` and a later step says to enable the west downstream lane, the write should use `0x04 | 0x08 = 0x0C`
+
+Only when a protocol step explicitly says to **enable only** a specific lane should the write replace the old register value rather than OR-ing into it.
+
 ## Registers Needed During Bootstrap
 
 Based on the current RTL, the bootstrap process will likely need to write at least:
@@ -427,7 +508,7 @@ The script must obey these rules:
 1. The source chip must be assigned a unique chip ID first.
 - Otherwise it will still consume packets addressed to the default chip ID.
 
-2. Only one forwarding direction should be opened when targeting the next unassigned chip.
+2. Only one upstream direction facing a chip with `chip_ID=1` should be opened when targeting the next unassigned chip.
 - This keeps only one new default-ID chip reachable.
 
 3. The script must not allow multiple still-default-ID chips to become reachable at the same time.
@@ -503,3 +584,7 @@ After this design note, the next implementation step should be a script that:
 
 That script should initially solve only the chip-ID bootstrap problem.
 Full routing configuration can be added afterward as a separate layer.
+
+### Source chip south-lane rule
+
+The source chip must always keep `lane2` south downstream enabled throughout the bootstrap procedure so that a return path to the FPGA/controller exists for later network tests. In the toy simulator this means any TX-mask write delivered to the source chip is automatically augmented with `lane2`.
