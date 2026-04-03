@@ -1,0 +1,22 @@
+// 1-chip analog/cosim event smoke test charge stimulus.
+//
+// Test intent:
+// - after the startup configuration writes have enabled south TX, enabled
+//   channel 0, and unmasked channel 0, inject a single charge pulse into the
+//   analog/cosim frontend on channel 0
+// - the injected charge is chosen to cross the current RTL/model default
+//   threshold and generate one natural event packet
+//
+// Required passing conditions for the paired run script:
+// - one charge event on channel 0 is applied after configuration completes
+// - the FPGA later receives a downstream data packet corresponding to that hit
+{
+  "charges": [
+    {
+      "runtime_id": 0,
+      "tick": 600,
+      "channel": 0,
+      "charge": -5.0e-15
+    }
+  ]
+}

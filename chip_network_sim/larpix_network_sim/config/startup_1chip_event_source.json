@@ -1,0 +1,56 @@
+// 1-chip analog/cosim event smoke test startup configuration.
+//
+// Test intent:
+// - configure a single chip so a natural charge hit on channel 0 can become a
+//   transmitted downstream data packet visible at the FPGA controller
+// - use only startup config writes from the FPGA; the actual hit stimulus is
+//   provided separately by stimulus_1chip_event_source.json
+//
+// Sequence:
+// 1. ENABLE_PISO_DOWN (125) <- 0x04 so south TX is enabled back toward the FPGA
+// 2. CSA_ENABLE (66) <- 0x01 so channel 0 is enabled
+// 3. CHANNEL_MASK (131) <- 0xFE so channel 0 is unmasked and channels 1-7 stay masked
+// 4. ENABLE_TRIG_MODES (128) <- 0x00 to disable startup hit-veto behavior for a clean natural-hit test
+//
+// Required passing conditions for the paired run script:
+// - the FPGA must inject all four configuration writes successfully
+// - the single charge injection on channel 0 must cause the chip to emit a
+//   downstream data packet back to the FPGA on the south lane
+// - the received packet must decode as a valid data packet from chip 1,
+//   channel 0, with odd parity correct and downstream=1
+{
+  "frames": [
+    {
+      "tick_start": 20,
+      "type": "write",
+      "chip_id": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "enable source south tx lane"
+    },
+    {
+      "tick_start": 140,
+      "type": "write",
+      "chip_id": 1,
+      "register_addr": 66,
+      "register_data": 1,
+      "label": "enable channel 0 csa"
+    },
+    {
+      "tick_start": 260,
+      "type": "write",
+      "chip_id": 1,
+      "register_addr": 131,
+      "register_data": 254,
+      "label": "unmask channel 0"
+    },
+    {
+      "tick_start": 380,
+      "type": "write",
+      "chip_id": 1,
+      "register_addr": 128,
+      "register_data": 0,
+      "label": "disable trigger veto modes"
+    }
+  ]
+}
