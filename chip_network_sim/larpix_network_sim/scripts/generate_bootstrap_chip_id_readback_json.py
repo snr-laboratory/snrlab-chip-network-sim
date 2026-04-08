@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate startup JSON for the 3x5 live bootstrap CHIP_ID test.
+"""Generate startup JSON for live bootstrap CHIP_ID assignment tests.
 
-This helper builds the startup frame schedule for the `rows=3`, `cols=5`,
-`source s=0` network bootstrap/readback test. The generated JSON follows the
-corrected toy bootstrap protocol and inserts an immediate `CHIP_ID` read after
-all chip-ID reassignments so the FPGA controller can confirm each new ID before
-continuing.
+This helper builds the startup frame schedule for an arbitrary `rows x cols`
+network with source chip `s` on the bottom row. The generated JSON mirrors the
+current logic in `bootstrap_id_protocol_sim.py` and inserts an immediate
+`CHIP_ID` read after every chip-ID reassignment so the FPGA controller can
+confirm each new ID before continuing.
 """
 from __future__ import annotations
 
@@ -202,7 +202,7 @@ class Builder:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate startup JSON for bootstrap CHIP_ID assignment plus immediate readback")
+    parser = argparse.ArgumentParser(description="Generate startup JSON for bootstrap CHIP_ID assignment plus immediate readback for arbitrary rows/cols/source")
     parser.add_argument("--rows", type=int, required=True)
     parser.add_argument("--cols", type=int, required=True)
     parser.add_argument("--s", type=int, required=True)
