@@ -55,6 +55,62 @@ After Full Protocol Completed
   cell format = chip_id@Uupstreammask/Ddownstreammask
 ```
 
+### Running The 3x5 Test Manually
+
+The runner script automates generation, build, compilation, launch, and log checking. The equivalent manual command flow is:
+
+1. Generate the startup JSON:
+```bash
+python3 larpix_network_sim/scripts/generate_bootstrap_chip_id_readback_json.py \
+  --rows 3 \
+  --cols 5 \
+  --s 0 \
+  --out larpix_network_sim/config/startup_3x5_bootstrap_chip_ids.json
+```
+
+2. Configure and build the required binaries:
+```bash
+cmake -S . -B build
+cmake --build build --target fpga_larpix orchestrator_larpix chip_larpix_build -j
+```
+
+3. Compile the startup JSON into UART packet words and bitstreams:
+```bash
+mkdir -p build/larpix_3x5_bootstrap_id_smoke
+python3 larpix_network_sim/scripts/compile_startup_json.py \
+  larpix_network_sim/config/startup_3x5_bootstrap_chip_ids.json \
+  build/larpix_3x5_bootstrap_id_smoke/startup_3x5_bootstrap_chip_ids.compiled.json
+```
+
+4. Launch the live network:
+```bash
+build/orchestrator_larpix \
+  -rows 3 \
+  -cols 5 \
+  -ticks 30000 \
+  -source_x 0 \
+  -source_y 0 \
+  -chip_bin build/chip_larpix \
+  -fpga_bin build/fpga_larpix \
+  -startup_json build/larpix_3x5_bootstrap_id_smoke/startup_3x5_bootstrap_chip_ids.compiled.json
+```
+
+To capture the same log used by the runner:
+```bash
+build/orchestrator_larpix \
+  -rows 3 \
+  -cols 5 \
+  -ticks 30000 \
+  -source_x 0 \
+  -source_y 0 \
+  -chip_bin build/chip_larpix \
+  -fpga_bin build/fpga_larpix \
+  -startup_json build/larpix_3x5_bootstrap_id_smoke/startup_3x5_bootstrap_chip_ids.compiled.json \
+  > build/larpix_3x5_bootstrap_id_smoke/run.log 2>&1
+```
+
+At that point, the remaining runner-script work is log validation: checking the transmitted-frame count and the returned `CHIP_ID` readback packets.
+
 ## Single-Chip Analog/Cosim Event Test
 
 This single-chip event test verifies that the `chip_larpix` runtime can use startup configuration writes from the FPGA to prepare the real analog-plus-Verilated-digital-core backend for a natural hit, then return a downstream data packet to the FPGA after a local charge injection.
