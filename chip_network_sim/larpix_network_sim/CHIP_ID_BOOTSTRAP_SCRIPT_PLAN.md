@@ -222,14 +222,24 @@ Under the current numbering convention, chip ID `0` is the **leftmost** chip in 
 The bootstrap protocol uses destination chip ID `1` as the temporary target for still-unassigned chips. That creates a hazard if, during bottom-row construction, one of the newly assigned permanent chip IDs is also `1`.
 
 So during first-row construction, apply this special-case override:
-- if the natural assignment for the chip immediately east of `s` would be `s + 1 = 1`, assign that chip ID `99` instead
-- if the natural assignment for the chip immediately west of `s` would be `s - 1 = 1`, assign that chip ID `99` instead
+- if the natural assignment for the chip immediately east of `s` would be `s + 1 = 1`, assign that chip ID `254` instead
+- if the natural assignment for the chip immediately west of `s` would be `s - 1 = 1`, assign that chip ID `254` instead
 
-More generally, during the bottom-row bootstrap phase, any step that would permanently assign chip ID `1` should override that assignment to chip ID `99`.
+More generally, during the bottom-row bootstrap phase, any step that would permanently assign chip ID `1` should override that assignment to chip ID `254`.
 
 The purpose of this override is to preserve `chip_id = 1` as the temporary bootstrap target used for as-yet-unassigned chips, while preventing an already-configured chip from continuing to capture packets addressed to `1`.
 
-This means the bottom row may temporarily contain chip ID `99` instead of chip ID `1` during bootstrap. A later post-bootstrap cleanup/remap step can restore the intended final row-major chip ID if required.
+This means the bottom row may temporarily contain chip ID `254` instead of chip ID `1` during bootstrap. A later post-bootstrap cleanup/remap step can restore the intended final row-major chip ID if required.
+
+### Placeholder ID Limit
+
+The bootstrap protocol reserves chip ID `254` as the temporary placeholder used in place of final chip ID `1` until the cleanup remap step.
+
+Therefore:
+- the protocol cannot support a full `256`-chip network with unique final chip IDs `0..255`
+- the maximum supported network size under this bootstrap protocol is `254` chips
+- valid network sizes must satisfy `rows * cols <= 254`
+
 
 ### Northward bootstrap along the leftmost column
 

@@ -37,13 +37,13 @@
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
-      "register_data": 99,
+      "register_data": 254,
       "label": "bottom-row assign east neighbor of chip at (0,0)"
     },
     {
       "tick_start": 620,
       "type": "write",
-      "chip_id": 99,
+      "chip_id": 254,
       "register_addr": 125,
       "register_data": 8,
       "label": "bottom-row west downstream enable for chip at (1,0)"
@@ -51,15 +51,15 @@
     {
       "tick_start": 740,
       "type": "read",
-      "chip_id": 99,
+      "chip_id": 254,
       "register_addr": 122,
-      "wait_for_chip_id_reply": 99,
-      "label": "read CHIP_ID from chip 99 at (1,0)"
+      "wait_for_chip_id_reply": 254,
+      "label": "read CHIP_ID from chip 254 at (1,0)"
     },
     {
       "tick_start": 860,
       "type": "write",
-      "chip_id": 99,
+      "chip_id": 254,
       "register_addr": 124,
       "register_data": 2,
       "label": "bottom-row east-only upstream enable for chip at (1,0)"
@@ -227,7 +227,7 @@
     {
       "tick_start": 3380,
       "type": "write",
-      "chip_id": 99,
+      "chip_id": 254,
       "register_addr": 124,
       "register_data": 3,
       "label": "second-column bottom prepare for chip at (1,0)"
@@ -483,10 +483,10 @@
     {
       "tick_start": 7220,
       "type": "write",
-      "chip_id": 99,
+      "chip_id": 254,
       "register_addr": 122,
       "register_data": 1,
-      "label": "cleanup remap 99 -> 1 at (1,0)"
+      "label": "cleanup remap 254 -> 1 at (1,0)"
     },
     {
       "tick_start": 7340,

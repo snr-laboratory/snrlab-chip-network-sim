@@ -29,6 +29,7 @@ NORTH_WEST = NORTH | WEST
 CHIP_ID_REG = 122
 ENABLE_PISO_UP_REG = 124
 ENABLE_PISO_DOWN_REG = 125
+PLACEHOLDER_CHIP_ID = 254
 
 
 @dataclass
@@ -46,6 +47,8 @@ class Builder:
     def __init__(self, cols: int, rows: int, s: int, *, tick_start: int = 20, tick_step: int = 120) -> None:
         if cols <= 0 or rows <= 0:
             raise ValueError("rows and cols must be positive")
+        if cols * rows > 254:
+            raise ValueError("bootstrap protocol reserves chip ID 254 as a placeholder and chip ID 255 is reserved by the RTL as GLOBAL_ID, so the maximum supported network size is 254 chips")
         if not (0 <= s < cols):
             raise ValueError("s must satisfy 0 <= s < cols")
         self.cols = cols
@@ -99,7 +102,7 @@ class Builder:
         self.add_read_wait(new_id, CHIP_ID_REG, read_label)
 
     def bottom_row_id(self, desired: int) -> int:
-        return 99 if desired == 1 else desired
+        return PLACEHOLDER_CHIP_ID if desired == 1 else desired
 
     def prepare_source_special(self) -> None:
         mask = NORTH_ONLY
@@ -175,8 +178,8 @@ class Builder:
 
     def run_cleanup_remap(self) -> None:
         for x in range(self.cols):
-            if self.ids[0][x] == 99:
-                self.add_write(99, CHIP_ID_REG, 1, f"cleanup remap 99 -> 1 at ({x},0)")
+            if self.ids[0][x] == PLACEHOLDER_CHIP_ID:
+                self.add_write(PLACEHOLDER_CHIP_ID, CHIP_ID_REG, 1, f"cleanup remap {PLACEHOLDER_CHIP_ID} -> 1 at ({x},0)")
                 self.ids[0][x] = 1
                 self.add_read_wait(1, CHIP_ID_REG, f"read CHIP_ID from chip 1 at ({x},0) after cleanup")
                 break

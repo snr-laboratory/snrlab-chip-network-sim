@@ -69,7 +69,6 @@ def strip_json_line_comments(text: str) -> str:
     lines = []
     for line in text.splitlines():
         stripped = line.lstrip()
-<<<<<<< Updated upstream
         if stripped.startswith("//"):
             continue
         lines.append(line)
@@ -77,53 +76,40 @@ def strip_json_line_comments(text: str) -> str:
 
 
 def compile_frame(spec: dict[str, Any]) -> dict[str, Any]:
-    tick_start = int(spec["tick_start"])
+    tick_start = int(spec.get("tick_start", 0))
     kind = spec["type"]
     chip_id = int(spec["chip_id"])
     label = str(spec.get("label", ""))
-=======
-        if stripped.startswith('//'):
-            continue
-        lines.append(line)
-    return '\n'.join(lines) + ('\n' if text.endswith('\n') else '')
->>>>>>> Stashed changes
 
-
-def compile_frame(spec: dict[str, Any]) -> dict[str, Any]:
-    tick_start = int(spec.get('tick_start', 0))
-    kind = spec['type']
-    chip_id = int(spec['chip_id'])
-    label = str(spec.get('label', ''))
-
-    if kind == 'write':
+    if kind == "write":
         word = build_config_write_packet(
             chip_id=chip_id,
-            register_addr=int(spec['register_addr']),
-            register_data=int(spec['register_data']),
+            register_addr=int(spec["register_addr"]),
+            register_data=int(spec["register_data"]),
         )
-    elif kind == 'read':
+    elif kind == "read":
         word = build_config_read_packet(
             chip_id=chip_id,
-            register_addr=int(spec['register_addr']),
-            stats_nibble=int(spec.get('stats_nibble', 0)),
+            register_addr=int(spec["register_addr"]),
+            stats_nibble=int(spec.get("stats_nibble", 0)),
         )
-    elif kind == 'word':
-        word = int(str(spec['packet_word']), 0)
+    elif kind == "word":
+        word = int(str(spec["packet_word"]), 0)
     else:
-        raise ValueError(f'unknown frame type: {kind}')
+        raise ValueError(f"unknown frame type: {kind}")
 
     uart_bits = packet_to_uart_bits(word).bits
     if len(uart_bits) != FRAME_BITS:
-        raise ValueError(f'expected {FRAME_BITS} UART bits, got {len(uart_bits)}')
+        raise ValueError(f"expected {FRAME_BITS} UART bits, got {len(uart_bits)}")
 
     out = {
-        'tick_start': tick_start,
-        'label': label,
-        'packet_word': f'0x{word:016x}',
-        'uart_bits': uart_bits,
+        "tick_start": tick_start,
+        "label": label,
+        "packet_word": f"0x{word:016x}",
+        "uart_bits": uart_bits,
     }
-    if 'wait_for_chip_id_reply' in spec:
-        out['wait_for_chip_id_reply'] = int(spec['wait_for_chip_id_reply'])
+    if "wait_for_chip_id_reply" in spec:
+        out["wait_for_chip_id_reply"] = int(spec["wait_for_chip_id_reply"])
     return out
 
 
@@ -162,11 +148,7 @@ def main() -> int:
     args = parser.parse_args()
 
     raw = json.loads(strip_json_line_comments(Path(args.input_json).read_text()))
-<<<<<<< Updated upstream
     input_frames = raw.get("frames", [])
-=======
-    input_frames = raw.get('frames', [])
->>>>>>> Stashed changes
     if not isinstance(input_frames, list):
         raise SystemExit("input JSON must contain a list field 'frames'")
 

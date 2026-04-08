@@ -72,6 +72,7 @@ WEST_ONLY = lane_mask(Lane.WEST)
 NORTH_EAST = lane_mask(Lane.NORTH, Lane.EAST)
 NORTH_WEST = lane_mask(Lane.NORTH, Lane.WEST)
 NORTH_EAST_WEST = lane_mask(Lane.NORTH, Lane.EAST, Lane.WEST)
+PLACEHOLDER_CHIP_ID = 254
 
 
 class ProtocolError(RuntimeError):
@@ -82,6 +83,8 @@ class BootstrapSim:
     def __init__(self, cols: int, rows: int, s: int) -> None:
         if cols <= 0 or rows <= 0:
             raise ValueError("rows and cols must be positive")
+        if cols * rows > 254:
+            raise ValueError("bootstrap protocol reserves chip ID 254 as a placeholder and chip ID 255 is reserved by the RTL as GLOBAL_ID, so the maximum supported network size is 254 chips")
         if not (0 <= s < cols):
             raise ValueError("source s must satisfy 0 <= s < cols")
 
@@ -196,7 +199,7 @@ class BootstrapSim:
         )
 
     def bottom_row_id(self, desired: int) -> int:
-        return 99 if desired == 1 else desired
+        return PLACEHOLDER_CHIP_ID if desired == 1 else desired
 
     def target_coord(self, col: int, row: int) -> Coord:
         return (col, row)
@@ -279,7 +282,7 @@ class BootstrapSim:
     def run_cleanup_remap(self) -> None:
         placeholder = None
         for coord in self.coords():
-            if self.chip(coord).chip_id == 99:
+            if self.chip(coord).chip_id == PLACEHOLDER_CHIP_ID:
                 placeholder = coord
                 break
         if placeholder is None:
@@ -287,7 +290,7 @@ class BootstrapSim:
         ones = [coord for coord in self.coords() if self.chip(coord).chip_id == 1]
         if ones:
             raise ProtocolError(f"cleanup remap: cannot rewrite placeholder while chip_id=1 still exists at {sorted(ones)}")
-        self.unique_destination(99, placeholder, "cleanup remap route check")
+        self.unique_destination(PLACEHOLDER_CHIP_ID, placeholder, "cleanup remap route check")
         old = self.chip(placeholder).chip_id
         self.chip(placeholder).chip_id = 1
         self.logs.append(f"cleanup remap: chip at {placeholder} remapped chip_id {old} -> 1")

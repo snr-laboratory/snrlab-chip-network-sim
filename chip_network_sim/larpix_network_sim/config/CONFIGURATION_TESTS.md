@@ -34,9 +34,9 @@ File flow:
 - [`run_3x5_bootstrap_id_startup.sh`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/scripts/run_3x5_bootstrap_id_startup.sh) regenerates the startup JSON, compiles it, launches the live network, and checks the returned readbacks for the 3x5 example case.
 
 Observed passing result:
-- `verified_readbacks=0,99,2,3,4,5,10,6,11,7,12,8,13,9,14,1`
+- `verified_readbacks=0,254,2,3,4,5,10,6,11,7,12,8,13,9,14,1`
 
-This ordering reflects the actual bootstrap traversal and includes the temporary placeholder ID `99` on the bottom row before the final cleanup remap `99 -> 1`.
+This ordering reflects the actual bootstrap traversal and includes the temporary placeholder ID `254` on the bottom row before the final cleanup remap `254 -> 1`.
 
 The live network is expected to emulate the following final toy-model state from [`bootstrap_id_protocol_sim.py`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/scripts/bootstrap_id_protocol_sim.py) for `rows=3`, `cols=5`, `s=0`:
 
