@@ -59,12 +59,16 @@ function buildStateAt(index) {
 }
 
 function tickData() {
-  if (!playback) return { state: null, events: [] };
+  if (!playback) return { state: null, packetEvents: [], chipEvents: [], fpgaEvent: null };
   const clamped = Math.max(0, Math.min(currentTickIndex, playback.total_ticks || 0));
-  const events = (playback.packet_spans || []).filter((span) => span.start_tick <= clamped && clamped < span.end_tick);
+  const packetEvents = (playback.packet_spans || []).filter((span) => span.start_tick <= clamped && clamped < span.end_tick);
+  const chipEvents = (playback.chip_updates || []).filter((update) => (update.tick ?? 0) === clamped);
+  const fpgaEvent = (playback.fpga_spans || []).find((span) => span.start_tick <= clamped && clamped < span.end_tick) || null;
   return {
     state: buildStateAt(clamped),
-    events,
+    packetEvents,
+    chipEvents,
+    fpgaEvent,
   };
 }
 
@@ -76,14 +80,27 @@ function updateHud() {
     return;
   }
   scenarioEl.textContent = `Scenario: ${playback.name || 'unnamed'}`;
-  statusEl.textContent = `Tick: ${currentTickIndex} / ${Math.max(0, playback.total_ticks || 0)}`;
+  const { state, chipEvents, fpgaEvent } = tickData();
+  const parts = [`Tick: ${currentTickIndex} / ${Math.max(0, playback.total_ticks || 0)}`];
+  if (fpgaEvent) parts.push(`FPGA TX: ${fpgaEvent.label || fpgaEvent.packet_type || 'frame'}`);
+  if (chipEvents.length > 0) parts.push(`chip updates: ${chipEvents.length}`);
+  statusEl.textContent = parts.join(' | ');
   if (selectedChip) {
-    const { state } = tickData();
     const chip = state?.get(`${selectedChip.x},${selectedChip.y}`);
     if (chip) {
-      selectionEl.textContent = `Selection: chip ${chip.chip_id} at (${chip.x},${chip.y}) U${(chip.up_mask || 0).toString(2).padStart(4, '0')} D${(chip.down_mask || 0).toString(2).padStart(4, '0')}`;
+      const activeUpdate = chipEvents.find((update) => update.x === selectedChip.x && update.y === selectedChip.y);
+      let line = `Selection: chip ${chip.chip_id} at (${chip.x},${chip.y}) U${(chip.up_mask || 0).toString(2).padStart(4, '0')} D${(chip.down_mask || 0).toString(2).padStart(4, '0')}`;
+      if (activeUpdate) {
+        line += ` | applied reg ${activeUpdate.register_addr} = 0x${Number(activeUpdate.register_data || 0).toString(16).toUpperCase().padStart(2, '0')}`;
+      }
+      selectionEl.textContent = line;
       return;
     }
+  }
+  if (chipEvents.length > 0) {
+    const update = chipEvents[0];
+    selectionEl.textContent = `Selection: config applied at chip (${update.x},${update.y}) reg ${update.register_addr} = 0x${Number(update.register_data || 0).toString(16).toUpperCase().padStart(2, '0')}`;
+    return;
   }
   selectionEl.textContent = 'Selection: none';
 }
@@ -132,7 +149,8 @@ function drawLane(cx, cy, cell, edge, color, active = false) {
 function drawPacket(event, layout) {
   const src = layout.cellCenter(event.src[0], event.src[1]);
   const dst = layout.cellCenter(event.dst[0], event.dst[1]);
-  const t = 0.5;
+  const duration = Math.max(1, (event.end_tick || 0) - (event.start_tick || 0));
+  const t = Math.max(0, Math.min(1, (currentTickIndex - (event.start_tick || 0)) / duration));
   const x = src.x + (dst.x - src.x) * t;
   const y = src.y + (dst.y - src.y) * t;
   const color = {
@@ -214,10 +232,9 @@ function draw() {
     },
   };
 
-  const { state, events } = tickData();
-  const activeFpgaSpan = (playback.fpga_spans || []).find((span) => span.start_tick <= currentTickIndex && currentTickIndex < span.end_tick && (span.packet_type === 'config_write' || span.packet_type === 'config_read_request' || span.packet_type === 'packet'));
+  const { state, packetEvents, chipEvents, fpgaEvent } = tickData();
 
-  drawFpga(layout, activeFpgaSpan);
+  drawFpga(layout, fpgaEvent);
 
   for (let gy = rows - 1; gy >= 0; gy -= 1) {
     for (let gx = 0; gx < cols; gx += 1) {
@@ -227,8 +244,9 @@ function draw() {
       const top = cy - cell * 0.42;
       const isSelected = selectedChip && selectedChip.x === gx && selectedChip.y === gy;
 
-      ctx.fillStyle = isSelected ? '#172131' : '#111722';
-      ctx.strokeStyle = isSelected ? '#d8f3ff' : '#2c3748';
+      const activeUpdate = chipEvents.find((update) => update.x === gx && update.y === gy);
+      ctx.fillStyle = activeUpdate ? '#1c2f25' : (isSelected ? '#172131' : '#111722');
+      ctx.strokeStyle = activeUpdate ? '#7cff7c' : (isSelected ? '#d8f3ff' : '#2c3748');
       ctx.lineWidth = isSelected ? 2.5 : 1.5;
       ctx.beginPath();
       ctx.roundRect(left, top, cell * 0.84, cell * 0.84, 10);
@@ -252,12 +270,12 @@ function draw() {
     }
   }
 
-  for (const event of events || []) {
+  for (const event of packetEvents || []) {
     if (event.type === 'packet_move') {
       drawPacket(event, layout);
       const src = layout.cellCenter(event.src[0], event.src[1]);
       const dst = layout.cellCenter(event.dst[0], event.dst[1]);
-      ctx.strokeStyle = 'rgba(124,255,124,0.35)';
+      ctx.strokeStyle = 'rgba(124,255,124,0.20)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(src.x, src.y);

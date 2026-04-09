@@ -119,276 +119,460 @@
       "tick": 85,
       "x": 0,
       "y": 0,
+      "register_addr": 122,
+      "register_data": 0,
+      "label": "bottom-row source assignment (s=0)",
+      "event": "config_applied",
       "chip_id": 0
     },
     {
       "tick": 205,
       "x": 0,
       "y": 0,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "bottom-row source south enable at (0,0)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 470,
       "x": 0,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "bottom-row source east enable for chip at (0,0)",
+      "event": "config_applied",
       "up_mask": 2
     },
     {
       "tick": 565,
       "x": 1,
       "y": 0,
+      "register_addr": 122,
+      "register_data": 254,
+      "label": "bottom-row assign east neighbor of chip at (0,0)",
+      "event": "config_applied",
       "chip_id": 254
     },
     {
       "tick": 685,
       "x": 1,
       "y": 0,
+      "register_addr": 125,
+      "register_data": 8,
+      "label": "bottom-row west downstream enable for chip at (1,0)",
+      "event": "config_applied",
       "down_mask": 8
     },
     {
       "tick": 1100,
       "x": 1,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "bottom-row east-only upstream enable for chip at (1,0)",
+      "event": "config_applied",
       "up_mask": 2
     },
     {
       "tick": 1166,
       "x": 2,
       "y": 0,
+      "register_addr": 122,
+      "register_data": 2,
+      "label": "bottom-row assign east neighbor of chip at (1,0)",
+      "event": "config_applied",
       "chip_id": 2
     },
     {
       "tick": 1232,
       "x": 2,
       "y": 0,
+      "register_addr": 125,
+      "register_data": 8,
+      "label": "bottom-row west downstream enable for chip at (2,0)",
+      "event": "config_applied",
       "down_mask": 8
     },
     {
       "tick": 1749,
       "x": 2,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "bottom-row east-only upstream enable for chip at (2,0)",
+      "event": "config_applied",
       "up_mask": 2
     },
     {
       "tick": 1815,
       "x": 3,
       "y": 0,
+      "register_addr": 122,
+      "register_data": 3,
+      "label": "bottom-row assign east neighbor of chip at (2,0)",
+      "event": "config_applied",
       "chip_id": 3
     },
     {
       "tick": 1881,
       "x": 3,
       "y": 0,
+      "register_addr": 125,
+      "register_data": 8,
+      "label": "bottom-row west downstream enable for chip at (3,0)",
+      "event": "config_applied",
       "down_mask": 8
     },
     {
       "tick": 2548,
       "x": 3,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "bottom-row east-only upstream enable for chip at (3,0)",
+      "event": "config_applied",
       "up_mask": 2
     },
     {
       "tick": 2614,
       "x": 4,
       "y": 0,
+      "register_addr": 122,
+      "register_data": 4,
+      "label": "bottom-row assign east neighbor of chip at (3,0)",
+      "event": "config_applied",
       "chip_id": 4
     },
     {
       "tick": 2680,
       "x": 4,
       "y": 0,
+      "register_addr": 125,
+      "register_data": 8,
+      "label": "bottom-row west downstream enable for chip at (4,0)",
+      "event": "config_applied",
       "down_mask": 8
     },
     {
       "tick": 3497,
       "x": 0,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "source special prepare for chip at (0,0)",
+      "event": "config_applied",
       "up_mask": 3
     },
     {
       "tick": 3563,
       "x": 0,
       "y": 0,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "source south downstream keep for chip at (0,0)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 3629,
       "x": 0,
       "y": 1,
+      "register_addr": 122,
+      "register_data": 5,
+      "label": "column 0 assign north neighbor of chip at (0,0)",
+      "event": "config_applied",
       "chip_id": 5
     },
     {
       "tick": 3695,
       "x": 0,
       "y": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 0 downstream return enable for chip at (0,1)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 4060,
       "x": 0,
       "y": 1,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 0 north-only propagation enable for chip at (0,1)",
+      "event": "config_applied",
       "up_mask": 1
     },
     {
       "tick": 4126,
       "x": 0,
       "y": 2,
+      "register_addr": 122,
+      "register_data": 10,
+      "label": "column 0 assign north neighbor of chip at (0,1)",
+      "event": "config_applied",
       "chip_id": 10
     },
     {
       "tick": 4192,
       "x": 0,
       "y": 2,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 0 downstream return enable for chip at (0,2)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 4709,
       "x": 1,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "second-column bottom prepare for chip at (1,0)",
+      "event": "config_applied",
       "up_mask": 3
     },
     {
       "tick": 4775,
       "x": 1,
       "y": 1,
+      "register_addr": 122,
+      "register_data": 6,
+      "label": "column 1 assign north neighbor of chip at (1,0)",
+      "event": "config_applied",
       "chip_id": 6
     },
     {
       "tick": 4841,
       "x": 1,
       "y": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 1 downstream return enable for chip at (1,1)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 5358,
       "x": 1,
       "y": 1,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 1 north-only propagation enable for chip at (1,1)",
+      "event": "config_applied",
       "up_mask": 1
     },
     {
       "tick": 5424,
       "x": 1,
       "y": 2,
+      "register_addr": 122,
+      "register_data": 11,
+      "label": "column 1 assign north neighbor of chip at (1,1)",
+      "event": "config_applied",
       "chip_id": 11
     },
     {
       "tick": 5490,
       "x": 1,
       "y": 2,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 1 downstream return enable for chip at (1,2)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 6157,
       "x": 2,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "column 2 bottom prepare east-side north enable",
+      "event": "config_applied",
       "up_mask": 3
     },
     {
       "tick": 6223,
       "x": 2,
       "y": 1,
+      "register_addr": 122,
+      "register_data": 7,
+      "label": "column 2 assign north neighbor of chip at (2,0)",
+      "event": "config_applied",
       "chip_id": 7
     },
     {
       "tick": 6289,
       "x": 2,
       "y": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 2 downstream return enable for chip at (2,1)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 6956,
       "x": 2,
       "y": 1,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 2 north-only propagation enable for chip at (2,1)",
+      "event": "config_applied",
       "up_mask": 1
     },
     {
       "tick": 7022,
       "x": 2,
       "y": 2,
+      "register_addr": 122,
+      "register_data": 12,
+      "label": "column 2 assign north neighbor of chip at (2,1)",
+      "event": "config_applied",
       "chip_id": 12
     },
     {
       "tick": 7088,
       "x": 2,
       "y": 2,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 2 downstream return enable for chip at (2,2)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 7905,
       "x": 3,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "column 3 bottom prepare east-side north enable",
+      "event": "config_applied",
       "up_mask": 3
     },
     {
       "tick": 7971,
       "x": 3,
       "y": 1,
+      "register_addr": 122,
+      "register_data": 8,
+      "label": "column 3 assign north neighbor of chip at (3,0)",
+      "event": "config_applied",
       "chip_id": 8
     },
     {
       "tick": 8037,
       "x": 3,
       "y": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 3 downstream return enable for chip at (3,1)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 8854,
       "x": 3,
       "y": 1,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 3 north-only propagation enable for chip at (3,1)",
+      "event": "config_applied",
       "up_mask": 1
     },
     {
       "tick": 8920,
       "x": 3,
       "y": 2,
+      "register_addr": 122,
+      "register_data": 13,
+      "label": "column 3 assign north neighbor of chip at (3,1)",
+      "event": "config_applied",
       "chip_id": 13
     },
     {
       "tick": 8986,
       "x": 3,
       "y": 2,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 3 downstream return enable for chip at (3,2)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 9953,
       "x": 4,
       "y": 0,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 4 bottom prepare east-side north enable",
+      "event": "config_applied",
       "up_mask": 1
     },
     {
       "tick": 10019,
       "x": 4,
       "y": 1,
+      "register_addr": 122,
+      "register_data": 9,
+      "label": "column 4 assign north neighbor of chip at (4,0)",
+      "event": "config_applied",
       "chip_id": 9
     },
     {
       "tick": 10085,
       "x": 4,
       "y": 1,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 4 downstream return enable for chip at (4,1)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 11052,
       "x": 4,
       "y": 1,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 4 north-only propagation enable for chip at (4,1)",
+      "event": "config_applied",
       "up_mask": 1
     },
     {
       "tick": 11118,
       "x": 4,
       "y": 2,
+      "register_addr": 122,
+      "register_data": 14,
+      "label": "column 4 assign north neighbor of chip at (4,1)",
+      "event": "config_applied",
       "chip_id": 14
     },
     {
       "tick": 11184,
       "x": 4,
       "y": 2,
+      "register_addr": 125,
+      "register_data": 4,
+      "label": "column 4 downstream return enable for chip at (4,2)",
+      "event": "config_applied",
       "down_mask": 4
     },
     {
       "tick": 12301,
       "x": 1,
       "y": 0,
+      "register_addr": 122,
+      "register_data": 1,
+      "label": "cleanup remap 254 -> 1 at (1,0)",
+      "event": "config_applied",
       "chip_id": 1
     }
   ],

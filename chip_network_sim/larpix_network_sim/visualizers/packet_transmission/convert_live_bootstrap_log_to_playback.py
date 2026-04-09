@@ -240,7 +240,15 @@ def main() -> int:
         data = decoded.get('register_data')
         if frame['type'] == 'write' and reg is not None and data is not None:
             c = chip(grid, target)
-            update = {'tick': tx_end, 'x': target[0], 'y': target[1]}
+            update = {
+                'tick': tx_end,
+                'x': target[0],
+                'y': target[1],
+                'register_addr': int(reg),
+                'register_data': int(data),
+                'label': frame.get('label', ''),
+                'event': 'config_applied',
+            }
             if reg == CHIP_ID_REG:
                 c.chip_id = int(data)
                 update['chip_id'] = c.chip_id
