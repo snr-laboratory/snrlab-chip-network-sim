@@ -48,6 +48,9 @@ typedef struct {
     const char *backend;
     const char *stimulus_json;
     const char *startup_json;
+    const char *occupancy_csv;
+    int         occupancy_runtime_id;
+    uint64_t    occupancy_tick_start;
     const char *base_uri;
     int         source_x;
     int         source_y;
@@ -75,6 +78,9 @@ usage(const char *prog)
         "  -backend <name>         chip backend (default cosim)\n"
         "  -stimulus_json <path>   charge stimulus JSON passed to each chip\n"
         "  -startup_json <path>    compiled startup schedule JSON passed to the FPGA controller\n"
+        "  -occupancy_csv <path>   write chip occupancy CSV for one runtime\n"
+        "  -occupancy_runtime_id <N> runtime_id that writes occupancy CSV\n"
+        "  -occupancy_tick_start <N> first tick included in occupancy CSV\n"
         "  -source_x <N>           source-chip x coordinate on bottom row (default 0)\n"
         "  -source_y <N>           source-chip y coordinate (default 0, must be 0 when startup_json is used)\n"
         "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default unique per run)\n",
@@ -140,6 +146,9 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
     opts->backend = "cosim";
     opts->stimulus_json = NULL;
     opts->startup_json = NULL;
+    opts->occupancy_csv = NULL;
+    opts->occupancy_runtime_id = -1;
+    opts->occupancy_tick_start = 0;
     opts->base_uri = NULL;
     opts->source_x = 0;
     opts->source_y = 0;
@@ -179,6 +188,16 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
             opts->stimulus_json = argv[++i];
         } else if (strcmp(argv[i], "-startup_json") == 0 && i + 1 < argc) {
             opts->startup_json = argv[++i];
+        } else if (strcmp(argv[i], "-occupancy_csv") == 0 && i + 1 < argc) {
+            opts->occupancy_csv = argv[++i];
+        } else if (strcmp(argv[i], "-occupancy_runtime_id") == 0 && i + 1 < argc) {
+            if (parse_int(argv[++i], &opts->occupancy_runtime_id) != 0) {
+                return -1;
+            }
+        } else if (strcmp(argv[i], "-occupancy_tick_start") == 0 && i + 1 < argc) {
+            if (parse_u64(argv[++i], &opts->occupancy_tick_start) != 0) {
+                return -1;
+            }
         } else if (strcmp(argv[i], "-base_uri") == 0 && i + 1 < argc) {
             opts->base_uri = argv[++i];
         } else if (strcmp(argv[i], "-source_x") == 0 && i + 1 < argc) {
@@ -315,13 +334,15 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     char id_s[32], seed_s[32], timeout_s[32];
     char north_in[128], east_in[128], south_in[128], west_in[128];
     char north_out[128], east_out[128], south_out[128], west_out[128];
-    char *argv_exec[46];
+    char occupancy_tick_start_s[32];
+    char *argv_exec[52];
     int idx = 0;
     const bool attach_fpga = (opts->startup_json != NULL && runtime_id == source_chip_id);
 
     snprintf(id_s, sizeof(id_s), "%d", runtime_id);
     snprintf(seed_s, sizeof(seed_s), "%u", (unsigned)(opts->seed + (uint32_t)runtime_id));
     snprintf(timeout_s, sizeof(timeout_s), "%d", opts->ack_timeout_ms);
+    snprintf(occupancy_tick_start_s, sizeof(occupancy_tick_start_s), "%" PRIu64, opts->occupancy_tick_start);
 
     if (build_endpoint_url(north_out, sizeof(north_out), edge_prefix,
             edge_output_port(edge_port_base, runtime_id, LARPIX_EDGE_NORTH)) != 0 ||
@@ -404,6 +425,12 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     if (opts->stimulus_json != NULL) {
         argv_exec[idx++] = "-stimulus_json";
         argv_exec[idx++] = (char *)opts->stimulus_json;
+    }
+    if (opts->occupancy_csv != NULL && opts->occupancy_runtime_id == runtime_id) {
+        argv_exec[idx++] = "-occupancy_csv";
+        argv_exec[idx++] = (char *)opts->occupancy_csv;
+        argv_exec[idx++] = "-occupancy_tick_start";
+        argv_exec[idx++] = occupancy_tick_start_s;
     }
     argv_exec[idx++] = NULL;
 

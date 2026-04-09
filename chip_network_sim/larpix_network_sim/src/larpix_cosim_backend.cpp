@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "Vdigital_core.h"
+#include "Vdigital_core___024root.h"
+#include "Vdigital_core_channel_ctrl.h"
 #include "verilated.h"
 
 namespace {
@@ -38,6 +40,7 @@ class CosimBackend {
         out->rx_packet_count = 0;
         out->local_event_count = 0;
         out->drop_count = 0;
+        sample_fifo_occupancy(out);
         return 0;
     }
 
@@ -114,6 +117,88 @@ class CosimBackend {
         for (int edge = 0; edge < LARPIXSIM_EDGE_COUNT; ++edge) {
             out->tx_bit_valid[edge] = (tx_enable >> edge) & 1u;
             out->tx_bit_value[edge] = (piso >> edge) & 1u;
+        }
+    }
+
+    std::array<Vdigital_core_channel_ctrl*, LARPIXSIM_CHANNEL_COUNT> channel_ctrls() {
+        return {
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__0__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__1__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__2__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__3__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__4__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__5__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__6__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__7__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__8__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__9__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__10__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__11__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__12__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__13__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__14__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__15__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__16__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__17__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__18__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__19__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__20__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__21__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__22__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__23__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__24__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__25__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__26__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__27__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__28__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__29__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__30__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__31__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__32__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__33__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__34__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__35__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__36__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__37__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__38__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__39__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__40__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__41__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__42__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__43__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__44__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__45__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__46__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__47__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__48__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__49__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__50__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__51__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__52__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__53__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__54__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__55__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__56__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__57__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__58__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__59__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__60__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__61__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__62__KET____DOT__channel_ctrl_inst,
+            dut_.__PVT__digital_core__DOT__g_channels__BRA__63__KET____DOT__channel_ctrl_inst
+        };
+    }
+
+    void sample_fifo_occupancy(larpixsim_backend_tick_outputs_t* out) {
+        out->chip_fifo_occupancy = static_cast<uint32_t>(dut_.rootp->digital_core__DOT__external_interface_inst__DOT__hydra_ctrl_inst__DOT__fifo_counter);
+
+        auto channels = channel_ctrls();
+        for (int i = 0; i < 5; ++i) {
+            out->channel_fifo_occupancy[i] = static_cast<uint32_t>(channels[static_cast<std::size_t>(i)]->__PVT__local_fifo_counter);
+        }
+        for (std::size_t i = 0; i < channels.size(); ++i) {
+            out->channel_fifo_occupancy_all[i] = static_cast<uint32_t>(channels[i]->__PVT__local_fifo_counter);
+            out->channel_packet_generated[i] = channels[i]->__PVT__write_local_fifo_n ? 0u : 1u;
         }
     }
 

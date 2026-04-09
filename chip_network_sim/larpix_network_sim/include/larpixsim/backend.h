@@ -21,6 +21,10 @@ typedef struct {
     uint64_t rx_packet_count;
     uint64_t local_event_count;
     uint64_t drop_count;
+    uint32_t chip_fifo_occupancy;
+    uint32_t channel_fifo_occupancy[5];
+    uint32_t channel_fifo_occupancy_all[LARPIXSIM_CHANNEL_COUNT];
+    uint8_t  channel_packet_generated[LARPIXSIM_CHANNEL_COUNT];
 } larpixsim_backend_tick_outputs_t;
 
 struct larpixsim_backend_vtbl {

@@ -1,0 +1,397 @@
+// 3x5 analog/cosim event test stimulus.
+//
+// After the 3x5 network bootstrap and the remote chip configuration writes
+// complete, inject one charge pulse into every channel of the top-right chip
+// at (4,2), which has runtime_id 14 in the current row-major runtime ordering.
+//
+// The paired run script uses these simultaneous injections to measure the
+// channel-level FIFO occupancy for channels 0-4 and the chip-level FIFO
+// occupancy on chip 14 as a function of tick, starting at the injection tick.
+{
+  "charges": [
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 0,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 1,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 2,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 3,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 4,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 5,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 6,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 7,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 8,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 9,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 10,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 11,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 12,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 13,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 14,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 15,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 16,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 17,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 18,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 19,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 20,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 21,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 22,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 23,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 24,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 25,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 26,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 27,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 28,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 29,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 30,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 31,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 32,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 33,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 34,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 35,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 36,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 37,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 38,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 39,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 40,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 41,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 42,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 43,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 44,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 45,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 46,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 47,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 48,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 49,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 50,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 51,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 52,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 53,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 54,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 55,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 56,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 57,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 58,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 59,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 60,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 61,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 62,
+      "charge": -5.0e-15
+    },
+    {
+      "runtime_id": 14,
+      "tick": 9800,
+      "channel": 63,
+      "charge": -5.0e-15
+    }
+  ]
+}

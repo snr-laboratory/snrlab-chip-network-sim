@@ -128,3 +128,35 @@ Observed passing result:
 - `adc=355`
 - `downstream=1`
 - `trigger_type=0`
+
+
+## 3x5 Remote Analog/Cosim Event And Occupancy Test
+
+This live-network event test extends the single-chip analog check to a `3`-row by `5`-column network with source chip `(0,0)`. The startup sequence bootstraps `CHIP_ID` assignment across the network without the per-assignment confirmation reads, then configures the remote top-right chip `(4,2)` with final `chip_id=14` so that all `64` channels can emit natural event packets after simultaneous charge injection. The same live run also records FIFO occupancy directly from the RTL-backed chip runtime for chip `14`, including the shared chip FIFO and the local channel FIFO counters for channels `0..4`.
+
+File flow:
+- [`generate_bootstrap_event_startup_json.py`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/scripts/generate_bootstrap_event_startup_json.py) builds the startup schedule by reusing the bootstrap assignment logic from [`generate_bootstrap_chip_id_readback_json.py`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/scripts/generate_bootstrap_chip_id_readback_json.py), removing the bootstrap readbacks for this shorter event testbench, then appending the remote-chip configuration writes needed for the analog hit test on all `64` channels.
+- [`startup_3x5_event_top_right.json`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/config/startup_3x5_event_top_right.json) is the generated startup sequence for the `3x5`, `s=0` case targeting chip `(4,2)`. It writes all eight `CSA_ENABLE` bytes to `0xFF`, all eight `CHANNEL_MASK` bytes to `0x00`, and `ENABLE_TRIG_MODES` to `0x00` on chip `14` after bootstrap is complete.
+- [`compile_startup_json.py`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/scripts/compile_startup_json.py) converts that startup JSON into the compiled UART frame schedule for the FPGA controller.
+- [`stimulus_3x5_event_top_right.json`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/config/stimulus_3x5_event_top_right.json) injects one charge pulse into all `64` channels of runtime `14` at tick `9000`.
+- [`orchestrator_larpix.c`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/src/orchestrator_larpix.c) now accepts `-occupancy_csv`, `-occupancy_runtime_id`, and `-occupancy_tick_start` and forwards them only to the selected runtime.
+- [`chip_larpix.cpp`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/src/chip_larpix.cpp) now writes `tick,chip_fifo,ch0_fifo,ch1_fifo,ch2_fifo,ch3_fifo,ch4_fifo` CSV rows beginning at the requested tick, using the live cosim backend FIFO counters.
+- [`larpix_cosim_backend.cpp`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/src/larpix_cosim_backend.cpp) samples the shared chip FIFO occupancy and the channel FIFO occupancy for channels `0..4` on every tick.
+- [`run_3x5_event_top_right.sh`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/larpix_network_sim/scripts/run_3x5_event_top_right.sh) regenerates the startup JSON, compiles it, launches the live network with the shared stimulus JSON, requests occupancy logging for runtime `14` from the injection tick, generates a PNG occupancy plot, and checks that the FPGA receives downstream event packets from chip `14`.
+- The live run writes:
+  - occupancy CSV: [`chip14_occupancy.csv`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/build/larpix_3x5_event_top_right/chip14_occupancy.csv)
+  - occupancy plot: [`chip14_occupancy.png`](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/build/larpix_3x5_event_top_right/chip14_occupancy.png)
+
+Observed passing result:
+- `PASS: 3x5 LArPix analog/cosim remote all-channel occupancy test`
+- `expected_frame_count=63`
+- `observed_transmitted_frame_count=63`
+- `occupancy_samples=7380`
+- `peak_chip_fifo=8`
+- `peak_ch0_fifo=1`
+- `peak_ch4_fifo=1`
+- `distinct_event_channels=14`
+- `observed_event_channels=1,2,3,4,5,6,7,41,42,43,44,45,46,47`
+- `first_matching_reply_packet=0x5058c80023260439`
+- `first_matching_chip_id=14 channel_id=1 adc=355 downstream=1 trigger_type=0`
+

@@ -60,6 +60,8 @@ typedef struct {
     const char *trace_file;
     const char *backend_name;
     const char *stimulus_json;
+    const char *occupancy_csv;
+    uint64_t    occupancy_tick_start;
     const char *in_url[LARPIXSIM_EDGE_COUNT];
     const char *out_url[LARPIXSIM_EDGE_COUNT];
 } chip_options_t;
@@ -144,6 +146,8 @@ usage(const char *prog)
         "  -south_out_url <URI|-1>    south output bit service\n"
         "  -west_out_url <URI|-1>     west output bit service\n"
         "  -stimulus_json <path>      charge stimulus configuration\n"
+        "  -occupancy_csv <path>      optional FIFO occupancy CSV output\n"
+        "  -occupancy_tick_start <N>  first tick included in occupancy CSV (default 0)\n"
         "  -data_timeout_ms <N>       edge pull timeout in ms (default 5000)\n"
         "  -seed <N>                  RNG seed / backend seed (default 1)\n"
         "  -trace_file <path>         optional binary trace output path\n",
@@ -183,6 +187,21 @@ parse_u32(const char *value, uint32_t *out)
     return 0;
 }
 
+static int
+parse_u64(const char *value, uint64_t *out)
+{
+    unsigned long long v;
+    char              *end;
+
+    errno = 0;
+    v     = strtoull(value, &end, 10);
+    if (errno != 0 || end == value || *end != '\0') {
+        return -1;
+    }
+    *out = (uint64_t)v;
+    return 0;
+}
+
 static const char *
 parse_edge_url_arg(const char *value)
 {
@@ -201,6 +220,7 @@ parse_args(int argc, char **argv, chip_options_t *opts)
     opts->clock_url       = CHIPSIM_DEFAULT_CLOCK_URL;
     opts->metric_url      = CHIPSIM_DEFAULT_METRIC_URL;
     opts->backend_name    = "cosim";
+    opts->occupancy_tick_start = 0;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-id") == 0 && i + 1 < argc) {
@@ -231,6 +251,12 @@ parse_args(int argc, char **argv, chip_options_t *opts)
             opts->out_url[LARPIX_EDGE_WEST] = parse_edge_url_arg(argv[++i]);
         } else if (strcmp(argv[i], "-stimulus_json") == 0 && i + 1 < argc) {
             opts->stimulus_json = argv[++i];
+        } else if (strcmp(argv[i], "-occupancy_csv") == 0 && i + 1 < argc) {
+            opts->occupancy_csv = argv[++i];
+        } else if (strcmp(argv[i], "-occupancy_tick_start") == 0 && i + 1 < argc) {
+            if (parse_u64(argv[++i], &opts->occupancy_tick_start) != 0) {
+                return -1;
+            }
         } else if (strcmp(argv[i], "-data_timeout_ms") == 0 && i + 1 < argc) {
             if (parse_int(argv[++i], &opts->data_timeout_ms) != 0 || opts->data_timeout_ms <= 0) {
                 return -1;
@@ -664,6 +690,30 @@ load_charge_stimulus(const std::vector<stimulus_event_t> &events, uint64_t seq, 
     }
 }
 
+static std::string
+channel_generation_summary_path(const char *occupancy_csv)
+{
+    std::string path = occupancy_csv != NULL ? std::string(occupancy_csv) : std::string();
+    if (path.size() >= 4 && path.substr(path.size() - 4) == ".csv") {
+        path.replace(path.size() - 4, 4, "_channel_generation.csv");
+    } else {
+        path += ".channel_generation.csv";
+    }
+    return path;
+}
+
+static std::string
+channel_fifo_detail_path(const char *occupancy_csv)
+{
+    std::string path = occupancy_csv != NULL ? std::string(occupancy_csv) : std::string();
+    if (path.size() >= 4 && path.substr(path.size() - 4) == ".csv") {
+        path.replace(path.size() - 4, 4, "_channel_fifo_detail.csv");
+    } else {
+        path += ".channel_fifo_detail.csv";
+    }
+    return path;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -684,6 +734,11 @@ main(int argc, char **argv)
     uint8_t                published_bits[LARPIXSIM_EDGE_COUNT]  = {0, 0, 0, 0};
     chipsim_trace_writer_t trace;
     std::vector<stimulus_event_t> stimulus_events;
+    FILE                  *occupancy_csv = NULL;
+    FILE                  *channel_fifo_detail_csv = NULL;
+    std::string            channel_generation_csv_path;
+    std::string            channel_fifo_detail_csv_path;
+    uint64_t               channel_generation_count[LARPIXSIM_CHANNEL_COUNT] = {0};
     int                    edge;
     int                    rv;
     int                    exit_code = 1;
@@ -705,6 +760,26 @@ main(int argc, char **argv)
     }
     if (load_stimulus_events(&opts, &stimulus_events) != 0) {
         return 1;
+    }
+    if (opts.occupancy_csv != NULL) {
+        channel_generation_csv_path = channel_generation_summary_path(opts.occupancy_csv);
+        channel_fifo_detail_csv_path = channel_fifo_detail_path(opts.occupancy_csv);
+        occupancy_csv = fopen(opts.occupancy_csv, "w");
+        if (occupancy_csv == NULL) {
+            fprintf(stderr, "chip_larpix[%d] failed to open occupancy csv %s\n", opts.id, opts.occupancy_csv);
+            return 1;
+        }
+        fprintf(occupancy_csv, "tick,chip_fifo,ch0_fifo,ch1_fifo,ch2_fifo,ch3_fifo,ch4_fifo\n");
+        channel_fifo_detail_csv = fopen(channel_fifo_detail_csv_path.c_str(), "w");
+        if (channel_fifo_detail_csv == NULL) {
+            fprintf(stderr, "chip_larpix[%d] failed to open detailed channel fifo csv %s\n", opts.id, channel_fifo_detail_csv_path.c_str());
+            return 1;
+        }
+        fprintf(channel_fifo_detail_csv, "tick");
+        for (int channel = 0; channel < LARPIXSIM_CHANNEL_COUNT; ++channel) {
+            fprintf(channel_fifo_detail_csv, ",ch%d_fifo", channel);
+        }
+        fprintf(channel_fifo_detail_csv, "\n");
     }
 
     init_err = nng_init(NULL);
@@ -881,6 +956,30 @@ main(int argc, char **argv)
         }
         metrics.local_event_count += out.local_event_count;
         metrics.drop_count += out.drop_count;
+        if (out.chip_fifo_occupancy > metrics.fifo_peak) {
+            metrics.fifo_peak = out.chip_fifo_occupancy;
+        }
+        if (occupancy_csv != NULL && tick.seq >= opts.occupancy_tick_start) {
+            fprintf(occupancy_csv,
+                "%" PRIu64 ",%u,%u,%u,%u,%u,%u\n",
+                tick.seq,
+                out.chip_fifo_occupancy,
+                out.channel_fifo_occupancy[0],
+                out.channel_fifo_occupancy[1],
+                out.channel_fifo_occupancy[2],
+                out.channel_fifo_occupancy[3],
+                out.channel_fifo_occupancy[4]);
+        }
+        if (channel_fifo_detail_csv != NULL && tick.seq >= opts.occupancy_tick_start) {
+            fprintf(channel_fifo_detail_csv, "%" PRIu64, tick.seq);
+            for (int channel = 0; channel < LARPIXSIM_CHANNEL_COUNT; ++channel) {
+                fprintf(channel_fifo_detail_csv, ",%u", out.channel_fifo_occupancy_all[channel]);
+            }
+            fprintf(channel_fifo_detail_csv, "\n");
+        }
+        for (int channel = 0; channel < LARPIXSIM_CHANNEL_COUNT; ++channel) {
+            channel_generation_count[channel] += out.channel_packet_generated[channel] ? 1u : 0u;
+        }
 
         if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
             goto cleanup;
@@ -920,6 +1019,24 @@ cleanup:
     }
     if (nng_socket_id(control_rep) > 0) {
         nng_socket_close(control_rep);
+    }
+    if (!channel_generation_csv_path.empty()) {
+        FILE *summary_fp = fopen(channel_generation_csv_path.c_str(), "w");
+        if (summary_fp != NULL) {
+            fprintf(summary_fp, "channel,generated_count,generated_any\n");
+            for (int channel = 0; channel < LARPIXSIM_CHANNEL_COUNT; ++channel) {
+                fprintf(summary_fp, "%d,%" PRIu64 ",%u\n", channel, channel_generation_count[channel], channel_generation_count[channel] > 0 ? 1u : 0u);
+            }
+            fclose(summary_fp);
+        } else {
+            fprintf(stderr, "chip_larpix[%d] failed to open channel generation summary %s\n", opts.id, channel_generation_csv_path.c_str());
+        }
+    }
+    if (channel_fifo_detail_csv != NULL) {
+        fclose(channel_fifo_detail_csv);
+    }
+    if (occupancy_csv != NULL) {
+        fclose(occupancy_csv);
     }
     chipsim_trace_close(&trace);
     larpixsim_backend_destroy(&backend);
