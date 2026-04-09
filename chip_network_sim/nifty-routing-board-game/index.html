@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Routing Board Game</title>
+<style>
+  html,body {margin:0;height:100%}
+  body {background:#111}
+  #hud {position:fixed;left:8px;top:8px;color:#cfcfd4;font:12px/1.35 -apple-system,Segoe UI,Arial,sans-serif;background:rgba(0,0,0,0.28);padding:8px 10px;border-radius:6px;max-width:360px}
+  #hud h2 {margin:0 0 6px 0;font:600 12px/1.2 -apple-system,Segoe UI,Arial,sans-serif;color:#e6e6ea}
+  #hud ul {margin:6px 0 0 16px;padding:0}
+  #hud li {margin:2px 0}
+  .kbd {padding:1px 4px;border-radius:3px;background:#222;color:#ddd;border:1px solid #333;font:11px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .sep {opacity:.6}
+  .small {font-size:11px}
+  canvas {width:100vw;height:100vh;display:block}
+</style>
+<div id="hud">
+  <h2>Routing Board Game</h2>
+  <div class="small">Set each tile's arrow to route all pieces to the top output in the fewest turns — lower score wins.</div>
+  <div class="small">Mode: <span id="mode">Placement</span> <span class="sep">•</span> <span class="kbd">M</span> toggle mode</div>
+  <h2>Objective</h2>
+  <ul>
+    <li>Route all pieces to the top output tile in as few <b>turns</b> as possible.</li>
+    <li><b>Score</b> = Turns + 2 × Eaten (lower is better).</li>
+  </ul>
+  <h2>Modes</h2>
+  <ul>
+    <li><b>Placement</b>: click tiles to add/remove pieces (one per tile).</li>
+    <li><b>Routing</b>: click tiles to set the <b>arrow direction</b>; <span class="kbd">Shift</span>+Click cycles the direction backward.</li>
+  </ul>
+  <h2>Rules</h2>
+  <ul>
+    <li>Every turn, each piece moves one tile along its cell’s arrow.</li>
+    <li>Pieces on the output tile are removed at the start of the next turn.</li>
+    <li>Collisions: if multiple pieces enter a tile, one survives (shown <span class="kbd">red</span> that turn), others are eaten (+2 score each).</li>
+  </ul>
+  <h2>Controls</h2>
+  <ul>
+    <li><span class="kbd">Space</span> run/pause • <span class="kbd">S</span> step • <span class="kbd">Z</span> step back</li>
+    <li><span class="kbd">R</span> reset • <span class="kbd">C</span> clear pieces • <span class="kbd">D</span> clear routes</li>
+    <li><span class="kbd">F</span> fill routes (row funnel) • <span class="kbd">G</span> fill routes (column funnel)</li>
+    <li><span class="kbd">1</span>…<span class="kbd">9</span> (<span class="kbd">0</span>=10) place that many pieces randomly</li>
+  </ul>
+</div>
+<canvas id="c"></canvas>
+<script type="module" src="main.js"></script>
