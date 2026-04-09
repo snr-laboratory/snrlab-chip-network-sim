@@ -1,4 +1,12 @@
-## Why Didn't The Chip FIFO Immediately Overrun?
+This live-network simulation was for a 3x5 network of LArPix chips where Chip 14 had its natural trigger mode enabled and an identical charge (sufficient to meet the CSA threshold) was injected into each of the 64 channel inputs. The following plots show the occupancy of both the channel-local FIFOs and the shared chip FIFO on Chip 14.  
+
+## Occupancy Plots
+
+#### Full occupancy plot:
+
+![Full occupancy plot](./figures/chip14_occupancy.png)
+
+#### Why Didn't The Chip FIFO Immediately Overrun?
 
 After the charge-injection timing was corrected so that all configuration writes had completed before injection, all `64` channels on chip `14` did generate local data packets. The observed result was:
 
@@ -13,12 +21,6 @@ So the result is consistent with:
 - `64` channels generating packets
 - one packet already being dequeued by Hydra while the remaining `63` are still queued
 
-
-## Occupancy Plots
-
-#### Full occupancy plot:
-
-![Full occupancy plot](./figures/chip14_occupancy.png)
 
 #### Filling chip FIFO:
 
@@ -43,3 +45,6 @@ This is a real RTL timing effect, not a plotting artifact.
 #### Chip FIFO emptying (ticks 1350 to 14300):
 
 ![Mid-range occupancy plot](./figures/chip14_occupancy_zoom_mid.png)
+
+Every 69 ticks, a packet exits the chip FIFO and enters the Hydra TX data path and then into the selected UART transmitter. This plot shows on what tick the packet exits the FIFO (which is not the tick on which it exits the chip). It takes about 69 ticks to pull the following data packet out of the chip FIFO for data transmission because the packets are transmitted serially. They also have 1 start bit (0) and 1 stop bit (1). Additionally, it takes about 3 ticks for te Hydra to (1) change its state from `IDLE` to `TX_GET_FIFO` (2) perform the FIFO read (3) load the packet into the UART TX block. This accounts for the 69 ticks between dequeuing of the chip FIFO. 
+
