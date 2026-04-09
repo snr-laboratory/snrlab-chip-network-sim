@@ -34,8 +34,8 @@ This is a real RTL timing effect, not a plotting artifact.
 
 Full occupancy plot:
 
-![Full occupancy plot](../../build/larpix_3x5_event_top_right/chip14_occupancy.png)
+![Full occupancy plot](./figures/chip14_occupancy.png)
 
 Zoomed occupancy plot:
 
-![Zoomed occupancy plot](../../build/larpix_3x5_event_top_right/chip14_occupancy_zoom.png)
+![Zoomed occupancy plot](./figures/chip14_occupancy_zoom.png)
