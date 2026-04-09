@@ -39,3 +39,7 @@ Full occupancy plot:
 Zoomed occupancy plot:
 
 ![Zoomed occupancy plot](./figures/chip14_occupancy_zoom.png)
+
+Additional zoomed plot (ticks 1350 to 14300):
+
+![Mid-range occupancy plot](./figures/chip14_occupancy_zoom_mid.png)
