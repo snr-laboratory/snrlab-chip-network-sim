@@ -1,0 +1,114 @@
+{
+  "name": "3x5 Bootstrap Demo",
+  "rows": 3,
+  "cols": 5,
+  "ticks": [
+    {
+      "tick": 0,
+      "chips": [
+        {"x":0,"y":0,"chip_id":0,"up_mask":2,"down_mask":4},
+        {"x":1,"y":0,"chip_id":1,"up_mask":2,"down_mask":0},
+        {"x":2,"y":0,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":3,"y":0,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":4,"y":0,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":0,"y":1,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":1,"y":1,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":2,"y":1,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":3,"y":1,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":4,"y":1,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":0,"y":2,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":1,"y":2,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":2,"y":2,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":3,"y":2,"chip_id":1,"up_mask":0,"down_mask":0},
+        {"x":4,"y":2,"chip_id":1,"up_mask":0,"down_mask":0}
+      ],
+      "events": []
+    },
+    {
+      "tick": 1,
+      "events": [
+        {
+          "type": "packet_move",
+          "packet_type": "config_write",
+          "src": [0,0],
+          "dst": [1,0],
+          "edge": "east",
+          "packet_word": "0x822541391ffce806",
+          "label": "assign placeholder 254"
+        }
+      ]
+    },
+    {
+      "tick": 2,
+      "chips": [
+        {"x":1,"y":0,"chip_id":254,"up_mask":2,"down_mask":8}
+      ],
+      "events": [
+        {
+          "type": "packet_move",
+          "packet_type": "config_read_reply",
+          "src": [1,0],
+          "dst": [0,0],
+          "edge": "west",
+          "packet_word": "0x422541391cffebfb",
+          "label": "readback 254"
+        }
+      ]
+    },
+    {
+      "tick": 3,
+      "chips": [
+        {"x":0,"y":0,"chip_id":0,"up_mask":3,"down_mask":4}
+      ],
+      "events": [
+        {
+          "type": "packet_move",
+          "packet_type": "config_write",
+          "src": [0,0],
+          "dst": [0,1],
+          "edge": "north",
+          "packet_word": "0x022541391c29e806",
+          "label": "assign chip 5"
+        }
+      ]
+    },
+    {
+      "tick": 4,
+      "chips": [
+        {"x":0,"y":1,"chip_id":5,"up_mask":1,"down_mask":4}
+      ],
+      "events": [
+        {
+          "type": "packet_move",
+          "packet_type": "config_read_reply",
+          "src": [0,1],
+          "dst": [0,0],
+          "edge": "south",
+          "packet_word": "0x422541391c15e817",
+          "label": "readback 5"
+        }
+      ]
+    },
+    {
+      "tick": 5,
+      "chips": [
+        {"x":0,"y":0,"chip_id":0,"up_mask":3,"down_mask":4},
+        {"x":1,"y":0,"chip_id":1,"up_mask":3,"down_mask":8},
+        {"x":2,"y":0,"chip_id":2,"up_mask":3,"down_mask":8},
+        {"x":3,"y":0,"chip_id":3,"up_mask":3,"down_mask":8},
+        {"x":4,"y":0,"chip_id":4,"up_mask":1,"down_mask":8},
+        {"x":0,"y":1,"chip_id":5,"up_mask":1,"down_mask":4},
+        {"x":1,"y":1,"chip_id":6,"up_mask":1,"down_mask":4},
+        {"x":2,"y":1,"chip_id":7,"up_mask":1,"down_mask":4},
+        {"x":3,"y":1,"chip_id":8,"up_mask":1,"down_mask":4},
+        {"x":4,"y":1,"chip_id":9,"up_mask":1,"down_mask":4},
+        {"x":0,"y":2,"chip_id":10,"up_mask":0,"down_mask":4},
+        {"x":1,"y":2,"chip_id":11,"up_mask":0,"down_mask":4},
+        {"x":2,"y":2,"chip_id":12,"up_mask":0,"down_mask":4},
+        {"x":3,"y":2,"chip_id":13,"up_mask":0,"down_mask":4},
+        {"x":4,"y":2,"chip_id":14,"up_mask":0,"down_mask":4}
+      ],
+      "events": []
+    }
+  ]
+}

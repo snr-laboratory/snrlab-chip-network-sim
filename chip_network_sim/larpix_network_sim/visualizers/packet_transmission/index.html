@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LArPix Packet Transmission Visualizer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="hud">
+    <h1>LArPix Packet Visualizer</h1>
+    <div id="scenario">Scenario: loading...</div>
+    <div id="status">Tick: 0 / 0</div>
+    <div id="selection">Selection: none</div>
+    <div class="sep"></div>
+    <div class="controls">
+      <button id="playPause">Play</button>
+      <button id="stepBack">Step Back</button>
+      <button id="stepForward">Step</button>
+      <button id="reset">Reset</button>
+    </div>
+    <label class="row">
+      <span>Speed</span>
+      <input id="speed" type="range" min="1" max="20" value="6">
+    </label>
+    <label class="row">
+      <span>Tick</span>
+      <input id="scrubber" type="range" min="0" max="0" value="0">
+    </label>
+    <label class="row">
+      <span>Load JSON</span>
+      <input id="fileInput" type="file" accept="application/json,.json">
+    </label>
+    <div class="sep"></div>
+    <div class="small">Keys: <kbd>Space</kbd> play/pause, <kbd>S</kbd> step, <kbd>Z</kbd> step back, <kbd>R</kbd> reset</div>
+    <div class="small">Colors: <span class="swatch up"></span> upstream lane, <span class="swatch down"></span> downstream lane, <span class="swatch packet"></span> packet motion</div>
+  </aside>
+  <canvas id="board"></canvas>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

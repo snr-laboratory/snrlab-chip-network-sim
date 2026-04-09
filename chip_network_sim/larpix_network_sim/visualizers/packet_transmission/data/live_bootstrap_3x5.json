@@ -1,0 +1,4043 @@
+{
+  "name": "Live bootstrap 3x5 s=0",
+  "rows": 3,
+  "cols": 5,
+  "source": {
+    "x": 0,
+    "y": 0
+  },
+  "total_ticks": 12648,
+  "initial_chips": [
+    {
+      "x": 0,
+      "y": 0,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 4
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "chip_id": 1,
+      "up_mask": 0,
+      "down_mask": 0
+    }
+  ],
+  "chip_updates": [
+    {
+      "tick": 85,
+      "x": 0,
+      "y": 0,
+      "chip_id": 0
+    },
+    {
+      "tick": 205,
+      "x": 0,
+      "y": 0,
+      "down_mask": 4
+    },
+    {
+      "tick": 470,
+      "x": 0,
+      "y": 0,
+      "up_mask": 2
+    },
+    {
+      "tick": 565,
+      "x": 1,
+      "y": 0,
+      "chip_id": 254
+    },
+    {
+      "tick": 685,
+      "x": 1,
+      "y": 0,
+      "down_mask": 8
+    },
+    {
+      "tick": 1100,
+      "x": 1,
+      "y": 0,
+      "up_mask": 2
+    },
+    {
+      "tick": 1166,
+      "x": 2,
+      "y": 0,
+      "chip_id": 2
+    },
+    {
+      "tick": 1232,
+      "x": 2,
+      "y": 0,
+      "down_mask": 8
+    },
+    {
+      "tick": 1749,
+      "x": 2,
+      "y": 0,
+      "up_mask": 2
+    },
+    {
+      "tick": 1815,
+      "x": 3,
+      "y": 0,
+      "chip_id": 3
+    },
+    {
+      "tick": 1881,
+      "x": 3,
+      "y": 0,
+      "down_mask": 8
+    },
+    {
+      "tick": 2548,
+      "x": 3,
+      "y": 0,
+      "up_mask": 2
+    },
+    {
+      "tick": 2614,
+      "x": 4,
+      "y": 0,
+      "chip_id": 4
+    },
+    {
+      "tick": 2680,
+      "x": 4,
+      "y": 0,
+      "down_mask": 8
+    },
+    {
+      "tick": 3497,
+      "x": 0,
+      "y": 0,
+      "up_mask": 3
+    },
+    {
+      "tick": 3563,
+      "x": 0,
+      "y": 0,
+      "down_mask": 4
+    },
+    {
+      "tick": 3629,
+      "x": 0,
+      "y": 1,
+      "chip_id": 5
+    },
+    {
+      "tick": 3695,
+      "x": 0,
+      "y": 1,
+      "down_mask": 4
+    },
+    {
+      "tick": 4060,
+      "x": 0,
+      "y": 1,
+      "up_mask": 1
+    },
+    {
+      "tick": 4126,
+      "x": 0,
+      "y": 2,
+      "chip_id": 10
+    },
+    {
+      "tick": 4192,
+      "x": 0,
+      "y": 2,
+      "down_mask": 4
+    },
+    {
+      "tick": 4709,
+      "x": 1,
+      "y": 0,
+      "up_mask": 3
+    },
+    {
+      "tick": 4775,
+      "x": 1,
+      "y": 1,
+      "chip_id": 6
+    },
+    {
+      "tick": 4841,
+      "x": 1,
+      "y": 1,
+      "down_mask": 4
+    },
+    {
+      "tick": 5358,
+      "x": 1,
+      "y": 1,
+      "up_mask": 1
+    },
+    {
+      "tick": 5424,
+      "x": 1,
+      "y": 2,
+      "chip_id": 11
+    },
+    {
+      "tick": 5490,
+      "x": 1,
+      "y": 2,
+      "down_mask": 4
+    },
+    {
+      "tick": 6157,
+      "x": 2,
+      "y": 0,
+      "up_mask": 3
+    },
+    {
+      "tick": 6223,
+      "x": 2,
+      "y": 1,
+      "chip_id": 7
+    },
+    {
+      "tick": 6289,
+      "x": 2,
+      "y": 1,
+      "down_mask": 4
+    },
+    {
+      "tick": 6956,
+      "x": 2,
+      "y": 1,
+      "up_mask": 1
+    },
+    {
+      "tick": 7022,
+      "x": 2,
+      "y": 2,
+      "chip_id": 12
+    },
+    {
+      "tick": 7088,
+      "x": 2,
+      "y": 2,
+      "down_mask": 4
+    },
+    {
+      "tick": 7905,
+      "x": 3,
+      "y": 0,
+      "up_mask": 3
+    },
+    {
+      "tick": 7971,
+      "x": 3,
+      "y": 1,
+      "chip_id": 8
+    },
+    {
+      "tick": 8037,
+      "x": 3,
+      "y": 1,
+      "down_mask": 4
+    },
+    {
+      "tick": 8854,
+      "x": 3,
+      "y": 1,
+      "up_mask": 1
+    },
+    {
+      "tick": 8920,
+      "x": 3,
+      "y": 2,
+      "chip_id": 13
+    },
+    {
+      "tick": 8986,
+      "x": 3,
+      "y": 2,
+      "down_mask": 4
+    },
+    {
+      "tick": 9953,
+      "x": 4,
+      "y": 0,
+      "up_mask": 1
+    },
+    {
+      "tick": 10019,
+      "x": 4,
+      "y": 1,
+      "chip_id": 9
+    },
+    {
+      "tick": 10085,
+      "x": 4,
+      "y": 1,
+      "down_mask": 4
+    },
+    {
+      "tick": 11052,
+      "x": 4,
+      "y": 1,
+      "up_mask": 1
+    },
+    {
+      "tick": 11118,
+      "x": 4,
+      "y": 2,
+      "chip_id": 14
+    },
+    {
+      "tick": 11184,
+      "x": 4,
+      "y": 2,
+      "down_mask": 4
+    },
+    {
+      "tick": 12301,
+      "x": 1,
+      "y": 0,
+      "chip_id": 1
+    }
+  ],
+  "packet_spans": [
+    {
+      "start_tick": 500,
+      "end_tick": 566,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391ff9e806",
+      "label": "bottom-row assign east neighbor of chip at (0,0)"
+    },
+    {
+      "start_tick": 620,
+      "end_tick": 686,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f7fa",
+      "label": "bottom-row west downstream enable for chip at (1,0)"
+    },
+    {
+      "start_tick": 740,
+      "end_tick": 806,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01ebfb",
+      "label": "read CHIP_ID from chip 254 at (1,0)"
+    },
+    {
+      "start_tick": 968,
+      "end_tick": 1034,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391ff9ebfb",
+      "label": "read CHIP_ID from chip 254 at (1,0)"
+    },
+    {
+      "start_tick": 860,
+      "end_tick": 926,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09f3fa",
+      "label": "bottom-row east-only upstream enable for chip at (1,0)"
+    },
+    {
+      "start_tick": 980,
+      "end_tick": 1046,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09e806",
+      "label": "bottom-row assign east neighbor of chip at (1,0)"
+    },
+    {
+      "start_tick": 1046,
+      "end_tick": 1112,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09e806",
+      "label": "bottom-row assign east neighbor of chip at (1,0)"
+    },
+    {
+      "start_tick": 1100,
+      "end_tick": 1166,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f40a",
+      "label": "bottom-row west downstream enable for chip at (2,0)"
+    },
+    {
+      "start_tick": 1166,
+      "end_tick": 1232,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f40a",
+      "label": "bottom-row west downstream enable for chip at (2,0)"
+    },
+    {
+      "start_tick": 1220,
+      "end_tick": 1286,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e80b",
+      "label": "read CHIP_ID from chip 2 at (2,0)"
+    },
+    {
+      "start_tick": 1286,
+      "end_tick": 1352,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e80b",
+      "label": "read CHIP_ID from chip 2 at (2,0)"
+    },
+    {
+      "start_tick": 1551,
+      "end_tick": 1617,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c09e80b",
+      "label": "read CHIP_ID from chip 2 at (2,0)"
+    },
+    {
+      "start_tick": 1617,
+      "end_tick": 1683,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c09e80b",
+      "label": "read CHIP_ID from chip 2 at (2,0)"
+    },
+    {
+      "start_tick": 1340,
+      "end_tick": 1406,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09f00a",
+      "label": "bottom-row east-only upstream enable for chip at (2,0)"
+    },
+    {
+      "start_tick": 1406,
+      "end_tick": 1472,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09f00a",
+      "label": "bottom-row east-only upstream enable for chip at (2,0)"
+    },
+    {
+      "start_tick": 1460,
+      "end_tick": 1526,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0de806",
+      "label": "bottom-row assign east neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 1526,
+      "end_tick": 1592,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0de806",
+      "label": "bottom-row assign east neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 1592,
+      "end_tick": 1658,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0de806",
+      "label": "bottom-row assign east neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 1580,
+      "end_tick": 1646,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21f40e",
+      "label": "bottom-row west downstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1646,
+      "end_tick": 1712,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21f40e",
+      "label": "bottom-row west downstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1712,
+      "end_tick": 1778,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21f40e",
+      "label": "bottom-row west downstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1700,
+      "end_tick": 1766,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 1766,
+      "end_tick": 1832,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 1832,
+      "end_tick": 1898,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 2284,
+      "end_tick": 2350,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c0de80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 2350,
+      "end_tick": 2416,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c0de80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 2416,
+      "end_tick": 2482,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c0de80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 1820,
+      "end_tick": 1886,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c09f00e",
+      "label": "bottom-row east-only upstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1886,
+      "end_tick": 1952,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c09f00e",
+      "label": "bottom-row east-only upstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1952,
+      "end_tick": 2018,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c09f00e",
+      "label": "bottom-row east-only upstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1940,
+      "end_tick": 2006,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11e806",
+      "label": "bottom-row assign east neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 2006,
+      "end_tick": 2072,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11e806",
+      "label": "bottom-row assign east neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 2072,
+      "end_tick": 2138,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11e806",
+      "label": "bottom-row assign east neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 2138,
+      "end_tick": 2204,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11e806",
+      "label": "bottom-row assign east neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 2060,
+      "end_tick": 2126,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f412",
+      "label": "bottom-row west downstream enable for chip at (4,0)"
+    },
+    {
+      "start_tick": 2126,
+      "end_tick": 2192,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f412",
+      "label": "bottom-row west downstream enable for chip at (4,0)"
+    },
+    {
+      "start_tick": 2192,
+      "end_tick": 2258,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f412",
+      "label": "bottom-row west downstream enable for chip at (4,0)"
+    },
+    {
+      "start_tick": 2258,
+      "end_tick": 2324,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f412",
+      "label": "bottom-row west downstream enable for chip at (4,0)"
+    },
+    {
+      "start_tick": 2180,
+      "end_tick": 2246,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 2246,
+      "end_tick": 2312,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 2312,
+      "end_tick": 2378,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 2378,
+      "end_tick": 2444,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 3167,
+      "end_tick": 3233,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c11e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 3233,
+      "end_tick": 3299,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c11e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 3299,
+      "end_tick": 3365,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c11e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 3365,
+      "end_tick": 3431,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c11e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 2540,
+      "end_tick": 2606,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c15e806",
+      "label": "column 0 assign north neighbor of chip at (0,0)"
+    },
+    {
+      "start_tick": 2660,
+      "end_tick": 2726,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f416",
+      "label": "column 0 downstream return enable for chip at (0,1)"
+    },
+    {
+      "start_tick": 2780,
+      "end_tick": 2846,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e817",
+      "label": "read CHIP_ID from chip 5 at (0,1)"
+    },
+    {
+      "start_tick": 3928,
+      "end_tick": 3994,
+      "src": [
+        0,
+        1
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c15e817",
+      "label": "read CHIP_ID from chip 5 at (0,1)"
+    },
+    {
+      "start_tick": 2900,
+      "end_tick": 2966,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f016",
+      "label": "column 0 north-only propagation enable for chip at (0,1)"
+    },
+    {
+      "start_tick": 3020,
+      "end_tick": 3086,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c29e806",
+      "label": "column 0 assign north neighbor of chip at (0,1)"
+    },
+    {
+      "start_tick": 3086,
+      "end_tick": 3152,
+      "src": [
+        0,
+        1
+      ],
+      "dst": [
+        0,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c29e806",
+      "label": "column 0 assign north neighbor of chip at (0,1)"
+    },
+    {
+      "start_tick": 3140,
+      "end_tick": 3206,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f42a",
+      "label": "column 0 downstream return enable for chip at (0,2)"
+    },
+    {
+      "start_tick": 3206,
+      "end_tick": 3272,
+      "src": [
+        0,
+        1
+      ],
+      "dst": [
+        0,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f42a",
+      "label": "column 0 downstream return enable for chip at (0,2)"
+    },
+    {
+      "start_tick": 3260,
+      "end_tick": 3326,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e82b",
+      "label": "read CHIP_ID from chip 10 at (0,2)"
+    },
+    {
+      "start_tick": 3326,
+      "end_tick": 3392,
+      "src": [
+        0,
+        1
+      ],
+      "dst": [
+        0,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e82b",
+      "label": "read CHIP_ID from chip 10 at (0,2)"
+    },
+    {
+      "start_tick": 4511,
+      "end_tick": 4577,
+      "src": [
+        0,
+        2
+      ],
+      "dst": [
+        0,
+        1
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c29e82b",
+      "label": "read CHIP_ID from chip 10 at (0,2)"
+    },
+    {
+      "start_tick": 4577,
+      "end_tick": 4643,
+      "src": [
+        0,
+        1
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c29e82b",
+      "label": "read CHIP_ID from chip 10 at (0,2)"
+    },
+    {
+      "start_tick": 3380,
+      "end_tick": 3446,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0df3fa",
+      "label": "second-column bottom prepare for chip at (1,0)"
+    },
+    {
+      "start_tick": 3500,
+      "end_tick": 3566,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c19e806",
+      "label": "column 1 assign north neighbor of chip at (1,0)"
+    },
+    {
+      "start_tick": 3566,
+      "end_tick": 3632,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c19e806",
+      "label": "column 1 assign north neighbor of chip at (1,0)"
+    },
+    {
+      "start_tick": 3620,
+      "end_tick": 3686,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f41a",
+      "label": "column 1 downstream return enable for chip at (1,1)"
+    },
+    {
+      "start_tick": 3686,
+      "end_tick": 3752,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f41a",
+      "label": "column 1 downstream return enable for chip at (1,1)"
+    },
+    {
+      "start_tick": 3740,
+      "end_tick": 3806,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e81b",
+      "label": "read CHIP_ID from chip 6 at (1,1)"
+    },
+    {
+      "start_tick": 3806,
+      "end_tick": 3872,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e81b",
+      "label": "read CHIP_ID from chip 6 at (1,1)"
+    },
+    {
+      "start_tick": 5160,
+      "end_tick": 5226,
+      "src": [
+        1,
+        1
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c19e81b",
+      "label": "read CHIP_ID from chip 6 at (1,1)"
+    },
+    {
+      "start_tick": 5226,
+      "end_tick": 5292,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c19e81b",
+      "label": "read CHIP_ID from chip 6 at (1,1)"
+    },
+    {
+      "start_tick": 3860,
+      "end_tick": 3926,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f01a",
+      "label": "column 1 north-only propagation enable for chip at (1,1)"
+    },
+    {
+      "start_tick": 3926,
+      "end_tick": 3992,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f01a",
+      "label": "column 1 north-only propagation enable for chip at (1,1)"
+    },
+    {
+      "start_tick": 3980,
+      "end_tick": 4046,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c2de806",
+      "label": "column 1 assign north neighbor of chip at (1,1)"
+    },
+    {
+      "start_tick": 4046,
+      "end_tick": 4112,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c2de806",
+      "label": "column 1 assign north neighbor of chip at (1,1)"
+    },
+    {
+      "start_tick": 4112,
+      "end_tick": 4178,
+      "src": [
+        1,
+        1
+      ],
+      "dst": [
+        1,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c2de806",
+      "label": "column 1 assign north neighbor of chip at (1,1)"
+    },
+    {
+      "start_tick": 4100,
+      "end_tick": 4166,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f42e",
+      "label": "column 1 downstream return enable for chip at (1,2)"
+    },
+    {
+      "start_tick": 4166,
+      "end_tick": 4232,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f42e",
+      "label": "column 1 downstream return enable for chip at (1,2)"
+    },
+    {
+      "start_tick": 4232,
+      "end_tick": 4298,
+      "src": [
+        1,
+        1
+      ],
+      "dst": [
+        1,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f42e",
+      "label": "column 1 downstream return enable for chip at (1,2)"
+    },
+    {
+      "start_tick": 4220,
+      "end_tick": 4286,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 4286,
+      "end_tick": 4352,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 4352,
+      "end_tick": 4418,
+      "src": [
+        1,
+        1
+      ],
+      "dst": [
+        1,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 5893,
+      "end_tick": 5959,
+      "src": [
+        1,
+        2
+      ],
+      "dst": [
+        1,
+        1
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c2de82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 5959,
+      "end_tick": 6025,
+      "src": [
+        1,
+        1
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c2de82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 6025,
+      "end_tick": 6091,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c2de82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 4340,
+      "end_tick": 4406,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0df00a",
+      "label": "column 2 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 4406,
+      "end_tick": 4472,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0df00a",
+      "label": "column 2 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 4460,
+      "end_tick": 4526,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c1de806",
+      "label": "column 2 assign north neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 4526,
+      "end_tick": 4592,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c1de806",
+      "label": "column 2 assign north neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 4592,
+      "end_tick": 4658,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c1de806",
+      "label": "column 2 assign north neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 4580,
+      "end_tick": 4646,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f41e",
+      "label": "column 2 downstream return enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4646,
+      "end_tick": 4712,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f41e",
+      "label": "column 2 downstream return enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4712,
+      "end_tick": 4778,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f41e",
+      "label": "column 2 downstream return enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4700,
+      "end_tick": 4766,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 4766,
+      "end_tick": 4832,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 4832,
+      "end_tick": 4898,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 6692,
+      "end_tick": 6758,
+      "src": [
+        2,
+        1
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c1de81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 6758,
+      "end_tick": 6824,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c1de81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 6824,
+      "end_tick": 6890,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c1de81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 4820,
+      "end_tick": 4886,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f01e",
+      "label": "column 2 north-only propagation enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4886,
+      "end_tick": 4952,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f01e",
+      "label": "column 2 north-only propagation enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4952,
+      "end_tick": 5018,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f01e",
+      "label": "column 2 north-only propagation enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4940,
+      "end_tick": 5006,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c31e806",
+      "label": "column 2 assign north neighbor of chip at (2,1)"
+    },
+    {
+      "start_tick": 5006,
+      "end_tick": 5072,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c31e806",
+      "label": "column 2 assign north neighbor of chip at (2,1)"
+    },
+    {
+      "start_tick": 5072,
+      "end_tick": 5138,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c31e806",
+      "label": "column 2 assign north neighbor of chip at (2,1)"
+    },
+    {
+      "start_tick": 5138,
+      "end_tick": 5204,
+      "src": [
+        2,
+        1
+      ],
+      "dst": [
+        2,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c31e806",
+      "label": "column 2 assign north neighbor of chip at (2,1)"
+    },
+    {
+      "start_tick": 5060,
+      "end_tick": 5126,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f432",
+      "label": "column 2 downstream return enable for chip at (2,2)"
+    },
+    {
+      "start_tick": 5126,
+      "end_tick": 5192,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f432",
+      "label": "column 2 downstream return enable for chip at (2,2)"
+    },
+    {
+      "start_tick": 5192,
+      "end_tick": 5258,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f432",
+      "label": "column 2 downstream return enable for chip at (2,2)"
+    },
+    {
+      "start_tick": 5258,
+      "end_tick": 5324,
+      "src": [
+        2,
+        1
+      ],
+      "dst": [
+        2,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f432",
+      "label": "column 2 downstream return enable for chip at (2,2)"
+    },
+    {
+      "start_tick": 5180,
+      "end_tick": 5246,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 5246,
+      "end_tick": 5312,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 5312,
+      "end_tick": 5378,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 5378,
+      "end_tick": 5444,
+      "src": [
+        2,
+        1
+      ],
+      "dst": [
+        2,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 7575,
+      "end_tick": 7641,
+      "src": [
+        2,
+        2
+      ],
+      "dst": [
+        2,
+        1
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c31e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 7641,
+      "end_tick": 7707,
+      "src": [
+        2,
+        1
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c31e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 7707,
+      "end_tick": 7773,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c31e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 7773,
+      "end_tick": 7839,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c31e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 5300,
+      "end_tick": 5366,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c0df00e",
+      "label": "column 3 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 5366,
+      "end_tick": 5432,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c0df00e",
+      "label": "column 3 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 5432,
+      "end_tick": 5498,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c0df00e",
+      "label": "column 3 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 5420,
+      "end_tick": 5486,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21e806",
+      "label": "column 3 assign north neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 5486,
+      "end_tick": 5552,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21e806",
+      "label": "column 3 assign north neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 5552,
+      "end_tick": 5618,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21e806",
+      "label": "column 3 assign north neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 5618,
+      "end_tick": 5684,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21e806",
+      "label": "column 3 assign north neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 5540,
+      "end_tick": 5606,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f422",
+      "label": "column 3 downstream return enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5606,
+      "end_tick": 5672,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f422",
+      "label": "column 3 downstream return enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5672,
+      "end_tick": 5738,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f422",
+      "label": "column 3 downstream return enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5738,
+      "end_tick": 5804,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f422",
+      "label": "column 3 downstream return enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5660,
+      "end_tick": 5726,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 5726,
+      "end_tick": 5792,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 5792,
+      "end_tick": 5858,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 5858,
+      "end_tick": 5924,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 8524,
+      "end_tick": 8590,
+      "src": [
+        3,
+        1
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c21e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 8590,
+      "end_tick": 8656,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c21e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 8656,
+      "end_tick": 8722,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c21e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 8722,
+      "end_tick": 8788,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c21e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 5780,
+      "end_tick": 5846,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f022",
+      "label": "column 3 north-only propagation enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5846,
+      "end_tick": 5912,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f022",
+      "label": "column 3 north-only propagation enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5912,
+      "end_tick": 5978,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f022",
+      "label": "column 3 north-only propagation enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5978,
+      "end_tick": 6044,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f022",
+      "label": "column 3 north-only propagation enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5900,
+      "end_tick": 5966,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c35e806",
+      "label": "column 3 assign north neighbor of chip at (3,1)"
+    },
+    {
+      "start_tick": 5966,
+      "end_tick": 6032,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c35e806",
+      "label": "column 3 assign north neighbor of chip at (3,1)"
+    },
+    {
+      "start_tick": 6032,
+      "end_tick": 6098,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c35e806",
+      "label": "column 3 assign north neighbor of chip at (3,1)"
+    },
+    {
+      "start_tick": 6098,
+      "end_tick": 6164,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c35e806",
+      "label": "column 3 assign north neighbor of chip at (3,1)"
+    },
+    {
+      "start_tick": 6164,
+      "end_tick": 6230,
+      "src": [
+        3,
+        1
+      ],
+      "dst": [
+        3,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c35e806",
+      "label": "column 3 assign north neighbor of chip at (3,1)"
+    },
+    {
+      "start_tick": 6020,
+      "end_tick": 6086,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f436",
+      "label": "column 3 downstream return enable for chip at (3,2)"
+    },
+    {
+      "start_tick": 6086,
+      "end_tick": 6152,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f436",
+      "label": "column 3 downstream return enable for chip at (3,2)"
+    },
+    {
+      "start_tick": 6152,
+      "end_tick": 6218,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f436",
+      "label": "column 3 downstream return enable for chip at (3,2)"
+    },
+    {
+      "start_tick": 6218,
+      "end_tick": 6284,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f436",
+      "label": "column 3 downstream return enable for chip at (3,2)"
+    },
+    {
+      "start_tick": 6284,
+      "end_tick": 6350,
+      "src": [
+        3,
+        1
+      ],
+      "dst": [
+        3,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f436",
+      "label": "column 3 downstream return enable for chip at (3,2)"
+    },
+    {
+      "start_tick": 6140,
+      "end_tick": 6206,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 6206,
+      "end_tick": 6272,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 6272,
+      "end_tick": 6338,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 6338,
+      "end_tick": 6404,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 6404,
+      "end_tick": 6470,
+      "src": [
+        3,
+        1
+      ],
+      "dst": [
+        3,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 9557,
+      "end_tick": 9623,
+      "src": [
+        3,
+        2
+      ],
+      "dst": [
+        3,
+        1
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c35e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 9623,
+      "end_tick": 9689,
+      "src": [
+        3,
+        1
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c35e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 9689,
+      "end_tick": 9755,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c35e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 9755,
+      "end_tick": 9821,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c35e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 9821,
+      "end_tick": 9887,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c35e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 6260,
+      "end_tick": 6326,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f012",
+      "label": "column 4 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 6326,
+      "end_tick": 6392,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f012",
+      "label": "column 4 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 6392,
+      "end_tick": 6458,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f012",
+      "label": "column 4 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 6458,
+      "end_tick": 6524,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f012",
+      "label": "column 4 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 6380,
+      "end_tick": 6446,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c25e806",
+      "label": "column 4 assign north neighbor of chip at (4,0)"
+    },
+    {
+      "start_tick": 6446,
+      "end_tick": 6512,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c25e806",
+      "label": "column 4 assign north neighbor of chip at (4,0)"
+    },
+    {
+      "start_tick": 6512,
+      "end_tick": 6578,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c25e806",
+      "label": "column 4 assign north neighbor of chip at (4,0)"
+    },
+    {
+      "start_tick": 6578,
+      "end_tick": 6644,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c25e806",
+      "label": "column 4 assign north neighbor of chip at (4,0)"
+    },
+    {
+      "start_tick": 6644,
+      "end_tick": 6710,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c25e806",
+      "label": "column 4 assign north neighbor of chip at (4,0)"
+    },
+    {
+      "start_tick": 6500,
+      "end_tick": 6566,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f426",
+      "label": "column 4 downstream return enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6566,
+      "end_tick": 6632,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f426",
+      "label": "column 4 downstream return enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6632,
+      "end_tick": 6698,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f426",
+      "label": "column 4 downstream return enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6698,
+      "end_tick": 6764,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f426",
+      "label": "column 4 downstream return enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6764,
+      "end_tick": 6830,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f426",
+      "label": "column 4 downstream return enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6620,
+      "end_tick": 6686,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 6686,
+      "end_tick": 6752,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 6752,
+      "end_tick": 6818,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 6818,
+      "end_tick": 6884,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 6884,
+      "end_tick": 6950,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 10656,
+      "end_tick": 10722,
+      "src": [
+        4,
+        1
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c25e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 10722,
+      "end_tick": 10788,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c25e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 10788,
+      "end_tick": 10854,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c25e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 10854,
+      "end_tick": 10920,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c25e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 10920,
+      "end_tick": 10986,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c25e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 6740,
+      "end_tick": 6806,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f026",
+      "label": "column 4 north-only propagation enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6806,
+      "end_tick": 6872,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f026",
+      "label": "column 4 north-only propagation enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6872,
+      "end_tick": 6938,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f026",
+      "label": "column 4 north-only propagation enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6938,
+      "end_tick": 7004,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f026",
+      "label": "column 4 north-only propagation enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 7004,
+      "end_tick": 7070,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f026",
+      "label": "column 4 north-only propagation enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6860,
+      "end_tick": 6926,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 6926,
+      "end_tick": 6992,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 6992,
+      "end_tick": 7058,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 7058,
+      "end_tick": 7124,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 7124,
+      "end_tick": 7190,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 7190,
+      "end_tick": 7256,
+      "src": [
+        4,
+        1
+      ],
+      "dst": [
+        4,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 6980,
+      "end_tick": 7046,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7046,
+      "end_tick": 7112,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7112,
+      "end_tick": 7178,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7178,
+      "end_tick": 7244,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7244,
+      "end_tick": 7310,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7310,
+      "end_tick": 7376,
+      "src": [
+        4,
+        1
+      ],
+      "dst": [
+        4,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7100,
+      "end_tick": 7166,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7166,
+      "end_tick": 7232,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7232,
+      "end_tick": 7298,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7298,
+      "end_tick": 7364,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7364,
+      "end_tick": 7430,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7430,
+      "end_tick": 7496,
+      "src": [
+        4,
+        1
+      ],
+      "dst": [
+        4,
+        2
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 11839,
+      "end_tick": 11905,
+      "src": [
+        4,
+        2
+      ],
+      "dst": [
+        4,
+        1
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c39e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 11905,
+      "end_tick": 11971,
+      "src": [
+        4,
+        1
+      ],
+      "dst": [
+        4,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c39e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 11971,
+      "end_tick": 12037,
+      "src": [
+        4,
+        0
+      ],
+      "dst": [
+        3,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c39e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 12037,
+      "end_tick": 12103,
+      "src": [
+        3,
+        0
+      ],
+      "dst": [
+        2,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c39e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 12103,
+      "end_tick": 12169,
+      "src": [
+        2,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c39e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 12169,
+      "end_tick": 12235,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c39e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7220,
+      "end_tick": 7286,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05ebfa",
+      "label": "cleanup remap 254 -> 1 at (1,0)"
+    },
+    {
+      "start_tick": 7340,
+      "end_tick": 7406,
+      "src": [
+        0,
+        0
+      ],
+      "dst": [
+        1,
+        0
+      ],
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e807",
+      "label": "read CHIP_ID from chip 1 at (1,0) after cleanup"
+    },
+    {
+      "start_tick": 12532,
+      "end_tick": 12598,
+      "src": [
+        1,
+        0
+      ],
+      "dst": [
+        0,
+        0
+      ],
+      "packet_type": "config_read_reply",
+      "packet_word": "0x422541391c05e807",
+      "label": "read CHIP_ID from chip 1 at (1,0) after cleanup"
+    }
+  ],
+  "fpga_spans": [
+    {
+      "start_tick": 20,
+      "end_tick": 86,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e806",
+      "label": "bottom-row source assignment (s=0)"
+    },
+    {
+      "start_tick": 140,
+      "end_tick": 206,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f402",
+      "label": "bottom-row source south enable at (0,0)"
+    },
+    {
+      "start_tick": 260,
+      "end_tick": 326,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e803",
+      "label": "read CHIP_ID from chip 0 at (0,0)"
+    },
+    {
+      "start_tick": 380,
+      "end_tick": 446,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c09f002",
+      "label": "bottom-row source east enable for chip at (0,0)"
+    },
+    {
+      "start_tick": 500,
+      "end_tick": 566,
+      "packet_type": "packet",
+      "packet_word": "0x022541391ff9e806",
+      "label": "bottom-row assign east neighbor of chip at (0,0)"
+    },
+    {
+      "start_tick": 620,
+      "end_tick": 686,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f7fa",
+      "label": "bottom-row west downstream enable for chip at (1,0)"
+    },
+    {
+      "start_tick": 740,
+      "end_tick": 806,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01ebfb",
+      "label": "read CHIP_ID from chip 254 at (1,0)"
+    },
+    {
+      "start_tick": 860,
+      "end_tick": 926,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09f3fa",
+      "label": "bottom-row east-only upstream enable for chip at (1,0)"
+    },
+    {
+      "start_tick": 980,
+      "end_tick": 1046,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09e806",
+      "label": "bottom-row assign east neighbor of chip at (1,0)"
+    },
+    {
+      "start_tick": 1100,
+      "end_tick": 1166,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f40a",
+      "label": "bottom-row west downstream enable for chip at (2,0)"
+    },
+    {
+      "start_tick": 1220,
+      "end_tick": 1286,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e80b",
+      "label": "read CHIP_ID from chip 2 at (2,0)"
+    },
+    {
+      "start_tick": 1340,
+      "end_tick": 1406,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c09f00a",
+      "label": "bottom-row east-only upstream enable for chip at (2,0)"
+    },
+    {
+      "start_tick": 1460,
+      "end_tick": 1526,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0de806",
+      "label": "bottom-row assign east neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 1580,
+      "end_tick": 1646,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21f40e",
+      "label": "bottom-row west downstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1700,
+      "end_tick": 1766,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e80f",
+      "label": "read CHIP_ID from chip 3 at (3,0)"
+    },
+    {
+      "start_tick": 1820,
+      "end_tick": 1886,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c09f00e",
+      "label": "bottom-row east-only upstream enable for chip at (3,0)"
+    },
+    {
+      "start_tick": 1940,
+      "end_tick": 2006,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11e806",
+      "label": "bottom-row assign east neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 2060,
+      "end_tick": 2126,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c21f412",
+      "label": "bottom-row west downstream enable for chip at (4,0)"
+    },
+    {
+      "start_tick": 2180,
+      "end_tick": 2246,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e813",
+      "label": "read CHIP_ID from chip 4 at (4,0)"
+    },
+    {
+      "start_tick": 2300,
+      "end_tick": 2366,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c0df002",
+      "label": "source special prepare for chip at (0,0)"
+    },
+    {
+      "start_tick": 2420,
+      "end_tick": 2486,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f402",
+      "label": "source south downstream keep for chip at (0,0)"
+    },
+    {
+      "start_tick": 2540,
+      "end_tick": 2606,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c15e806",
+      "label": "column 0 assign north neighbor of chip at (0,0)"
+    },
+    {
+      "start_tick": 2660,
+      "end_tick": 2726,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f416",
+      "label": "column 0 downstream return enable for chip at (0,1)"
+    },
+    {
+      "start_tick": 2780,
+      "end_tick": 2846,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e817",
+      "label": "read CHIP_ID from chip 5 at (0,1)"
+    },
+    {
+      "start_tick": 2900,
+      "end_tick": 2966,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f016",
+      "label": "column 0 north-only propagation enable for chip at (0,1)"
+    },
+    {
+      "start_tick": 3020,
+      "end_tick": 3086,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c29e806",
+      "label": "column 0 assign north neighbor of chip at (0,1)"
+    },
+    {
+      "start_tick": 3140,
+      "end_tick": 3206,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f42a",
+      "label": "column 0 downstream return enable for chip at (0,2)"
+    },
+    {
+      "start_tick": 3260,
+      "end_tick": 3326,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e82b",
+      "label": "read CHIP_ID from chip 10 at (0,2)"
+    },
+    {
+      "start_tick": 3380,
+      "end_tick": 3446,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0df3fa",
+      "label": "second-column bottom prepare for chip at (1,0)"
+    },
+    {
+      "start_tick": 3500,
+      "end_tick": 3566,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c19e806",
+      "label": "column 1 assign north neighbor of chip at (1,0)"
+    },
+    {
+      "start_tick": 3620,
+      "end_tick": 3686,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f41a",
+      "label": "column 1 downstream return enable for chip at (1,1)"
+    },
+    {
+      "start_tick": 3740,
+      "end_tick": 3806,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e81b",
+      "label": "read CHIP_ID from chip 6 at (1,1)"
+    },
+    {
+      "start_tick": 3860,
+      "end_tick": 3926,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f01a",
+      "label": "column 1 north-only propagation enable for chip at (1,1)"
+    },
+    {
+      "start_tick": 3980,
+      "end_tick": 4046,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c2de806",
+      "label": "column 1 assign north neighbor of chip at (1,1)"
+    },
+    {
+      "start_tick": 4100,
+      "end_tick": 4166,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f42e",
+      "label": "column 1 downstream return enable for chip at (1,2)"
+    },
+    {
+      "start_tick": 4220,
+      "end_tick": 4286,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e82f",
+      "label": "read CHIP_ID from chip 11 at (1,2)"
+    },
+    {
+      "start_tick": 4340,
+      "end_tick": 4406,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c0df00a",
+      "label": "column 2 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 4460,
+      "end_tick": 4526,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c1de806",
+      "label": "column 2 assign north neighbor of chip at (2,0)"
+    },
+    {
+      "start_tick": 4580,
+      "end_tick": 4646,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f41e",
+      "label": "column 2 downstream return enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4700,
+      "end_tick": 4766,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e81f",
+      "label": "read CHIP_ID from chip 7 at (2,1)"
+    },
+    {
+      "start_tick": 4820,
+      "end_tick": 4886,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f01e",
+      "label": "column 2 north-only propagation enable for chip at (2,1)"
+    },
+    {
+      "start_tick": 4940,
+      "end_tick": 5006,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c31e806",
+      "label": "column 2 assign north neighbor of chip at (2,1)"
+    },
+    {
+      "start_tick": 5060,
+      "end_tick": 5126,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f432",
+      "label": "column 2 downstream return enable for chip at (2,2)"
+    },
+    {
+      "start_tick": 5180,
+      "end_tick": 5246,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e833",
+      "label": "read CHIP_ID from chip 12 at (2,2)"
+    },
+    {
+      "start_tick": 5300,
+      "end_tick": 5366,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c0df00e",
+      "label": "column 3 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 5420,
+      "end_tick": 5486,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c21e806",
+      "label": "column 3 assign north neighbor of chip at (3,0)"
+    },
+    {
+      "start_tick": 5540,
+      "end_tick": 5606,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f422",
+      "label": "column 3 downstream return enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5660,
+      "end_tick": 5726,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e823",
+      "label": "read CHIP_ID from chip 8 at (3,1)"
+    },
+    {
+      "start_tick": 5780,
+      "end_tick": 5846,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f022",
+      "label": "column 3 north-only propagation enable for chip at (3,1)"
+    },
+    {
+      "start_tick": 5900,
+      "end_tick": 5966,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c35e806",
+      "label": "column 3 assign north neighbor of chip at (3,1)"
+    },
+    {
+      "start_tick": 6020,
+      "end_tick": 6086,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f436",
+      "label": "column 3 downstream return enable for chip at (3,2)"
+    },
+    {
+      "start_tick": 6140,
+      "end_tick": 6206,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e837",
+      "label": "read CHIP_ID from chip 13 at (3,2)"
+    },
+    {
+      "start_tick": 6260,
+      "end_tick": 6326,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05f012",
+      "label": "column 4 bottom prepare east-side north enable"
+    },
+    {
+      "start_tick": 6380,
+      "end_tick": 6446,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c25e806",
+      "label": "column 4 assign north neighbor of chip at (4,0)"
+    },
+    {
+      "start_tick": 6500,
+      "end_tick": 6566,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c11f426",
+      "label": "column 4 downstream return enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6620,
+      "end_tick": 6686,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c01e827",
+      "label": "read CHIP_ID from chip 9 at (4,1)"
+    },
+    {
+      "start_tick": 6740,
+      "end_tick": 6806,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c05f026",
+      "label": "column 4 north-only propagation enable for chip at (4,1)"
+    },
+    {
+      "start_tick": 6860,
+      "end_tick": 6926,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c39e806",
+      "label": "column 4 assign north neighbor of chip at (4,1)"
+    },
+    {
+      "start_tick": 6980,
+      "end_tick": 7046,
+      "packet_type": "packet",
+      "packet_word": "0x822541391c11f43a",
+      "label": "column 4 downstream return enable for chip at (4,2)"
+    },
+    {
+      "start_tick": 7100,
+      "end_tick": 7166,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e83b",
+      "label": "read CHIP_ID from chip 14 at (4,2)"
+    },
+    {
+      "start_tick": 7220,
+      "end_tick": 7286,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c05ebfa",
+      "label": "cleanup remap 254 -> 1 at (1,0)"
+    },
+    {
+      "start_tick": 7340,
+      "end_tick": 7406,
+      "packet_type": "packet",
+      "packet_word": "0x022541391c01e807",
+      "label": "read CHIP_ID from chip 1 at (1,0) after cleanup"
+    }
+  ]
+}
