@@ -24,6 +24,22 @@
 
 #include "chipsim/protocol.h"
 
+static const char *
+default_peer_binary_path(const char *argv0, const char *name, char *buf, size_t buf_len)
+{
+    const char *slash = strrchr(argv0, '/');
+    int n;
+
+    if (slash == NULL) {
+        return name;
+    }
+    n = snprintf(buf, buf_len, "%.*s/%s", (int)(slash - argv0), argv0, name);
+    if (n < 0 || (size_t)n >= buf_len) {
+        return name;
+    }
+    return buf;
+}
+
 typedef enum {
     LARPIX_EDGE_NORTH = 0,
     LARPIX_EDGE_EAST  = 1,
@@ -48,6 +64,8 @@ typedef struct {
     const char *backend;
     const char *stimulus_json;
     const char *startup_json;
+    const char *trace_collector_bin;
+    const char *trace_out;
     const char *occupancy_csv;
     int         occupancy_runtime_id;
     uint64_t    occupancy_tick_start;
@@ -78,6 +96,8 @@ usage(const char *prog)
         "  -backend <name>         chip backend (default cosim)\n"
         "  -stimulus_json <path>   charge stimulus JSON passed to each chip\n"
         "  -startup_json <path>    compiled startup schedule JSON passed to the FPGA controller\n"
+        "  -trace_collector_bin <path> trace collector executable (default ./trace_collector_larpix)\n"
+        "  -trace_out <path>       optional per-tick trace event JSONL output\n"
         "  -occupancy_csv <path>   write chip occupancy CSV for one runtime\n"
         "  -occupancy_runtime_id <N> runtime_id that writes occupancy CSV\n"
         "  -occupancy_tick_start <N> first tick included in occupancy CSV\n"
@@ -136,16 +156,21 @@ static int
 parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
 {
     int i;
+    static char default_chip_bin[512];
+    static char default_fpga_bin[512];
+    static char default_trace_collector_bin[512];
 
     memset(opts, 0, sizeof(*opts));
     opts->startup_ms = 350;
     opts->ack_timeout_ms = 5000;
     opts->seed = 1u;
-    opts->chip_bin = "./larpix_chip";
-    opts->fpga_bin = "./fpga_larpix";
+    opts->chip_bin = default_peer_binary_path(argv[0], "chip_larpix", default_chip_bin, sizeof(default_chip_bin));
+    opts->fpga_bin = default_peer_binary_path(argv[0], "fpga_larpix", default_fpga_bin, sizeof(default_fpga_bin));
     opts->backend = "cosim";
     opts->stimulus_json = NULL;
     opts->startup_json = NULL;
+    opts->trace_collector_bin = default_peer_binary_path(argv[0], "trace_collector_larpix", default_trace_collector_bin, sizeof(default_trace_collector_bin));
+    opts->trace_out = NULL;
     opts->occupancy_csv = NULL;
     opts->occupancy_runtime_id = -1;
     opts->occupancy_tick_start = 0;
@@ -188,6 +213,10 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
             opts->stimulus_json = argv[++i];
         } else if (strcmp(argv[i], "-startup_json") == 0 && i + 1 < argc) {
             opts->startup_json = argv[++i];
+        } else if (strcmp(argv[i], "-trace_collector_bin") == 0 && i + 1 < argc) {
+            opts->trace_collector_bin = argv[++i];
+        } else if (strcmp(argv[i], "-trace_out") == 0 && i + 1 < argc) {
+            opts->trace_out = argv[++i];
         } else if (strcmp(argv[i], "-occupancy_csv") == 0 && i + 1 < argc) {
             opts->occupancy_csv = argv[++i];
         } else if (strcmp(argv[i], "-occupancy_runtime_id") == 0 && i + 1 < argc) {
@@ -326,6 +355,7 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     int fpga_runtime_id,
     const char *control_url,
     const char *metric_url,
+    const char *trace_url,
     const char *edge_prefix,
     int edge_port_base,
     pid_t *child_pid)
@@ -335,7 +365,7 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     char north_in[128], east_in[128], south_in[128], west_in[128];
     char north_out[128], east_out[128], south_out[128], west_out[128];
     char occupancy_tick_start_s[32];
-    char *argv_exec[52];
+    char *argv_exec[56];
     int idx = 0;
     const bool attach_fpga = (opts->startup_json != NULL && runtime_id == source_chip_id);
 
@@ -426,6 +456,10 @@ launch_chip(const orchestrator_larpix_options_t *opts,
         argv_exec[idx++] = "-stimulus_json";
         argv_exec[idx++] = (char *)opts->stimulus_json;
     }
+    if (trace_url != NULL) {
+        argv_exec[idx++] = "-trace_url";
+        argv_exec[idx++] = (char *)trace_url;
+    }
     if (opts->occupancy_csv != NULL && opts->occupancy_runtime_id == runtime_id) {
         argv_exec[idx++] = "-occupancy_csv";
         argv_exec[idx++] = (char *)opts->occupancy_csv;
@@ -442,6 +476,47 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     if (pid == 0) {
         execvp(opts->chip_bin, argv_exec);
         perror("execvp(larpix_chip)");
+        _exit(127);
+    }
+
+    *child_pid = pid;
+    return 0;
+}
+
+static int
+launch_trace_collector(const orchestrator_larpix_options_t *opts,
+    const char *trace_url,
+    int expected_senders,
+    pid_t *child_pid)
+{
+    pid_t pid;
+    char expected_s[32];
+    char timeout_s[32];
+    char *argv_exec[12];
+    int idx = 0;
+
+    snprintf(expected_s, sizeof(expected_s), "%d", expected_senders);
+    snprintf(timeout_s, sizeof(timeout_s), "%d", opts->ack_timeout_ms);
+
+    argv_exec[idx++] = (char *)opts->trace_collector_bin;
+    argv_exec[idx++] = "-listen_url";
+    argv_exec[idx++] = (char *)trace_url;
+    argv_exec[idx++] = "-out";
+    argv_exec[idx++] = (char *)opts->trace_out;
+    argv_exec[idx++] = "-expected_senders";
+    argv_exec[idx++] = expected_s;
+    argv_exec[idx++] = "-recv_timeout_ms";
+    argv_exec[idx++] = timeout_s;
+    argv_exec[idx++] = NULL;
+
+    pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        return -1;
+    }
+    if (pid == 0) {
+        execvp(opts->trace_collector_bin, argv_exec);
+        perror("execvp(trace_collector_larpix)");
         _exit(127);
     }
 
@@ -564,9 +639,11 @@ main(int argc, char **argv)
     nng_socket metric_pull = NNG_SOCKET_INITIALIZER;
     char control_prefix[256];
     char metric_url[256];
+    char trace_url[256];
     char edge_prefix[256];
     int control_port_base = 0;
     int edge_port_base = 0;
+    pid_t collector_pid = -1;
     int rv;
     int i;
     uint64_t seq;
@@ -616,6 +693,17 @@ main(int argc, char **argv)
     printf("orchestrator_larpix: control_prefix=%s control_port_base=%d edge_port_base=%d\n",
         control_prefix, control_port_base, edge_port_base);
 
+    if (opts.trace_out != NULL) {
+        if (snprintf(trace_url, sizeof(trace_url), "tcp://127.0.0.1:%d", control_port_base - 1) < 0) {
+            goto fail;
+        }
+        if (launch_trace_collector(&opts, trace_url, chip_count, &collector_pid) != 0) {
+            goto fail;
+        }
+    } else {
+        trace_url[0] = '\0';
+    }
+
     rv = nng_pull0_open(&metric_pull);
     if (rv != 0) {
         fprintf(stderr, "metric_pull open failed: %s\n", nng_strerror(rv));
@@ -637,7 +725,7 @@ main(int argc, char **argv)
             goto fail;
         }
         if (launch_chip(&opts, i, &routes[i], source_chip_id, fpga_runtime_id,
-                control_url, metric_url, edge_prefix, edge_port_base, &child_pids[i]) != 0) {
+                control_url, metric_url, (opts.trace_out != NULL ? trace_url : NULL), edge_prefix, edge_port_base, &child_pids[i]) != 0) {
             goto fail;
         }
     }
@@ -745,6 +833,10 @@ main(int argc, char **argv)
             waitpid(child_pids[i], &status, 0);
         }
     }
+    if (collector_pid > 0) {
+        int status = 0;
+        waitpid(collector_pid, &status, 0);
+    }
 
     t_all_end = mono_now_sec();
     printf("orchestrator_larpix: completed in %.6f sec\n", t_all_end - t_all_start);
@@ -767,6 +859,9 @@ fail:
     if (child_pids != NULL) {
         terminate_children(child_pids, runtime_count);
     }
+    if (collector_pid > 0) {
+        kill(collector_pid, SIGTERM);
+    }
     if (control_reqs != NULL) {
         for (i = 0; i < runtime_count; i++) {
             if (nng_socket_id(control_reqs[i]) > 0) {
@@ -784,6 +879,10 @@ fail:
                 waitpid(child_pids[i], &status, 0);
             }
         }
+    }
+    if (collector_pid > 0) {
+        int status = 0;
+        waitpid(collector_pid, &status, 0);
     }
     free(routes);
     free(child_pids);

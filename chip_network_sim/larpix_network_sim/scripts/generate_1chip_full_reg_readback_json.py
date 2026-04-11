@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-""" Helper script to create the configuration file used in the single chip register readback test run."""
-""" This file converts the RTL's declared startup register defaults (from larpix_v3b_rtl/src/larpix_constants.sv and larpix_v3b/src/config_regfile_assign.sv) into an FPGA packet schedule for the 1 chip register verification test """
+"""Helper script to create the configuration file used in the single chip register readback test run.
+
+This file converts the RTL startup register defaults into an FPGA packet
+schedule for the 1-chip register verification test.
+"""
 from __future__ import annotations
 
 import argparse

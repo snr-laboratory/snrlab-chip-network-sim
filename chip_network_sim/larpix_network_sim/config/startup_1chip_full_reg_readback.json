@@ -11,6 +11,7 @@
 // Expected behavior:
 // - every CONFIG_READ reply should match the RTL startup-default value for that
 //   register, except register 125 which is intentionally modified first
+// - outputs the configuration file used for the simulation run (config/startup_1chip_full_reg_readback.json) 
 // - the paired runner script checks the returned reply set exhaustively
 
 {

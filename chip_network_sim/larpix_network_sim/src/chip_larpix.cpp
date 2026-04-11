@@ -19,6 +19,7 @@
 #include "chipsim/protocol.h"
 #include "chipsim/trace.h"
 #include "larpixsim/backend.h"
+#include "larpixsim/trace_protocol.h"
 
 #define CHIPSIM_DEFAULT_CLOCK_URL "tcp://127.0.0.1:23000"
 #define CHIPSIM_DEFAULT_METRIC_URL "tcp://127.0.0.1:23002"
@@ -57,6 +58,7 @@ typedef struct {
     int         data_timeout_ms;
     const char *clock_url;
     const char *metric_url;
+    const char *trace_url;
     const char *trace_file;
     const char *backend_name;
     const char *stimulus_json;
@@ -137,6 +139,7 @@ usage(const char *prog)
         "  -backend <name>            backend mode (default cosim)\n"
         "  -clock_url <URI>           orchestrator control endpoint\n"
         "  -metric_url <URI>          orchestrator metric endpoint\n"
+        "  -trace_url <URI>           optional trace collector endpoint\n"
         "  -north_in_url <URI|-1>     north input bit service\n"
         "  -east_in_url <URI|-1>      east input bit service\n"
         "  -south_in_url <URI|-1>     south input bit service\n"
@@ -219,6 +222,7 @@ parse_args(int argc, char **argv, chip_options_t *opts)
     opts->data_timeout_ms = CHIPSIM_DEFAULT_DATA_TIMEOUT_MS;
     opts->clock_url       = CHIPSIM_DEFAULT_CLOCK_URL;
     opts->metric_url      = CHIPSIM_DEFAULT_METRIC_URL;
+    opts->trace_url       = NULL;
     opts->backend_name    = "cosim";
     opts->occupancy_tick_start = 0;
 
@@ -233,6 +237,8 @@ parse_args(int argc, char **argv, chip_options_t *opts)
             opts->clock_url = argv[++i];
         } else if (strcmp(argv[i], "-metric_url") == 0 && i + 1 < argc) {
             opts->metric_url = argv[++i];
+        } else if (strcmp(argv[i], "-trace_url") == 0 && i + 1 < argc) {
+            opts->trace_url = argv[++i];
         } else if (strcmp(argv[i], "-north_in_url") == 0 && i + 1 < argc) {
             opts->in_url[LARPIX_EDGE_NORTH] = parse_edge_url_arg(argv[++i]);
         } else if (strcmp(argv[i], "-east_in_url") == 0 && i + 1 < argc) {
@@ -714,6 +720,80 @@ channel_fifo_detail_path(const char *occupancy_csv)
     return path;
 }
 
+typedef struct {
+    bool     active;
+    uint8_t  bits[66];
+    unsigned bit_count;
+} uart_frame_decoder_t;
+
+static void
+uart_decoder_init(uart_frame_decoder_t *dec)
+{
+    memset(dec, 0, sizeof(*dec));
+}
+
+static bool
+uart_decoder_consume(uart_frame_decoder_t *dec, uint8_t line_bit, uint64_t *word_out)
+{
+    line_bit = line_bit ? 1u : 0u;
+    if (!dec->active) {
+        if (line_bit == 0u) {
+            dec->active = true;
+            dec->bit_count = 1u;
+            dec->bits[0] = 0u;
+        }
+        return false;
+    }
+
+    if (dec->bit_count < sizeof(dec->bits)) {
+        dec->bits[dec->bit_count++] = line_bit;
+    }
+    if (dec->bit_count < 66u) {
+        return false;
+    }
+
+    dec->active = false;
+    dec->bit_count = 0u;
+    if (dec->bits[0] != 0u || dec->bits[65] != 1u) {
+        return false;
+    }
+
+    *word_out = 0u;
+    for (unsigned i = 0; i < 64u; ++i) {
+        *word_out |= ((uint64_t)(dec->bits[1u + i] ? 1u : 0u) << i);
+    }
+    return true;
+}
+
+static int
+send_trace_event(nng_socket trace_push, const chip_options_t *opts, uint64_t seq,
+    uint8_t event_type, uint8_t edge, uint32_t channel, uint32_t value_u32,
+    uint64_t packet_word, double value_f64)
+{
+    larpixsim_trace_event_msg_t msg;
+    int rv;
+
+    if (opts->trace_url == NULL) {
+        return 0;
+    }
+    memset(&msg, 0, sizeof(msg));
+    msg.type = LARPIXSIM_TRACE_MSG_EVENT;
+    msg.event_type = event_type;
+    msg.edge = edge;
+    msg.runtime_id = (uint32_t)opts->id;
+    msg.seq = seq;
+    msg.channel = channel;
+    msg.value_u32 = value_u32;
+    msg.packet_word = packet_word;
+    msg.value_f64 = value_f64;
+    rv = nng_send(trace_push, &msg, sizeof(msg), 0);
+    if (rv != 0) {
+        fprintf(stderr, "chip_larpix[%d] failed to send trace event: %s\n", opts->id, ERRSTR(rv));
+        return -1;
+    }
+    return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -722,6 +802,7 @@ main(int argc, char **argv)
     larpixsim_backend_handle_t backend;
     nng_socket             control_rep = NNG_SOCKET_INITIALIZER;
     nng_socket             metric_push = NNG_SOCKET_INITIALIZER;
+    nng_socket             trace_push = NNG_SOCKET_INITIALIZER;
     nng_socket             data_req[LARPIXSIM_EDGE_COUNT];
     nng_socket             data_rep[LARPIXSIM_EDGE_COUNT];
     bit_server_state_t     bit_state[LARPIXSIM_EDGE_COUNT];
@@ -732,6 +813,8 @@ main(int argc, char **argv)
     bool                   has_output[LARPIXSIM_EDGE_COUNT];
     uint8_t                published_valid[LARPIXSIM_EDGE_COUNT] = {0, 0, 0, 0};
     uint8_t                published_bits[LARPIXSIM_EDGE_COUNT]  = {0, 0, 0, 0};
+    uart_frame_decoder_t   rx_decoder[LARPIXSIM_EDGE_COUNT];
+    uart_frame_decoder_t   tx_decoder[LARPIXSIM_EDGE_COUNT];
     chipsim_trace_writer_t trace;
     std::vector<stimulus_event_t> stimulus_events;
     FILE                  *occupancy_csv = NULL;
@@ -749,6 +832,8 @@ main(int argc, char **argv)
     memset(&trace, 0, sizeof(trace));
     for (edge = 0; edge < LARPIXSIM_EDGE_COUNT; edge++) {
         data_req[edge] = NNG_SOCKET_INITIALIZER;
+        uart_decoder_init(&rx_decoder[edge]);
+        uart_decoder_init(&tx_decoder[edge]);
         data_rep[edge] = NNG_SOCKET_INITIALIZER;
         bit_state_inited[edge] = false;
         bit_thread_started[edge] = false;
@@ -884,6 +969,19 @@ main(int argc, char **argv)
         goto cleanup;
     }
 
+    if (opts.trace_url != NULL) {
+        rv = nng_push0_open(&trace_push);
+        if (rv != 0) {
+            fprintf(stderr, "chip_larpix[%d] nng_push0_open(trace) failed: %s\n", opts.id, ERRSTR(rv));
+            goto cleanup;
+        }
+        rv = nng_dial(trace_push, opts.trace_url, NULL, 0);
+        if (rv != 0) {
+            fprintf(stderr, "chip_larpix[%d] dial(trace) failed: %s\n", opts.id, ERRSTR(rv));
+            goto cleanup;
+        }
+    }
+
     for (;;) {
         chipsim_tick_msg_t          tick;
         size_t                      tick_sz = sizeof(tick);
@@ -921,7 +1019,16 @@ main(int argc, char **argv)
             if (has_output[edge]) {
                 bit_server_publish(&bit_state[edge], tick.seq, published_valid[edge], published_bits[edge]);
                 if (published_valid[edge]) {
+                    uint64_t tx_word = 0;
                     metrics.tx_count++;
+                    if (uart_decoder_consume(&tx_decoder[edge], published_bits[edge], &tx_word)) {
+                        if (send_trace_event(trace_push, &opts, tick.seq, LARPIXSIM_TRACE_EVENT_TX_PACKET, (uint8_t)edge, 0u, 0u, tx_word, 0.0) != 0) {
+                            goto cleanup;
+                        }
+                    }
+                } else {
+                    uint64_t dummy_word = 0;
+                    (void)uart_decoder_consume(&tx_decoder[edge], 1u, &dummy_word);
                 }
             }
         }
@@ -937,13 +1044,29 @@ main(int argc, char **argv)
                         &in.rx_bit_valid[edge], &in.rx_bit_value[edge]) != 0) {
                     goto cleanup;
                 }
-                if (in.rx_bit_valid[edge]) {
-                    metrics.rx_count++;
+                {
+                    uint64_t rx_word = 0;
+                    uint8_t line_bit = in.rx_bit_valid[edge] ? (in.rx_bit_value[edge] ? 1u : 0u) : 1u;
+                    if (in.rx_bit_valid[edge]) {
+                        metrics.rx_count++;
+                    }
+                    if (uart_decoder_consume(&rx_decoder[edge], line_bit, &rx_word)) {
+                        if (send_trace_event(trace_push, &opts, tick.seq, LARPIXSIM_TRACE_EVENT_RX_PACKET, (uint8_t)edge, 0u, 0u, rx_word, 0.0) != 0) {
+                            goto cleanup;
+                        }
+                    }
                 }
             }
         }
 
         load_charge_stimulus(stimulus_events, tick.seq, in.charge_in);
+        for (int channel = 0; channel < LARPIXSIM_CHANNEL_COUNT; ++channel) {
+            if (in.charge_in[channel] != 0.0) {
+                if (send_trace_event(trace_push, &opts, tick.seq, LARPIXSIM_TRACE_EVENT_CHARGE_INJECTED, 0u, (uint32_t)channel, 0u, 0u, in.charge_in[channel]) != 0) {
+                    goto cleanup;
+                }
+            }
+        }
 
         if (backend.vtbl->tick(backend.ctx, &in, &out) != 0) {
             fprintf(stderr, "chip_larpix[%d] backend tick failed at seq=%" PRIu64 "\n", opts.id, tick.seq);
@@ -989,6 +1112,9 @@ main(int argc, char **argv)
     if (send_metric(metric_push, &opts, &metrics) != 0) {
         goto cleanup;
     }
+    if (send_trace_event(trace_push, &opts, metrics.last_seq, LARPIXSIM_TRACE_EVENT_FINISH, 0u, 0u, 0u, 0u, 0.0) != 0) {
+        goto cleanup;
+    }
 
     exit_code = 0;
 
@@ -1013,6 +1139,9 @@ cleanup:
         if (bit_state_inited[edge]) {
             bit_server_destroy(&bit_state[edge]);
         }
+    }
+    if (nng_socket_id(trace_push) > 0) {
+        nng_socket_close(trace_push);
     }
     if (nng_socket_id(metric_push) > 0) {
         nng_socket_close(metric_push);
