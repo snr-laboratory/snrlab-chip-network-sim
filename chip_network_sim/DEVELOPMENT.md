@@ -1,0 +1,13 @@
+This project aims to develop a deterministic, scalable simulation architecture for modeling the behavior of a network of ASIC chips. In this framework, each chip is represented as an independent software process in which the digital backend is specified entirely by RTL, while analog components in mixed-signal designs are simulated in software and coupled to the RTL-defined digital logic. A network can be composed of arbitrarily many chips which are coordinated by a central simulation orchestrator operating in a global lock-step where data is transmitted between chip processes via socket-based inter-process communication. The objective is to reproduce the essential routing, data flow, register configuration, data generation, arbitration, and timing behavior of a networked chip system while leveraging the independent nature of each chip process for scalability. 
+ 
+AI tools, particularly Codex, have played a central role in the development of this project, with the overall simulation architecture having been largely constructed with the assistance of AI. This included generating and organizing code across multiple languages (C++, Verilog, and Python), as well as structuring a nontrivial, multi-component codebase.
+
+A key use of AI was in understanding and integrating a third-party RTL repository for the LArPix digital backend designed by the IC Design Group at Lawrence Berkeley National Laboratory, which served as a reference case for the architecture. Because the repository consisted exclusively of RTL source code, which can be difficult to interpret without prior familiarity with the digital structure being described, AI proved extremely useful as an interactive tool for explanation and clarification. By iteratively querying the agent about specific modules and signal flows, I was able to build a functional understanding of the design and incorporate it into my workflow.
+ 
+As a physicist by training, my primary focus is on the functional behavior and validation of the system rather than low-level software implementation. AI tools enabled me to bridge this gap, allowing me to rapidly develop and adapt complex software infrastructure without requiring extensive prior expertise in software engineering or RTL design. As a result, my role in the project has emphasized designing validation strategies, testing the architecture, and applying domain-specific knowledge to interpret the simulation results.
+
+
+Overall, the use of AI significantly accelerated development. The scope of work completed—including multi-language implementation, integration of external codebases, and system-level architecture design—would likely have required on the order of a year of dedicated effort without these tools.
+
+
+
