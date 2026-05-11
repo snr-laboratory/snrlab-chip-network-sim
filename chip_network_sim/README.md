@@ -12,19 +12,21 @@ The older generic packet/FIFO simulator has been retired from this repo.
 
 ## Build
 ```bash
-cmake -S . -B build
+cmake -S . -B build \
+  -DNNG_ROOT=/path/to/nng \
+  -DLARPIX_RTL_DIR=/path/to/larpix_rtl/src
 cmake --build build -j
 ```
 
-The build expects local `nng` artifacts at:
-- `nng/include`
-- `nng/build/libnng.so`
+Required external inputs:
+- `NNG_ROOT`: path to an `nng` tree with `include/nng/nng.h` and a built shared library under `build/`
+- `LARPIX_RTL_DIR`: path to a LArPix RTL `src` directory with the expected stable file layout
 
 Primary runtime targets:
 - `build/orchestrator_larpix`
 - `build/fpga_larpix`
 - `build/trace_collector_larpix`
-- `build/chip_larpix` via `chip_larpix_build` when Verilator is available
+- `build/chip_larpix` via `chip_larpix_build` when Verilator is available and `LARPIX_RTL_DIR` is set
 
 ## Run
 Example single-chip startup/config readback flow:
@@ -53,7 +55,6 @@ chip_network_sim/
     include/    # chipsim + larpixsim public headers used by the live runtime
     scripts/    # startup generation and run scripts
     src/        # orchestrator, chip runtime, FPGA runtime, trace collector
-    larpix_v3b_rtl/  # reference RTL tree used by the cosim backend
   doc/
     README.md
     architecture.md
@@ -65,6 +66,7 @@ chip_network_sim/
 - Four-edge bit-serial nearest-neighbor communication.
 - Verilated digital core with a software analog front-end model.
 - Optional JSONL trace collection plus occupancy/debug CSV capture.
+- External RTL and `nng` dependencies supplied by the user at configure time.
 
 ## Documentation
 - [doc/README.md](doc/README.md)

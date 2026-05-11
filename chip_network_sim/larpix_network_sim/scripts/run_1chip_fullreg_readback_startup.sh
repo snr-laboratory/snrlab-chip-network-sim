@@ -38,12 +38,16 @@ work_dir="$build_dir/larpix_1chip_readback_smoke"
 startup_in="$repo_root/larpix_network_sim/config/startup_1chip_full_reg_readback.json"
 startup_compiled="$work_dir/startup_1chip_full_reg_readback.compiled.json"
 log_file="$work_dir/run.log"
-constants_file="$repo_root/larpix_network_sim/larpix_v3b_rtl/src/larpix_constants.sv"
-assign_file="$repo_root/larpix_network_sim/larpix_v3b_rtl/src/config_regfile_assign.sv"
+: "${NNG_ROOT:?set NNG_ROOT to your external nng tree}"
+: "${LARPIX_RTL_DIR:?set LARPIX_RTL_DIR to your external RTL src directory}"
+constants_file="$LARPIX_RTL_DIR/larpix_constants.sv"
+assign_file="$LARPIX_RTL_DIR/config_regfile_assign.sv"
 
 mkdir -p "$work_dir"
 
-cmake -S "$repo_root" -B "$build_dir"
+cmake -S "$repo_root" -B "$build_dir" \
+  -DNNG_ROOT="$NNG_ROOT" \
+  -DLARPIX_RTL_DIR="$LARPIX_RTL_DIR"
 cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix chip_larpix_build -j
 
 python3 "$repo_root/larpix_network_sim/scripts/generate_1chip_full_reg_readback_json.py"   --constants "$constants_file"   --assign "$assign_file"   --out "$startup_in"

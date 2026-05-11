@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 
@@ -59,10 +60,15 @@ def parse_defaults(constants_path: Path, assign_path: Path) -> dict[int, int]:
 
 
 def main() -> int:
+    rtl_dir = os.environ.get('LARPIX_RTL_DIR')
+    default_constants = f'{rtl_dir}/larpix_constants.sv' if rtl_dir else None
+    default_assign = f'{rtl_dir}/config_regfile_assign.sv' if rtl_dir else None
     parser = argparse.ArgumentParser(description='Dump mirrored RTL startup config defaults as JSON')
-    parser.add_argument('--constants', default='larpix_network_sim/larpix_v3b_rtl/src/larpix_constants.sv')
-    parser.add_argument('--assign', default='larpix_network_sim/larpix_v3b_rtl/src/config_regfile_assign.sv')
+    parser.add_argument('--constants', default=default_constants)
+    parser.add_argument('--assign', default=default_assign)
     args = parser.parse_args()
+    if args.constants is None or args.assign is None:
+        raise SystemExit('set LARPIX_RTL_DIR or pass --constants and --assign explicitly')
     defaults = parse_defaults(Path(args.constants), Path(args.assign))
     print(json.dumps({str(k): v for k, v in defaults.items()}, indent=2, sort_keys=True))
     return 0

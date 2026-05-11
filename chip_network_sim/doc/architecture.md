@@ -38,8 +38,6 @@ chip_network_sim/
       run_*.sh
       generate_*.py
       compile_startup_json.py
-    larpix_v3b_rtl/
-      src/
 ```
 
 ## 3. Runtime Topology
@@ -130,6 +128,10 @@ Always-built targets:
 
 Verilator-dependent target:
 - `chip_larpix` via `chip_larpix_build`
+
+External configure inputs:
+- `NNG_ROOT` must point to an `nng` tree with headers and a built shared library.
+- `LARPIX_RTL_DIR` must point to a user-supplied LArPix RTL `src` directory.
 
 The build no longer exposes the retired generic packet/FIFO simulator path.
 
