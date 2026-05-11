@@ -45,6 +45,22 @@ Example multi-chip bootstrap/event flow:
 ./larpix_network_sim/scripts/run_3x5_event_top_right.sh
 ```
 
+Unified run-config flow:
+```bash
+python3 larpix_network_sim/scripts/run_from_config.py \
+  -cfg larpix_network_sim/config/example_run_config_1chip_event.json \
+  --prepare-only
+```
+
+Supported `startup.mode` values in the unified config:
+- `manual`
+- `bootstrap_chip_id_readback`
+- `bootstrap_chip_id`
+- `enable_trigger_injected_channels`
+
+`bootstrap_chip_id` and `bootstrap_chip_id_readback` can also append the per-channel enable/unmask writes for injected channels with:
+- `"append_enable_injected_channels": true`
+
 ## Repository Layout
 ```text
 chip_network_sim/
