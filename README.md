@@ -4,6 +4,8 @@ This project aims to develop a deterministic, scalable simulation architecture f
 
 AI tools, particularly Codex, have played a central role in the development of this project, with the overall simulation architecture having been largely constructed with the assistance of AI. This included generating and organizing code across multiple languages (C++, Verilog, and Python), as well as structuring a nontrivial, multi-component codebase.
 
+Launch <https://www.snr-lab.org/snrlab-chip-network-sim/index.html?playback=https://raw.githubusercontent.com/snr-laboratory/snrlab-chip-network-sim/refs/heads/main/chip_network_sim/larpix_network_sim/visualizers/packet_transmission/playback/live_event_15x15_staggered_multichip.json> to view an example.
+
 ## K.G.'s note
 
 A key use of AI was in understanding and integrating a third-party RTL repository for the LArPix digital backend designed by the IC Design Group at Lawrence Berkeley National Laboratory, which served as a reference case for the architecture. Because the repository consisted exclusively of RTL source code, which can be difficult to interpret without prior familiarity with the digital structure being described, AI proved extremely useful as an interactive tool for explanation and clarification. By iteratively querying the agent about specific modules and signal flows, I was able to build a functional understanding of the design and incorporate it into my workflow.
