@@ -238,3 +238,4 @@ fp-info-cache
 /chip_network_sim/larpix_network_sim/larpix_v3*
 /chip_network_sim/github_pages_export
 /chip_network_sim/**/*.tracebin
+/dev_journals
