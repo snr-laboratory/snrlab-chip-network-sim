@@ -38,17 +38,33 @@ work_dir="$build_dir/larpix_1chip_readback_smoke"
 startup_in="$repo_root/larpix_network_sim/config/startup_1chip_full_reg_readback.json"
 startup_compiled="$work_dir/startup_1chip_full_reg_readback.compiled.json"
 log_file="$work_dir/run.log"
-: "${NNG_ROOT:?set NNG_ROOT to your external nng tree}"
-: "${LARPIX_RTL_DIR:?set LARPIX_RTL_DIR to your external RTL src directory}"
-constants_file="$LARPIX_RTL_DIR/larpix_constants.sv"
-assign_file="$LARPIX_RTL_DIR/config_regfile_assign.sv"
+rtl_variant="${RTL_VARIANT:-v1}"
+chip_target="${CHIP_TARGET:-chip_larpix_build}"
+chip_bin_name="${CHIP_BIN_NAME:-chip_larpix}"
+
+case "$rtl_variant" in
+  v1)
+    constants_file="$repo_root/larpix_network_sim/larpix_v3b_rtl/src/larpix_constants.sv"
+    assign_file="$repo_root/larpix_network_sim/larpix_v3b_rtl/src/config_regfile_assign.sv"
+    ;;
+  v2)
+    constants_file="$repo_root/larpix_network_sim/larpix_v3b_rtl_v2/src/larpix_constants.sv"
+    assign_file="$repo_root/larpix_network_sim/larpix_v3b_rtl_v2/src/config_regfile_assign.sv"
+    ;;
+  v3c)
+    constants_file="$repo_root/larpix_network_sim/larpix_v3c/src/larpix_constants.sv"
+    assign_file="$repo_root/larpix_network_sim/larpix_v3c/src/config_regfile_assign.sv"
+    ;;
+  *)
+    echo "unknown RTL_VARIANT: $rtl_variant" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$work_dir"
 
-cmake -S "$repo_root" -B "$build_dir" \
-  -DNNG_ROOT="$NNG_ROOT" \
-  -DLARPIX_RTL_DIR="$LARPIX_RTL_DIR"
-cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix chip_larpix_build -j
+cmake -S "$repo_root" -B "$build_dir"
+cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix "$chip_target" -j
 
 python3 "$repo_root/larpix_network_sim/scripts/generate_1chip_full_reg_readback_json.py"   --constants "$constants_file"   --assign "$assign_file"   --out "$startup_in"
 
@@ -66,7 +82,7 @@ print(last_tick + 220)
 PYT
 )
 
-"$build_dir/orchestrator_larpix"   -rows 1   -cols 1   -ticks "$ticks"   -source_x 0   -source_y 0   -chip_bin "$build_dir/chip_larpix"   -fpga_bin "$build_dir/fpga_larpix"   -startup_json "$startup_compiled"   > "$log_file" 2>&1
+"$build_dir/orchestrator_larpix"   -rows 1   -cols 1   -ticks "$ticks"   -source_x 0   -source_y 0   -chip_bin "$build_dir/$chip_bin_name"   -fpga_bin "$build_dir/fpga_larpix"   -startup_json "$startup_compiled"   > "$log_file" 2>&1
 
 python3 - "$log_file" "$repo_root/larpix_network_sim/scripts/larpix_uart.py" "$repo_root/larpix_network_sim/scripts/rtl_config_defaults.py" "$constants_file" "$assign_file" <<'PY2'
 import importlib.util

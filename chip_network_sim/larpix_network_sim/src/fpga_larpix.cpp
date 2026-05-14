@@ -113,6 +113,13 @@ struct uart_decoder_t {
     } state = IDLE;
     uint64_t packet = 0;
     int      bit_idx = 0;
+    int      target_bits = 64;
+};
+
+enum {
+    LARPIXSIM_UART_MSG_OP = 0u,
+    LARPIXSIM_UART_MSG_BITS = 24u,
+    LARPIXSIM_UART_FULL_BITS = 64u,
 };
 
 static void
@@ -789,6 +796,7 @@ uart_decoder_reset(uart_decoder_t *decoder)
     decoder->state = uart_decoder_t::IDLE;
     decoder->packet = 0;
     decoder->bit_idx = 0;
+    decoder->target_bits = LARPIXSIM_UART_FULL_BITS;
 }
 
 static bool
@@ -804,12 +812,18 @@ uart_decoder_consume(uart_decoder_t *decoder, uint8_t have_bit, uint8_t bit_valu
             decoder->state = uart_decoder_t::DATA;
             decoder->packet = 0;
             decoder->bit_idx = 0;
+            decoder->target_bits = LARPIXSIM_UART_FULL_BITS;
         }
         break;
     case uart_decoder_t::DATA:
         decoder->packet |= ((uint64_t)(bit_value & 1u) << decoder->bit_idx);
         decoder->bit_idx++;
-        if (decoder->bit_idx >= 64) {
+        if (decoder->bit_idx == 2) {
+            decoder->target_bits = (((uint8_t)(decoder->packet & 0x3u)) == LARPIXSIM_UART_MSG_OP)
+                ? LARPIXSIM_UART_MSG_BITS
+                : LARPIXSIM_UART_FULL_BITS;
+        }
+        if (decoder->bit_idx >= decoder->target_bits) {
             decoder->state = uart_decoder_t::STOP;
         }
         break;
@@ -985,6 +999,9 @@ main(int argc, char **argv)
             if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
                 goto cleanup;
             }
+            /* Mirror chip_larpix shutdown behavior so the terminal DONE is
+             * visible to the orchestrator before this process closes sockets. */
+            nng_msleep(10);
             break;
         }
         if (tick.type != CHIPSIM_MSG_TICK) {

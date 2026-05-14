@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """Helpers for LArPix packet encoding/decoding and UART framing.
 
-This script matches the current LArPix RTL assumptions in:
-- larpix_v3b/src/uart_tx.sv
-- larpix_v3b/src/uart_rx.sv
-- larpix_v3b/src/comms_ctrl.sv
-- larpix_v3b/src/larpix_constants.sv
-
-Packet width is 64 bits total:
-- bits [62:0]: payload
-- bit  [63]: odd parity over payload bits [62:0]
+Packet width is mixed:
+- MSG_OP packets are 7 bits total:
+  - bits [5:0]: payload
+  - bit  [6]: odd parity over payload bits [5:0]
+- all other packets are 64 bits total:
+  - bits [62:0]: payload
+  - bit  [63]: odd parity over payload bits [62:0]
 
 UART framing is:
 - 1 start bit = 0
-- 64 packet bits, LSB first
+- 7 packet bits for MSG_OP, 64 packet bits otherwise, LSB first
 - 1 stop bit = 1
 """
 
@@ -27,11 +25,17 @@ from typing import Iterable, List
 WIDTH = 64
 PAYLOAD_WIDTH = 63
 MAGIC_NUMBER = 0x89504E47
-GLOBAL_ID = 0xFF
-
+MSG_OP = 0b00
 DATA_OP = 0b01
 CONFIG_WRITE_OP = 0b10
 CONFIG_READ_OP = 0b11
+MSG_WIDTH = 7
+MSG_PAYLOAD_WIDTH = 6
+
+MSG_TAG_NORTH = 0b00
+MSG_TAG_EAST = 0b01
+MSG_TAG_SOUTH = 0b10
+MSG_TAG_WEST = 0b11
 
 
 @dataclass
@@ -73,14 +77,38 @@ def odd_parity_bit(payload63: int) -> int:
     return 0 if (ones & 1) else 1
 
 
+def odd_parity_bit_width(payload: int, width: int) -> int:
+    payload &= mask(width)
+    ones = payload.bit_count()
+    return 0 if (ones & 1) else 1
+
+
 def attach_parity(payload63: int) -> int:
     payload63 &= mask(PAYLOAD_WIDTH)
     return payload63 | (odd_parity_bit(payload63) << 63)
 
 
+def attach_msg_parity(payload6: int) -> int:
+    payload6 &= mask(MSG_PAYLOAD_WIDTH)
+    return payload6 | (odd_parity_bit_width(payload6, MSG_PAYLOAD_WIDTH) << 6)
+
+
 def check_odd_parity(word: int) -> bool:
     word &= mask(WIDTH)
     return (word.bit_count() & 1) == 1
+
+
+def check_msg_odd_parity(word: int) -> bool:
+    word &= mask(MSG_WIDTH)
+    return (word.bit_count() & 1) == 1
+
+
+def build_msg_packet(*, tx_tag: int, fifo_state: int) -> int:
+    payload6 = 0
+    payload6 |= (MSG_OP & 0x3) << 0
+    payload6 |= (fifo_state & 0x3) << 2
+    payload6 |= (tx_tag & 0x3) << 4
+    return attach_msg_parity(payload6)
 
 
 def build_data_packet(
@@ -130,9 +158,11 @@ def build_config_read_packet(*, chip_id: int, register_addr: int, stats_nibble: 
 
 
 def packet_to_uart_bits(word: int) -> UartFrame:
-    word &= mask(WIDTH)
+    packet_type = word & 0x3
+    width = MSG_WIDTH if packet_type == MSG_OP else WIDTH
+    word &= mask(width)
     bits = [0]
-    bits.extend((word >> i) & 1 for i in range(WIDTH))
+    bits.extend((word >> i) & 1 for i in range(width))
     bits.append(1)
     return UartFrame(bits)
 
@@ -182,7 +212,18 @@ def decode_packet(word: int) -> PacketFields:
     downstream = (payload >> 62) & 0x1
     odd_ok = check_odd_parity(word)
 
-    if packet_type == DATA_OP:
+    if packet_type == MSG_OP:
+        kind = "msg"
+        msg_word = word & mask(MSG_WIDTH)
+        msg_payload = msg_word & mask(MSG_PAYLOAD_WIDTH)
+        decoded = {
+            "packet_type": packet_type,
+            "fifo_state": (msg_payload >> 2) & 0x3,
+            "tx_tag": (msg_payload >> 4) & 0x3,
+            "odd_parity_ok": check_msg_odd_parity(msg_word),
+            "on_wire_bits": MSG_WIDTH,
+        }
+    elif packet_type == DATA_OP:
         kind = "data"
         decoded = {
             "packet_type": packet_type,
@@ -220,7 +261,7 @@ def decode_packet(word: int) -> PacketFields:
     return PacketFields(
         word=word,
         payload=payload,
-        parity=parity,
+        parity=((word >> 6) & 1) if packet_type == MSG_OP else parity,
         packet_type=packet_type,
         chip_id=chip_id,
         channel_or_addr=channel_or_addr,
@@ -229,7 +270,7 @@ def decode_packet(word: int) -> PacketFields:
         trigger_type=trigger_type,
         status_nibble=status_nibble,
         downstream=downstream,
-        odd_parity_ok=odd_ok,
+        odd_parity_ok=check_msg_odd_parity(word & mask(MSG_WIDTH)) if packet_type == MSG_OP else odd_ok,
         kind=kind,
         decoded=decoded,
     )
@@ -257,6 +298,13 @@ def run_self_test() -> None:
     assert d_data.decoded["channel_id"] == 7
     assert d_data.decoded["adc"] == 399
     assert d_data.odd_parity_ok
+
+    w_msg = build_msg_packet(tx_tag=MSG_TAG_EAST, fifo_state=0b10)
+    d_msg = decode_packet(w_msg)
+    assert d_msg.kind == "msg"
+    assert d_msg.decoded["tx_tag"] == MSG_TAG_EAST
+    assert d_msg.decoded["fifo_state"] == 0b10
+    assert d_msg.odd_parity_ok
 
     frame = packet_to_uart_bits(w_data)
     assert len(frame.bits) == 66

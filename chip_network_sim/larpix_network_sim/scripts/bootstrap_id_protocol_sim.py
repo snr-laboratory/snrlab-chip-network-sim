@@ -69,9 +69,6 @@ NORTH_ONLY = lane_mask(Lane.NORTH)
 EAST_ONLY = lane_mask(Lane.EAST)
 SOUTH_ONLY = lane_mask(Lane.SOUTH)
 WEST_ONLY = lane_mask(Lane.WEST)
-NORTH_EAST = lane_mask(Lane.NORTH, Lane.EAST)
-NORTH_WEST = lane_mask(Lane.NORTH, Lane.WEST)
-NORTH_EAST_WEST = lane_mask(Lane.NORTH, Lane.EAST, Lane.WEST)
 PLACEHOLDER_CHIP_ID = 254
 
 
@@ -79,19 +76,33 @@ class ProtocolError(RuntimeError):
     pass
 
 
+def opposite_lane(lane: Lane) -> Lane:
+    return {
+        Lane.NORTH: Lane.SOUTH,
+        Lane.SOUTH: Lane.NORTH,
+        Lane.EAST: Lane.WEST,
+        Lane.WEST: Lane.EAST,
+    }[lane]
+
+
 class BootstrapSim:
-    def __init__(self, cols: int, rows: int, s: int) -> None:
+    def __init__(self, cols: int, rows: int, source_x: int, source_y: int = 0) -> None:
         if cols <= 0 or rows <= 0:
             raise ValueError("rows and cols must be positive")
         if cols * rows > 254:
-            raise ValueError("bootstrap protocol reserves chip ID 254 as a placeholder and chip ID 255 is reserved by the RTL as GLOBAL_ID, so the maximum supported network size is 254 chips")
-        if not (0 <= s < cols):
-            raise ValueError("source s must satisfy 0 <= s < cols")
+            raise ValueError(
+                "bootstrap protocol reserves chip ID 254 as a placeholder and chip ID 255 is reserved by the RTL as GLOBAL_ID, so the maximum supported network size is 254 chips"
+            )
+        if not (0 <= source_x < cols):
+            raise ValueError("source_x must satisfy 0 <= source_x < cols")
+        if not (0 <= source_y < rows):
+            raise ValueError("source_y must satisfy 0 <= source_y < rows")
 
         self.cols = cols
         self.rows = rows
-        self.s = s
-        self.source: Coord = (s, 0)
+        self.source_x = source_x
+        self.source_y = source_y
+        self.source: Coord = (source_x, source_y)
         self.grid: Grid = [[Chip() for _ in range(cols)] for _ in range(rows)]
         self.snapshots: Dict[str, str] = {}
         self.logs: List[str] = []
@@ -126,6 +137,7 @@ class BootstrapSim:
         lines.append("  " + "   ".join(f"x={x}" for x in range(self.cols)))
         lines.append(f"  top row is y={self.rows - 1}")
         lines.append("  bottom row is y=0")
+        lines.append(f"  source chip is at {self.source}")
         lines.append("  cell format = chip_id@Uupstreammask/Ddownstreammask")
         return "\n".join(lines)
 
@@ -198,86 +210,121 @@ class BootstrapSim:
             f"{context}: ENABLE_PISO_DOWN ({mode}) delivered to {coord}, down_mask 0x{old:02X} -> 0x{chip.down_mask:02X}"
         )
 
-    def bottom_row_id(self, desired: int) -> int:
+    def desired_chip_id(self, coord: Coord) -> int:
+        x, y = coord
+        desired = y * self.cols + x
         return PLACEHOLDER_CHIP_ID if desired == 1 else desired
 
-    def target_coord(self, col: int, row: int) -> Coord:
-        return (col, row)
+    def prepare_source_row_path(self, target_x: int) -> None:
+        if target_x == self.source_x:
+            return
+        step = 1 if target_x > self.source_x else -1
+        lane = Lane.EAST if step > 0 else Lane.WEST
+        lane_only = lane_mask(lane)
+        direction = "east" if step > 0 else "west"
 
-    def final_bottom_up_mask(self, col: int) -> int:
-        if col == self.s:
-            mask = NORTH_ONLY
-            if self.s > 0:
-                mask |= WEST_ONLY
-            if self.s < self.cols - 1:
-                mask |= EAST_ONLY
-            return mask
-        if col < self.s:
-            return NORTH_WEST if col > 0 else NORTH_ONLY
-        if col > self.s:
-            return NORTH_EAST if col < self.cols - 1 else NORTH_ONLY
-        return NORTH_ONLY
-
-    def prepare_source_special(self) -> None:
-        mask = NORTH_ONLY
-        if self.s > 0:
-            mask |= WEST_ONLY
-        if self.s < self.cols - 1:
-            mask |= EAST_ONLY
         source_id = self.chip(self.source).chip_id
-        self.write_up(source_id, self.source, mask, f"source special prepare for chip at {self.source}", replace=True)
+        self.write_up(
+            source_id,
+            self.source,
+            lane_only,
+            f"source-row path prepare toward column {target_x} via {direction} from {self.source}",
+            replace=True,
+        )
+
+        x = self.source_x + step
+        while x != target_x:
+            coord = (x, self.source_y)
+            chip_id = self.chip(coord).chip_id
+            self.write_up(
+                chip_id,
+                coord,
+                lane_only,
+                f"source-row relay prepare toward column {target_x} via {direction} for chip at {coord}",
+                replace=True,
+            )
+            x += step
+
+    def assign_source_row(self) -> None:
+        source_id = self.desired_chip_id(self.source)
+        self.write_chip_id(1, self.source, source_id, f"source assignment at {self.source}")
         self.write_down(source_id, self.source, SOUTH_ONLY, f"source south downstream keep for chip at {self.source}")
 
-    def bootstrap_vertical_column(self, c: int, prep_done: bool = False) -> None:
-        bottom = (c, 0)
-        bottom_id = self.chip(bottom).chip_id
+        if self.source_x < self.cols - 1:
+            self.write_up(source_id, self.source, EAST_ONLY, f"source-row east prepare for chip at {self.source}", replace=True)
+            for x in range(self.source_x, self.cols - 1):
+                current = (x, self.source_y)
+                target = (x + 1, self.source_y)
+                current_id = self.chip(current).chip_id
+                if x > self.source_x:
+                    self.write_up(current_id, current, EAST_ONLY, f"source-row east-only propagation enable for chip at {current}", replace=True)
+                target_id = self.desired_chip_id(target)
+                self.write_chip_id(1, target, target_id, f"source-row assign east neighbor of chip at {current}")
+                self.write_down(target_id, target, WEST_ONLY, f"source-row west downstream enable for chip at {target}")
 
-        if not prep_done:
-            if c < self.s:
-                self.write_up(bottom_id, bottom, NORTH_ONLY, f"column {c} bottom prepare west-side north enable", replace=False)
-            elif c > self.s:
-                self.write_up(bottom_id, bottom, NORTH_ONLY, f"column {c} bottom prepare east-side north enable", replace=False)
-            else:
-                self.prepare_source_special()
+        if self.source_x > 0:
+            source_id = self.chip(self.source).chip_id
+            self.write_up(source_id, self.source, WEST_ONLY, f"source-row west prepare for chip at {self.source}", replace=True)
+            for x in range(self.source_x, 0, -1):
+                current = (x, self.source_y)
+                target = (x - 1, self.source_y)
+                current_id = self.chip(current).chip_id
+                if x < self.source_x:
+                    self.write_up(current_id, current, WEST_ONLY, f"source-row west-only propagation enable for chip at {current}", replace=True)
+                target_id = self.desired_chip_id(target)
+                self.write_chip_id(1, target, target_id, f"source-row assign west neighbor of chip at {current}")
+                self.write_down(target_id, target, EAST_ONLY, f"source-row east downstream enable for chip at {target}")
 
-        for y in range(0, self.rows - 1):
-            current = (c, y)
-            target = (c, y + 1)
-            next_id = (y + 1) * self.cols + c
-            self.write_chip_id(1, target, next_id, f"column {c} assign north neighbor of chip at {current}")
-            self.write_down(next_id, target, SOUTH_ONLY, f"column {c} downstream return enable for chip at {target}")
-            if y + 1 < self.rows - 1:
-                self.write_up(next_id, target, NORTH_ONLY, f"column {c} north-only propagation enable for chip at {target}", replace=True)
+    def bootstrap_vertical_direction(self, col: int, lane: Lane) -> None:
+        root = (col, self.source_y)
+        lane_only = lane_mask(lane)
+        opposite_only = lane_mask(opposite_lane(lane))
+        step = 1 if lane == Lane.NORTH else -1
+        direction = "north" if lane == Lane.NORTH else "south"
 
-    def run_bottom_row(self) -> None:
-        source_id = self.bottom_row_id(self.s)
-        self.write_chip_id(1, self.source, source_id, f"bottom-row source assignment (s={self.s})")
+        if (lane == Lane.NORTH and self.source_y == self.rows - 1) or (lane == Lane.SOUTH and self.source_y == 0):
+            return
 
-        if self.s < self.cols - 1:
-            self.write_up(source_id, self.source, EAST_ONLY, f"bottom-row source east enable for chip at {self.source}", replace=True)
+        self.prepare_source_row_path(col)
+        root_id = self.chip(root).chip_id
+        self.write_up(root_id, root, lane_only, f"column {col} root prepare {direction} enable for chip at {root}", replace=True)
 
-        for k in range(self.s, self.cols - 1):
-            current = (k, 0)
-            target = (k + 1, 0)
-            current_id = self.chip(current).chip_id
-            target_id = self.bottom_row_id(k + 1)
-            if k > self.s:
-                self.write_up(current_id, current, EAST_ONLY, f"bottom-row east-only upstream enable for chip at {current}", replace=True)
-            self.write_chip_id(1, target, target_id, f"bottom-row assign east neighbor of chip at {current}")
-            self.write_down(target_id, target, WEST_ONLY, f"bottom-row west downstream enable for chip at {target}")
+        y = self.source_y
+        boundary = self.rows - 1 if lane == Lane.NORTH else 0
+        while y != boundary:
+            current = (col, y)
+            target = (col, y + step)
+            target_id = self.desired_chip_id(target)
+            self.write_chip_id(1, target, target_id, f"column {col} assign {direction} neighbor of chip at {current}")
+            self.write_down(target_id, target, opposite_only, f"column {col} downstream return enable for chip at {target}")
+            if target[1] != boundary:
+                self.write_up(target_id, target, lane_only, f"column {col} {direction}-only propagation enable for chip at {target}", replace=True)
+            y += step
 
-        if self.s > 0:
-            self.write_up(source_id, self.source, WEST_ONLY, f"bottom-row source west enable for chip at {self.source}", replace=True)
+    def final_source_row_up_mask(self, col: int) -> int:
+        mask = 0
+        if col < self.source_x and col > 0:
+            mask |= WEST_ONLY
+        elif col > self.source_x and col < self.cols - 1:
+            mask |= EAST_ONLY
+        else:
+            if col == self.source_x:
+                if self.source_x > 0:
+                    mask |= WEST_ONLY
+                if self.source_x < self.cols - 1:
+                    mask |= EAST_ONLY
+        if self.source_y < self.rows - 1:
+            mask |= NORTH_ONLY
+        if self.source_y > 0:
+            mask |= SOUTH_ONLY
+        return mask
 
-        for k in range(self.s, 0, -1):
-            current = (k, 0)
-            target = (k - 1, 0)
-            current_id = self.chip(current).chip_id
-            target_id = self.bottom_row_id(k - 1)
-            if k < self.s:
-                self.write_up(current_id, current, WEST_ONLY, f"bottom-row west-only upstream enable for chip at {current}", replace=True)
-            self.write_chip_id(1, target, target_id, f"bottom-row assign west neighbor of chip at {current}")
-            self.write_down(target_id, target, EAST_ONLY, f"bottom-row east downstream enable for chip at {target}")
+    def final_vertical_up_mask(self, row: int) -> int:
+        if row > self.source_y:
+            return NORTH_ONLY if row < self.rows - 1 else 0
+        if row < self.source_y:
+            return SOUTH_ONLY if row > 0 else 0
+        return 0
 
     def run_cleanup_remap(self) -> None:
         placeholder = None
@@ -295,39 +342,37 @@ class BootstrapSim:
         self.chip(placeholder).chip_id = 1
         self.logs.append(f"cleanup remap: chip at {placeholder} remapped chip_id {old} -> 1")
 
+    def normalize_final_up_masks(self) -> None:
+        row_order = [self.source_x]
+        row_order.extend(range(self.source_x - 1, -1, -1))
+        row_order.extend(range(self.source_x + 1, self.cols))
+        for x in row_order:
+            coord = (x, self.source_y)
+            chip_id = self.chip(coord).chip_id
+            self.write_up(chip_id, coord, self.final_source_row_up_mask(x), f"final source-row normalize for chip at {coord}", replace=True)
+
+        for x in row_order:
+            for y in range(self.source_y + 1, self.rows):
+                coord = (x, y)
+                chip_id = self.chip(coord).chip_id
+                self.write_up(chip_id, coord, self.final_vertical_up_mask(y), f"final north-column normalize for chip at {coord}", replace=True)
+            for y in range(self.source_y - 1, -1, -1):
+                coord = (x, y)
+                chip_id = self.chip(coord).chip_id
+                self.write_up(chip_id, coord, self.final_vertical_up_mask(y), f"final south-column normalize for chip at {coord}", replace=True)
+
     def run(self) -> None:
         self.chip(self.source).down_mask = SOUTH_ONLY
         self.snapshot("Initial Configuration")
 
-        self.run_bottom_row()
-        self.snapshot("After Bottom Row Assigned")
+        self.assign_source_row()
+        self.snapshot("After Source Row Assigned")
 
-        self.bootstrap_vertical_column(0, prep_done=False)
-        self.snapshot("After First Column Assigned")
+        for col in range(self.cols):
+            self.bootstrap_vertical_direction(col, Lane.NORTH)
+            self.bootstrap_vertical_direction(col, Lane.SOUTH)
 
-        if self.cols > 1:
-            if self.s == 1:
-                self.prepare_source_special()
-                self.bootstrap_vertical_column(1, prep_done=True)
-            else:
-                bottom = (1, 0)
-                bottom_id = self.chip(bottom).chip_id
-                self.write_up(bottom_id, bottom, NORTH_ONLY, f"second-column bottom prepare for chip at {bottom}", replace=False)
-                self.bootstrap_vertical_column(1, prep_done=True)
-
-        for c in range(2, self.cols):
-            if c == self.s:
-                self.prepare_source_special()
-                self.bootstrap_vertical_column(c, prep_done=True)
-            else:
-                self.bootstrap_vertical_column(c, prep_done=False)
-
-        # Normalize final bottom-row upstream state to the intended steady bootstrap result.
-        for c in range(self.cols):
-            coord = (c, 0)
-            chip_id = self.chip(coord).chip_id
-            self.write_up(chip_id, coord, self.final_bottom_up_mask(c), f"final bottom-row normalize for chip at {coord}", replace=True)
-
+        self.normalize_final_up_masks()
         self.run_cleanup_remap()
         self.snapshot("After Full Protocol Completed")
 
@@ -336,28 +381,28 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Simulate the chip-ID bootstrap protocol from the markdown")
     parser.add_argument("rows", type=int, help="number of rows")
     parser.add_argument("cols", type=int, help="number of columns")
-    parser.add_argument("s", type=int, help="source chip x-position on bottom row")
+    parser.add_argument("s", type=int, help="source chip x-position")
+    parser.add_argument("--source-y", type=int, default=0, help="source chip y-position")
     parser.add_argument("--show-log", action="store_true", help="print the step-by-step protocol log")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    sim = BootstrapSim(args.cols, args.rows, args.s)
+    sim = BootstrapSim(args.cols, args.rows, args.s, args.source_y)
     try:
         sim.run()
         status = "PASS: protocol completed without broken, ambiguous, or wrong-target routing"
     except ProtocolError as exc:
         status = f"FAIL: {exc}"
 
-    print(f"Bootstrap simulation for rows={args.rows}, cols={args.cols}, s={args.s}")
+    print(f"Bootstrap simulation for rows={args.rows}, cols={args.cols}, source=({args.s},{args.source_y})")
     print(status)
     print()
 
     order = [
         "Initial Configuration",
-        "After Bottom Row Assigned",
-        "After First Column Assigned",
+        "After Source Row Assigned",
         "After Full Protocol Completed",
     ]
     for i, title in enumerate(order):

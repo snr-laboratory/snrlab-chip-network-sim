@@ -1,0 +1,16 @@
+chip_id	generated	forwarded	local_drops	passthrough_drops	total_drops	enq_local_ok	enq_neigh_ok	fifo_peak_observed
+0	1	14	0	0	0	1	14	1
+1	2	14	0	0	0	2	14	2
+2	2	14	0	0	0	2	15	3
+3	0	15	0	0	0	0	16	1
+4	3	16	0	0	0	3	15	2
+5	3	14	0	0	0	3	13	2
+6	4	17	0	0	0	4	14	2
+7	4	17	0	0	0	4	17	4
+8	0	16	0	0	0	0	17	1
+9	2	15	0	0	0	2	16	3
+10	2	13	0	0	0	2	13	2
+11	5	13	0	0	0	5	9	2
+12	3	9	0	0	0	3	6	1
+13	2	6	0	0	0	2	4	1
+14	4	4	0	0	0	4	0	1

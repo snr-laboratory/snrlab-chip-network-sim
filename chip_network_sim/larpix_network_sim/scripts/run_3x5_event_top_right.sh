@@ -25,7 +25,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 build_dir="$repo_root/build"
 work_dir="$build_dir/larpix_3x5_event_top_right"
 startup_in="$repo_root/larpix_network_sim/config/startup_3x5_event_top_right.json"
-stimulus_json="$repo_root/larpix_network_sim/config/stimulus_3x5_event_top_right.json"
+base_stimulus_json="$repo_root/larpix_network_sim/config/stimulus_3x5_event_top_right.json"
+stimulus_json="$work_dir/stimulus_3x5_event_top_right.json"
 startup_compiled="$work_dir/startup_3x5_event_top_right.compiled.json"
 occupancy_csv="$work_dir/chip14_occupancy.csv"
 occupancy_png="$work_dir/chip14_occupancy.png"
@@ -33,6 +34,9 @@ occupancy_zoom_png="$work_dir/chip14_occupancy_zoom.png"
 channel_generation_csv="$work_dir/chip14_occupancy_channel_generation.csv"
 channel_fifo_detail_csv="$work_dir/chip14_occupancy_channel_fifo_detail.csv"
 log_file="$work_dir/run.log"
+trace_jsonl="$work_dir/trace.jsonl"
+playback_json="$work_dir/live_event_3x5_chip14.json"
+run_metrics_json="$work_dir/run_metrics.json"
 mkdir -p "$work_dir"
 
 python3 "$repo_root/larpix_network_sim/scripts/generate_bootstrap_event_startup_json.py" \
@@ -44,11 +48,40 @@ python3 "$repo_root/larpix_network_sim/scripts/generate_bootstrap_event_startup_
   --out "$startup_in"
 
 cmake -S "$repo_root" -B "$build_dir"
-cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix chip_larpix_build -j
+cmake --build "$build_dir" --target fpga_larpix trace_collector_larpix orchestrator_larpix chip_larpix_build -j
 
 python3 "$repo_root/larpix_network_sim/scripts/compile_startup_json.py" \
   "$startup_in" \
   "$startup_compiled"
+
+python3 - "$startup_compiled" "$base_stimulus_json" "$stimulus_json" <<'PYSTIM'
+import json
+import pathlib
+import sys
+
+def load_json_with_comments(path_str: str):
+    path = pathlib.Path(path_str)
+    lines = []
+    for line in path.read_text().splitlines():
+        if line.lstrip().startswith('//'):
+            continue
+        lines.append(line)
+    return json.loads("\n".join(lines))
+
+startup = json.loads(pathlib.Path(sys.argv[1]).read_text())
+base_stim = load_json_with_comments(sys.argv[2])
+out_path = pathlib.Path(sys.argv[3])
+frames = startup.get('frames', [])
+last_frame_tick = max((int(frame['tick_start']) for frame in frames), default=0)
+charges = base_stim.get('charges', [])
+base_injection_tick = min((int(ev['tick']) for ev in charges), default=0)
+new_injection_tick = last_frame_tick + 1000
+shift = new_injection_tick - base_injection_tick
+for ev in charges:
+    ev['tick'] = int(ev['tick']) + shift
+out_path.write_text(json.dumps(base_stim, indent=2) + "\n")
+print(new_injection_tick)
+PYSTIM
 
 read -r injection_tick ticks <<<"$(python3 - "$startup_compiled" "$stimulus_json" <<'PYT'
 import json
@@ -77,20 +110,90 @@ PYT
 
 run_ok=0
 for attempt in 1 2 3 4 5; do
-  if "$build_dir/orchestrator_larpix" \
-    -rows 3 \
-    -cols 5 \
-    -ticks "$ticks" \
-    -source_x 0 \
-    -source_y 0 \
-    -chip_bin "$build_dir/chip_larpix" \
-    -fpga_bin "$build_dir/fpga_larpix" \
-    -startup_json "$startup_compiled" \
-    -stimulus_json "$stimulus_json" \
-    -occupancy_csv "$occupancy_csv" \
-    -occupancy_runtime_id 14 \
-    -occupancy_tick_start "$injection_tick" \
-    > "$log_file" 2>&1; then
+  if python3 - "$build_dir" "$startup_compiled" "$stimulus_json" "$trace_jsonl" "$occupancy_csv" "$log_file" "$run_metrics_json" "$ticks" "$injection_tick" <<'PYRUN'
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+
+build_dir = pathlib.Path(sys.argv[1])
+startup_compiled = pathlib.Path(sys.argv[2])
+stimulus_json = pathlib.Path(sys.argv[3])
+trace_jsonl = pathlib.Path(sys.argv[4])
+occupancy_csv = pathlib.Path(sys.argv[5])
+log_file = pathlib.Path(sys.argv[6])
+run_metrics_json = pathlib.Path(sys.argv[7])
+ticks = int(sys.argv[8])
+injection_tick = int(sys.argv[9])
+
+cmd = [
+    str(build_dir / 'orchestrator_larpix'),
+    '-rows', '3',
+    '-cols', '5',
+    '-ticks', str(ticks),
+    '-source_x', '0',
+    '-source_y', '0',
+    '-chip_bin', str(build_dir / 'chip_larpix'),
+    '-fpga_bin', str(build_dir / 'fpga_larpix'),
+    '-startup_json', str(startup_compiled),
+    '-stimulus_json', str(stimulus_json),
+    '-trace_out', str(trace_jsonl),
+    '-occupancy_csv', str(occupancy_csv),
+    '-occupancy_runtime_id', '14',
+    '-occupancy_tick_start', str(injection_tick),
+]
+
+allowed = {'orchestrator_larpix', 'chip_larpix', 'fpga_larpix', 'trace_collector_larpix'}
+peak_concurrent_cores = 0
+peak_core_ids = []
+available_cores = os.cpu_count() or 0
+start = time.monotonic()
+with log_file.open('w') as log_fp:
+    proc = subprocess.Popen(cmd, stdout=log_fp, stderr=subprocess.STDOUT)
+    orch_pid = proc.pid
+    while True:
+        try:
+            out = subprocess.check_output(['ps', '-eLo', 'ppid=,pid=,psr=,comm='], text=True)
+            sample_cores = set()
+            for line in out.splitlines():
+                parts = line.strip().split(None, 3)
+                if len(parts) != 4:
+                    continue
+                ppid_s, pid_s, psr_s, comm = parts
+                try:
+                    ppid = int(ppid_s)
+                    pid = int(pid_s)
+                    psr = int(psr_s)
+                except ValueError:
+                    continue
+                if psr < 0:
+                    continue
+                if (pid == orch_pid or ppid == orch_pid) and comm in allowed:
+                    sample_cores.add(psr)
+            if len(sample_cores) > peak_concurrent_cores:
+                peak_concurrent_cores = len(sample_cores)
+                peak_core_ids = sorted(sample_cores)
+        except Exception:
+            pass
+        rc = proc.poll()
+        if rc is not None:
+            runtime_sec = time.monotonic() - start
+            summary = {
+                'ticks': ticks,
+                'runtime_sec': runtime_sec,
+                'ticks_per_sec': (ticks / runtime_sec) if runtime_sec > 0 else 0.0,
+                'cpu_cores_used': peak_concurrent_cores,
+                'cpu_peak_concurrent_cores': peak_concurrent_cores,
+                'cpu_core_ids_used': peak_core_ids,
+                'cpu_cores_available': available_cores,
+            }
+            run_metrics_json.write_text(json.dumps(summary, indent=2) + '\n')
+            sys.exit(rc)
+        time.sleep(0.2)
+PYRUN
+  then
     run_ok=1
     break
   fi
@@ -104,6 +207,30 @@ if [[ "$run_ok" -ne 1 ]]; then
   cat "$log_file"
   exit 1
 fi
+
+python3 "$repo_root/larpix_network_sim/visualizers/packet_transmission/convert_live_trace_to_playback.py" \
+  --rows 3 \
+  --cols 5 \
+  --source-x 0 \
+  --source-y 0 \
+  --startup-json "$startup_compiled" \
+  --run-log "$log_file" \
+  --trace-jsonl "$trace_jsonl" \
+  --out "$playback_json" \
+  --rtl-version "v3b" \
+  --name "3x5 Event Chip 14 Injection"
+
+python3 - "$playback_json" "$run_metrics_json" <<'PYMETRICS'
+import json
+import pathlib
+import sys
+
+playback_json = pathlib.Path(sys.argv[1])
+run_metrics_json = pathlib.Path(sys.argv[2])
+playback = json.loads(playback_json.read_text())
+playback['run_summary'] = json.loads(run_metrics_json.read_text())
+playback_json.write_text(json.dumps(playback, indent=2) + '\n')
+PYMETRICS
 
 python3 - "$occupancy_csv" "$channel_fifo_detail_csv" "$occupancy_png" "$occupancy_zoom_png" "$injection_tick" <<'PLOT'
 import csv
@@ -184,7 +311,7 @@ fig.tight_layout()
 fig.savefig(zoom_png_path)
 PLOT
 
-python3 - "$startup_compiled" "$log_file" "$occupancy_csv" "$occupancy_png" "$occupancy_zoom_png" "$channel_generation_csv" "$channel_fifo_detail_csv" "$repo_root/larpix_network_sim/scripts/larpix_uart.py" <<'PY2'
+python3 - "$startup_compiled" "$log_file" "$occupancy_csv" "$occupancy_png" "$occupancy_zoom_png" "$channel_generation_csv" "$channel_fifo_detail_csv" "$trace_jsonl" "$playback_json" "$repo_root/larpix_network_sim/scripts/larpix_uart.py" <<'PY2'
 import csv
 import importlib.util
 import json
@@ -199,7 +326,9 @@ occupancy_png = pathlib.Path(sys.argv[4])
 occupancy_zoom_png = pathlib.Path(sys.argv[5])
 channel_generation_csv = pathlib.Path(sys.argv[6])
 channel_fifo_detail_csv = pathlib.Path(sys.argv[7])
-helper_path = pathlib.Path(sys.argv[8])
+trace_jsonl = pathlib.Path(sys.argv[8])
+playback_json = pathlib.Path(sys.argv[9])
+helper_path = pathlib.Path(sys.argv[10])
 compiled_raw = json.loads(compiled.read_text())
 frames = compiled_raw.get('frames', [])
 text = log_path.read_text()
@@ -222,6 +351,10 @@ if not channel_generation_csv.exists() or channel_generation_csv.stat().st_size 
     raise SystemExit('FAIL: channel generation summary CSV was not produced')
 if not channel_fifo_detail_csv.exists() or channel_fifo_detail_csv.stat().st_size == 0:
     raise SystemExit('FAIL: detailed channel FIFO CSV was not produced')
+if not trace_jsonl.exists() or trace_jsonl.stat().st_size == 0:
+    raise SystemExit('FAIL: trace JSONL was not produced')
+if not playback_json.exists() or playback_json.stat().st_size == 0:
+    raise SystemExit('FAIL: playback JSON was not produced')
 with channel_generation_csv.open() as f:
     generation_rows = list(csv.DictReader(f))
 if len(generation_rows) != 64:
@@ -281,4 +414,7 @@ print(f'occupancy_png={occupancy_png}')
 print(f'occupancy_zoom_png={occupancy_zoom_png}')
 print(f'channel_generation_csv={channel_generation_csv}')
 print(f'channel_fifo_detail_csv={channel_fifo_detail_csv}')
+print(f'trace_jsonl={trace_jsonl}')
+print(f'playback_json={playback_json}')
+print('visualizer_url_hint=http://localhost:8000/larpix_network_sim/visualizers/packet_transmission/?playback=/build/larpix_3x5_event_top_right/live_event_3x5_chip14.json')
 PY2

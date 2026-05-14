@@ -24,6 +24,35 @@ CHIP_ID_REG = 122
 ENABLE_PISO_UP_REG = 124
 ENABLE_PISO_DOWN_REG = 125
 
+
+def mask_direction_name(mask: int) -> str | None:
+    names = {1: "North", 2: "East", 4: "South", 8: "West"}
+    return names.get(mask)
+
+
+def packet_label_for_fields(decoded: dict) -> str:
+    chip_id = decoded.get('chip_id')
+    reg = decoded.get('register_addr')
+    data = int(decoded.get('register_data', 0))
+    kind = decoded.get('kind', '')
+    if kind == 'data':
+        return f"Event data from chip {chip_id} channel {decoded.get('channel_id')}"
+    if kind == 'config_write':
+        if reg == CHIP_ID_REG:
+            return f"Set CHIP_ID={data} for chip {chip_id}"
+        if reg == ENABLE_PISO_UP_REG:
+            direction = mask_direction_name(data & 0xF)
+            return f"{direction} upstream TX enable for chip {chip_id}" if direction else f"Upstream TX mask 0x{data & 0xF:X} for chip {chip_id}"
+        if reg == ENABLE_PISO_DOWN_REG:
+            direction = mask_direction_name(data & 0xF)
+            return f"{direction} downstream TX enable for chip {chip_id}" if direction else f"Downstream TX mask 0x{data & 0xF:X} for chip {chip_id}"
+        return f"Write reg {reg} = 0x{data:02X} for chip {chip_id}"
+    if kind == 'config_read':
+        if reg == CHIP_ID_REG:
+            return f"Read CHIP_ID from chip {chip_id}"
+        return f"Read reg {reg} from chip {chip_id}"
+    return kind
+
 DIRS = {
     0: (0, 1),
     1: (1, 0),
@@ -51,9 +80,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def make_grid(rows: int, cols: int, s: int):
-    grid = [[Chip() for _ in range(cols)] for _ in range(rows)]
-    grid[0][s].down_mask = 0x04
-    return grid
+    return [[Chip() for _ in range(cols)] for _ in range(rows)]
 
 
 def chip(grid, coord):
@@ -219,13 +246,14 @@ def main() -> int:
             start = tick_start + hop_i * FRAME_BITS
             end = start + FRAME_BITS
             playback['packet_spans'].append({
+                'type': 'packet_move',
                 'start_tick': start,
                 'end_tick': end,
                 'src': list(a),
                 'dst': list(b),
                 'packet_type': packet_type_name(tx_entry['packet_word']),
                 'packet_word': tx_entry['packet_word'],
-                'label': frame.get('label', ''),
+                'label': packet_label_for_fields(decoded),
             })
 
         playback['fpga_spans'].append({
@@ -233,7 +261,7 @@ def main() -> int:
             'end_tick': tick_start + FRAME_BITS,
             'packet_type': packet_type_name(tx_entry['packet_word']),
             'packet_word': tx_entry['packet_word'],
-            'label': frame.get('label', ''),
+            'label': packet_label_for_fields(decoded),
         })
 
         reg = decoded.get('register_addr')
@@ -246,7 +274,7 @@ def main() -> int:
                 'y': target[1],
                 'register_addr': int(reg),
                 'register_data': int(data),
-                'label': frame.get('label', ''),
+                'label': packet_label_for_fields(decoded),
                 'event': 'config_applied',
             }
             if reg == CHIP_ID_REG:
@@ -273,13 +301,14 @@ def main() -> int:
                 start = base_start + hop_i * FRAME_BITS
                 end = start + FRAME_BITS
                 playback['packet_spans'].append({
+                    'type': 'packet_move',
                     'start_tick': start,
                     'end_tick': end,
                     'src': list(a),
                     'dst': list(b),
                     'packet_type': 'config_read_reply',
                     'packet_word': rx_entry['packet_word'],
-                    'label': frame.get('label', ''),
+                    'label': packet_label_for_fields(decoded),
                 })
 
     Path(args.out).write_text(json.dumps(playback, indent=2) + '\n')

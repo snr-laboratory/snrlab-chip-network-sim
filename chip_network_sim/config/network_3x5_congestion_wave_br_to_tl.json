@@ -1,0 +1,116 @@
+{
+  "grid": {
+    "rows": 3,
+    "cols": 5
+  },
+  "packet": {
+    "N_bits": 64,
+    "A_id_bits": 16,
+    "B_ts_bits": 24,
+    "C_payload_bits": 24
+  },
+  "runtime": {
+    "ticks": 50000,
+    "chip_bin": "./build/chip",
+    "fifo_depth": 64,
+    "seed": 424242,
+    "startup_ms": 350,
+    "ack_timeout_ms": 5000,
+    "trace_dir": "./traces/congestion_wave_3x5"
+  },
+  "traffic": {
+    "gen_ppm": 25000
+  },
+  "routes": [
+    {
+      "id": 0,
+      "input_id": 1,
+      "out_id": -1,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 1,
+      "input_id": 2,
+      "out_id": 0,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 2,
+      "input_id": 3,
+      "out_id": 1,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 3,
+      "input_id": 4,
+      "out_id": 2,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 4,
+      "input_id": 9,
+      "out_id": 3,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 5,
+      "input_id": 10,
+      "out_id": 6,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 6,
+      "input_id": 5,
+      "out_id": 7,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 7,
+      "input_id": 6,
+      "out_id": 8,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 8,
+      "input_id": 7,
+      "out_id": 9,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 9,
+      "input_id": 8,
+      "out_id": 4,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 10,
+      "input_id": 11,
+      "out_id": 5,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 11,
+      "input_id": 12,
+      "out_id": 10,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 12,
+      "input_id": 13,
+      "out_id": 11,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 13,
+      "input_id": 14,
+      "out_id": 12,
+      "gen_ppm": 25000
+    },
+    {
+      "id": 14,
+      "input_id": -1,
+      "out_id": 13,
+      "gen_ppm": 25000
+    }
+  ]
+}

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 
 from rtl_config_defaults import parse_defaults
@@ -64,17 +63,11 @@ def build_frames(defaults: dict[int, int]) -> list[dict[str, int | str]]:
 
 
 def main() -> int:
-    rtl_dir = os.environ.get('LARPIX_RTL_DIR')
-    default_constants = f'{rtl_dir}/larpix_constants.sv' if rtl_dir else None
-    default_assign = f'{rtl_dir}/config_regfile_assign.sv' if rtl_dir else None
     parser = argparse.ArgumentParser(description='Generate exhaustive 1-chip startup-readback JSON')
-    parser.add_argument('--constants', default=default_constants)
-    parser.add_argument('--assign', default=default_assign)
+    parser.add_argument('--constants', default='larpix_network_sim/larpix_v3b_rtl/src/larpix_constants.sv')
+    parser.add_argument('--assign', default='larpix_network_sim/larpix_v3b_rtl/src/config_regfile_assign.sv')
     parser.add_argument('--out', default='larpix_network_sim/config/startup_1chip_full_reg_readback.json')
     args = parser.parse_args()
-
-    if args.constants is None or args.assign is None:
-        raise SystemExit('set LARPIX_RTL_DIR or pass --constants and --assign explicitly')
 
     defaults = parse_defaults(Path(args.constants), Path(args.assign))
     frames = build_frames(defaults)

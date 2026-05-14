@@ -18,6 +18,8 @@ work_dir="$build_dir/larpix_3x5_bootstrap_id_smoke"
 startup_in="$repo_root/larpix_network_sim/config/startup_3x5_bootstrap_chip_ids.json"
 startup_compiled="$work_dir/startup_3x5_bootstrap_chip_ids.compiled.json"
 log_file="$work_dir/run.log"
+trace_jsonl="$work_dir/trace.jsonl"
+playback_json="$repo_root/larpix_network_sim/visualizers/packet_transmission/data/live_bootstrap_3x5.json"
 mkdir -p "$work_dir"
 
 python3 "$repo_root/larpix_network_sim/scripts/generate_bootstrap_chip_id_readback_json.py" \
@@ -27,13 +29,22 @@ python3 "$repo_root/larpix_network_sim/scripts/generate_bootstrap_chip_id_readba
   --out "$startup_in"
 
 cmake -S "$repo_root" -B "$build_dir"
-cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix chip_larpix_build -j
+cmake --build "$build_dir" --target fpga_larpix trace_collector_larpix orchestrator_larpix chip_larpix_build -j
 
 python3 "$repo_root/larpix_network_sim/scripts/compile_startup_json.py" \
   "$startup_in" \
   "$startup_compiled"
 
-ticks=30000
+ticks="$(python3 - "$startup_compiled" <<'PYT'
+import json
+import pathlib
+import sys
+startup = json.loads(pathlib.Path(sys.argv[1]).read_text())
+frames = startup.get('frames', [])
+last_frame_tick = max((int(frame['tick_start']) for frame in frames), default=0)
+print(last_frame_tick + 8000)
+PYT
+)"
 
 run_ok=0
 for attempt in 1 2 3 4 5; do
@@ -46,6 +57,7 @@ for attempt in 1 2 3 4 5; do
     -chip_bin "$build_dir/chip_larpix" \
     -fpga_bin "$build_dir/fpga_larpix" \
     -startup_json "$startup_compiled" \
+    -trace_out "$trace_jsonl" \
     > "$log_file" 2>&1; then
     run_ok=1
     break
@@ -61,7 +73,19 @@ if [[ "$run_ok" -ne 1 ]]; then
   exit 1
 fi
 
-python3 - "$startup_in" "$startup_compiled" "$log_file" "$repo_root/larpix_network_sim/scripts/larpix_uart.py" <<'PY2'
+python3 "$repo_root/larpix_network_sim/visualizers/packet_transmission/convert_live_trace_to_playback.py" \
+  --rows 3 \
+  --cols 5 \
+  --source-x 0 \
+  --source-y 0 \
+  --startup-json "$startup_compiled" \
+  --run-log "$log_file" \
+  --trace-jsonl "$trace_jsonl" \
+  --out "$playback_json" \
+  --rtl-version "v3b" \
+  --name "Live bootstrap 3x5 s=0"
+
+python3 - "$startup_in" "$startup_compiled" "$log_file" "$trace_jsonl" "$playback_json" "$repo_root/larpix_network_sim/scripts/larpix_uart.py" <<'PY2'
 import importlib.util
 import json
 import pathlib
@@ -71,7 +95,9 @@ import sys
 startup_in = pathlib.Path(sys.argv[1])
 compiled = pathlib.Path(sys.argv[2])
 log_path = pathlib.Path(sys.argv[3])
-helper_path = pathlib.Path(sys.argv[4])
+trace_jsonl = pathlib.Path(sys.argv[4])
+playback_json = pathlib.Path(sys.argv[5])
+helper_path = pathlib.Path(sys.argv[6])
 startup_raw = json.loads(startup_in.read_text())
 compiled_raw = json.loads(compiled.read_text())
 frames = compiled_raw.get('frames', [])
@@ -79,6 +105,10 @@ expected_reads = [frame for frame in startup_raw.get('frames', []) if frame.get(
 text = log_path.read_text()
 observed_tx = len(re.findall(r'transmitted frame at seq=', text))
 expected_tx = len(frames)
+if not trace_jsonl.exists() or trace_jsonl.stat().st_size == 0:
+    raise SystemExit('FAIL: bootstrap trace JSONL was not produced')
+if not playback_json.exists() or playback_json.stat().st_size == 0:
+    raise SystemExit('FAIL: bootstrap playback JSON was not produced')
 if observed_tx != expected_tx:
     print(text)
     raise SystemExit(f'FAIL: expected {expected_tx} transmitted startup frames, observed {observed_tx}')
@@ -122,4 +152,6 @@ print('PASS: 3x5 bootstrap chip-ID assignment immediate-readback test')
 print(f'expected_frame_count={expected_tx}')
 print(f'observed_transmitted_frame_count={observed_tx}')
 print('verified_readbacks=' + ','.join(str(i) for i in expected_ids))
+print(f'trace_jsonl={trace_jsonl}')
+print(f'playback_json={playback_json}')
 PY2

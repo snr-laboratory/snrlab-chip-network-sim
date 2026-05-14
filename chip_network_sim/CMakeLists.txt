@@ -8,37 +8,53 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Threads REQUIRED)
 
-set(NNG_ROOT "" CACHE PATH "Path to an external nng checkout or install root")
-set(LARPIX_RTL_DIR "" CACHE PATH "Path to an external LArPix RTL src directory")
-set(VERILATOR_SEARCH_HINTS
-  /home/lxusers/y/ymei/OpenICEDA/bin
-)
-
-if(NOT NNG_ROOT)
-  message(FATAL_ERROR "NNG_ROOT must point to an external nng tree with include/ and build/ artifacts.")
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/nng/include/nng/nng.h")
+  message(FATAL_ERROR "Expected nng headers at nng/include/nng/nng.h.")
 endif()
-if(NOT EXISTS "${NNG_ROOT}/include/nng/nng.h")
-  message(FATAL_ERROR "Expected nng headers at ${NNG_ROOT}/include/nng/nng.h.")
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/nng/build/libnng.so")
+  message(FATAL_ERROR "Expected nng shared library at nng/build/libnng.so.")
 endif()
-
-file(GLOB NNG_LIBRARY_CANDIDATES
-  "${NNG_ROOT}/build/libnng.so"
-  "${NNG_ROOT}/build/libnng.so.*"
-)
-list(LENGTH NNG_LIBRARY_CANDIDATES NNG_LIBRARY_CANDIDATE_COUNT)
-if(NNG_LIBRARY_CANDIDATE_COUNT EQUAL 0)
-  message(FATAL_ERROR "Expected an nng shared library under ${NNG_ROOT}/build.")
-endif()
-list(GET NNG_LIBRARY_CANDIDATES 0 NNG_LIBRARY_PATH)
-get_filename_component(NNG_LIBRARY_DIR "${NNG_LIBRARY_PATH}" DIRECTORY)
 
 add_library(nng_local SHARED IMPORTED GLOBAL)
 set_target_properties(nng_local PROPERTIES
-  IMPORTED_LOCATION "${NNG_LIBRARY_PATH}"
-  INTERFACE_INCLUDE_DIRECTORIES "${NNG_ROOT}/include"
+  IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/nng/build/libnng.so"
+  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/nng/include"
 )
 
-# Public-facing repo path: LArPix network simulator only.
+# Legacy simulator targets are only built if their original sources are present.
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/protocol.c" AND EXISTS "${CMAKE_SOURCE_DIR}/src/trace.c")
+  set(CHIPSIM_COMMON_SOURCES
+    src/protocol.c
+    src/trace.c
+  )
+  if(EXISTS "${CMAKE_SOURCE_DIR}/src/fifo.c")
+    list(APPEND CHIPSIM_COMMON_SOURCES src/fifo.c)
+  endif()
+
+  add_library(chipsim_common ${CHIPSIM_COMMON_SOURCES})
+  target_include_directories(chipsim_common PUBLIC include)
+  target_link_libraries(chipsim_common PUBLIC nng_local)
+  set_target_properties(chipsim_common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+  if(EXISTS "${CMAKE_SOURCE_DIR}/src/chip.c")
+    add_executable(chip src/chip.c)
+    target_link_libraries(chip PRIVATE chipsim_common Threads::Threads)
+  endif()
+
+  if(EXISTS "${CMAKE_SOURCE_DIR}/src/orchestrator.c")
+    add_executable(orchestrator src/orchestrator.c)
+    target_link_libraries(orchestrator PRIVATE chipsim_common)
+  endif()
+
+  if(EXISTS "${CMAKE_SOURCE_DIR}/src/fifo.c")
+    enable_testing()
+    add_executable(test_fifo tests/test_fifo.c)
+    target_link_libraries(test_fifo PRIVATE chipsim_common)
+    add_test(NAME fifo COMMAND test_fifo)
+  endif()
+endif()
+
+# LArPix-specific runtime path: should only depend on larpix_network_sim + LArPix RTL trees.
 add_library(larpixsim_common
   larpix_network_sim/src/protocol.c
   larpix_network_sim/src/trace.c
@@ -60,124 +76,158 @@ target_include_directories(orchestrator_larpix PRIVATE larpix_network_sim/includ
 target_link_libraries(orchestrator_larpix PRIVATE larpixsim_common)
 
 set(LARPIX_RUNTIME_TARGETS fpga_larpix trace_collector_larpix orchestrator_larpix)
-set_target_properties(${LARPIX_RUNTIME_TARGETS} PROPERTIES
-  BUILD_RPATH "${NNG_LIBRARY_DIR}"
-  INSTALL_RPATH "${NNG_LIBRARY_DIR}"
-)
-
-set(LARPIX_RTL_REQUIRED_FILES
-  async2sync.sv
-  channel_ctrl.sv
-  comms_ctrl.sv
-  config_regfile.sv
-  config_regfile_assign.sv
-  digital_core.sv
-  digital_monitor.sv
-  event_router.sv
-  external_interface.sv
-  fifo_latch.sv
-  gate_negedge_clk.sv
-  gate_posedge_clk.sv
-  hydra_ctrl.sv
-  larpix_constants.sv
-  periodic_pulser.sv
-  priority_fifo_arbiter.sv
-  priority_onehot.sv
-  reset_sync.sv
-  sar_adc_cdc.sv
-  timestamp_gen.sv
-  uart.sv
-  uart_rx.sv
-  uart_tx.sv
-)
-
-set(LARPIX_DIGITAL_CORE_SV_BASENAMES
-  async2sync.sv
-  channel_ctrl.sv
-  comms_ctrl.sv
-  config_regfile.sv
-  digital_core.sv
-  digital_monitor.sv
-  event_router.sv
-  external_interface.sv
-  fifo_latch.sv
-  gate_negedge_clk.sv
-  gate_posedge_clk.sv
-  hydra_ctrl.sv
-  periodic_pulser.sv
-  priority_fifo_arbiter.sv
-  reset_sync.sv
-  sar_adc_cdc.sv
-  timestamp_gen.sv
-  uart.sv
-  uart_rx.sv
-  uart_tx.sv
-)
-
-if(LARPIX_RTL_DIR)
-  foreach(rtl_file IN LISTS LARPIX_RTL_REQUIRED_FILES)
-    if(NOT EXISTS "${LARPIX_RTL_DIR}/${rtl_file}")
-      message(FATAL_ERROR "Missing required RTL file: ${LARPIX_RTL_DIR}/${rtl_file}")
-    endif()
-  endforeach()
-
-  set(LARPIX_DIGITAL_CORE_SV_SOURCES)
-  foreach(rtl_file IN LISTS LARPIX_DIGITAL_CORE_SV_BASENAMES)
-    list(APPEND LARPIX_DIGITAL_CORE_SV_SOURCES "${LARPIX_RTL_DIR}/${rtl_file}")
-  endforeach()
+if(TARGET chip)
+  list(APPEND LARPIX_RUNTIME_TARGETS chip)
 endif()
+if(TARGET orchestrator)
+  list(APPEND LARPIX_RUNTIME_TARGETS orchestrator)
+endif()
+set_target_properties(${LARPIX_RUNTIME_TARGETS} PROPERTIES
+  BUILD_RPATH "${CMAKE_SOURCE_DIR}/nng/build"
+  INSTALL_RPATH "${CMAKE_SOURCE_DIR}/nng/build"
+)
 
+set(LARPIX_RTL_V1_DIR ${CMAKE_SOURCE_DIR}/larpix_network_sim/larpix_v3b_rtl/src)
+set(LARPIX_RTL_V2_DIR ${CMAKE_SOURCE_DIR}/larpix_network_sim/larpix_v3b_rtl_v2/src)
+set(LARPIX_RTL_V3C_DIR ${CMAKE_SOURCE_DIR}/larpix_network_sim/larpix_v3c/src)
+set(LARPIX_RTL_V3C2_DIR ${CMAKE_SOURCE_DIR}/larpix_network_sim/larpix_v3c2/src)
+set(LARPIX_RTL_MSG_DIR ${CMAKE_SOURCE_DIR}/larpix_network_sim/msg_rtl/src)
+
+function(set_larpix_digital_core_sv_sources out_var rtl_dir)
+  set(_sources
+    ${rtl_dir}/async2sync.sv
+    ${rtl_dir}/channel_ctrl.sv
+    ${rtl_dir}/comms_ctrl.sv
+    ${rtl_dir}/config_regfile.sv
+    ${rtl_dir}/digital_core.sv
+    ${rtl_dir}/digital_monitor.sv
+    ${rtl_dir}/event_router.sv
+    ${rtl_dir}/external_interface.sv
+    ${rtl_dir}/fifo_latch.sv
+    ${rtl_dir}/gate_negedge_clk.sv
+    ${rtl_dir}/gate_posedge_clk.sv
+    ${rtl_dir}/hydra_ctrl.sv
+    ${rtl_dir}/periodic_pulser.sv
+    ${rtl_dir}/priority_fifo_arbiter.sv
+    ${rtl_dir}/reset_sync.sv
+    ${rtl_dir}/sar_adc_cdc.sv
+    ${rtl_dir}/timestamp_gen.sv
+    ${rtl_dir}/uart.sv
+    ${rtl_dir}/uart_rx.sv
+    ${rtl_dir}/uart_tx.sv
+  )
+  if(EXISTS "${rtl_dir}/msg_logic.sv")
+    list(APPEND _sources ${rtl_dir}/msg_logic.sv)
+  endif()
+  if(EXISTS "${rtl_dir}/msg_generator.sv")
+    list(APPEND _sources ${rtl_dir}/msg_generator.sv)
+  endif()
+  set(${out_var} ${_sources} PARENT_SCOPE)
+endfunction()
+
+set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES ${LARPIX_RTL_V1_DIR})
+set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_V2 ${LARPIX_RTL_V2_DIR})
+set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_V3C ${LARPIX_RTL_V3C_DIR})
+set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_V3C2 ${LARPIX_RTL_V3C2_DIR})
+set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_MSG ${LARPIX_RTL_MSG_DIR})
+
+set(VERILATOR_SEARCH_HINTS
+  /home/lxusers/y/ymei/OpenICEDA/bin
+)
 find_program(VERILATOR_BIN
   NAMES verilator
   HINTS ${VERILATOR_SEARCH_HINTS}
   DOC "Path to the Verilator executable"
 )
-if(VERILATOR_BIN AND LARPIX_RTL_DIR)
-  set(LARPIX_CHIP_MDIR "${CMAKE_BINARY_DIR}/verilated_larpix_chip")
-  set(LARPIX_CHIP_BIN "${CMAKE_BINARY_DIR}/chip_larpix")
-  add_custom_command(
-    OUTPUT "${LARPIX_CHIP_BIN}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${LARPIX_CHIP_MDIR}"
-    COMMAND ${VERILATOR_BIN}
-      --cc
-      --exe
-      --build
-      --build-jobs 0
-      --Wno-fatal
-      --sv
-      --top-module digital_core
-      --prefix Vdigital_core
-      --Mdir "${LARPIX_CHIP_MDIR}"
-      -I${LARPIX_RTL_DIR}
-      -CFLAGS "-I${CMAKE_SOURCE_DIR}/larpix_network_sim/include -I${NNG_ROOT}/include -std=c++17 -pthread"
-      -LDFLAGS "-L${NNG_LIBRARY_DIR} -lnng -pthread -Wl,-rpath,${NNG_LIBRARY_DIR}"
-      ${LARPIX_DIGITAL_CORE_SV_SOURCES}
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/analog_core_model.cpp"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/larpix_cosim_backend.cpp"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/chip_larpix.cpp"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/trace.c"
-      -o chip_larpix
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${LARPIX_CHIP_MDIR}/chip_larpix"
-      "${LARPIX_CHIP_BIN}"
-    DEPENDS
-      ${LARPIX_DIGITAL_CORE_SV_SOURCES}
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/analog_core_model.cpp"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/analog_core_model.h"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/larpix_cosim_backend.cpp"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/chip_larpix.cpp"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/trace.c"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/include/larpixsim/backend.h"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/include/chipsim/protocol.h"
-      "${CMAKE_SOURCE_DIR}/larpix_network_sim/include/chipsim/trace.h"
-      "${LARPIX_RTL_DIR}/config_regfile_assign.sv"
-      "${LARPIX_RTL_DIR}/larpix_constants.sv"
-      "${LARPIX_RTL_DIR}/priority_onehot.sv"
-    VERBATIM
-  )
-  add_custom_target(chip_larpix_build DEPENDS "${LARPIX_CHIP_BIN}")
-elseif(VERILATOR_BIN)
-  message(STATUS "LARPIX_RTL_DIR not set; chip_larpix_build will not be generated.")
+if(VERILATOR_BIN)
+  if(EXISTS "${CMAKE_SOURCE_DIR}/rtl/chip_fifo_router.sv" AND EXISTS "${CMAKE_SOURCE_DIR}/src/chip_rtl.cpp" AND EXISTS "${CMAKE_SOURCE_DIR}/src/trace.c")
+    set(CHIPSIM_RTL_MDIR "${CMAKE_BINARY_DIR}/verilated_chip")
+    set(CHIPSIM_RTL_BIN "${CMAKE_BINARY_DIR}/chip_rtl")
+    add_custom_command(
+      OUTPUT "${CHIPSIM_RTL_BIN}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${CHIPSIM_RTL_MDIR}"
+      COMMAND ${VERILATOR_BIN}
+        --cc
+        --exe
+        --build
+        --build-jobs 0
+        --Wno-fatal
+        --top-module chip_fifo_router
+        --prefix Vchip_fifo_router
+        --Mdir "${CHIPSIM_RTL_MDIR}"
+        -CFLAGS "-I${CMAKE_SOURCE_DIR}/include -I${CMAKE_SOURCE_DIR}/nng/include -std=c++17 -pthread"
+        -LDFLAGS "-L${CMAKE_SOURCE_DIR}/nng/build -lnng -pthread -Wl,-rpath,${CMAKE_SOURCE_DIR}/nng/build"
+        "${CMAKE_SOURCE_DIR}/rtl/chip_fifo_router.sv"
+        "${CMAKE_SOURCE_DIR}/src/chip_rtl.cpp"
+        "${CMAKE_SOURCE_DIR}/src/trace.c"
+        -o chip_rtl
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CHIPSIM_RTL_MDIR}/chip_rtl"
+        "${CHIPSIM_RTL_BIN}"
+      DEPENDS
+        "${CMAKE_SOURCE_DIR}/rtl/chip_fifo_router.sv"
+        "${CMAKE_SOURCE_DIR}/src/chip_rtl.cpp"
+        "${CMAKE_SOURCE_DIR}/include/chipsim/protocol.h"
+        "${CMAKE_SOURCE_DIR}/include/chipsim/trace.h"
+        "${CMAKE_SOURCE_DIR}/src/trace.c"
+      VERBATIM
+    )
+    add_custom_target(chip_rtl_build ALL DEPENDS "${CHIPSIM_RTL_BIN}")
+  endif()
+
+  function(add_larpix_chip_target target_name output_name mdir_var bin_var rtl_include_dir sv_sources)
+    set(${mdir_var} "${CMAKE_BINARY_DIR}/verilated_${output_name}" PARENT_SCOPE)
+    set(${bin_var} "${CMAKE_BINARY_DIR}/${output_name}" PARENT_SCOPE)
+    set(_mdir "${CMAKE_BINARY_DIR}/verilated_${output_name}")
+    set(_bin "${CMAKE_BINARY_DIR}/${output_name}")
+    add_custom_command(
+      OUTPUT "${_bin}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${_mdir}"
+      COMMAND ${VERILATOR_BIN}
+        --cc
+        --exe
+        --build
+        --build-jobs 0
+        --Wno-fatal
+        --sv
+        --top-module digital_core
+        --prefix Vdigital_core
+        --Mdir "${_mdir}"
+        -I${rtl_include_dir}
+        -CFLAGS "-I${CMAKE_SOURCE_DIR}/larpix_network_sim/include -I${CMAKE_SOURCE_DIR}/nng/include -std=c++17 -pthread"
+        -LDFLAGS "-L${CMAKE_SOURCE_DIR}/nng/build -lnng -pthread -Wl,-rpath,${CMAKE_SOURCE_DIR}/nng/build"
+        ${sv_sources}
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/analog_core_model.cpp"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/larpix_cosim_backend.cpp"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/chip_larpix.cpp"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/trace.c"
+        -o ${output_name}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${_mdir}/${output_name}"
+        "${_bin}"
+      DEPENDS
+        ${sv_sources}
+        "${rtl_include_dir}/config_regfile_assign.sv"
+        "${rtl_include_dir}/larpix_constants.sv"
+        "${rtl_include_dir}/priority_onehot.sv"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/analog_core_model.cpp"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/analog_core_model.h"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/larpix_cosim_backend.cpp"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/chip_larpix.cpp"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/src/trace.c"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/include/larpixsim/backend.h"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/include/chipsim/protocol.h"
+        "${CMAKE_SOURCE_DIR}/larpix_network_sim/include/chipsim/trace.h"
+      VERBATIM
+    )
+    add_custom_target(${target_name} DEPENDS "${_bin}")
+  endfunction()
+
+  add_larpix_chip_target(chip_larpix_build chip_larpix LARPIX_CHIP_MDIR LARPIX_CHIP_BIN "${LARPIX_RTL_V1_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES}")
+  add_larpix_chip_target(chip_larpix_v2_build chip_larpix_v2 LARPIX_CHIP_V2_MDIR LARPIX_CHIP_V2_BIN "${LARPIX_RTL_V2_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V2}")
+  add_larpix_chip_target(chip_larpix_v3c_build chip_larpix_v3c LARPIX_CHIP_V3C_MDIR LARPIX_CHIP_V3C_BIN "${LARPIX_RTL_V3C_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V3C}")
+  add_larpix_chip_target(chip_larpix_v3c2_build chip_larpix_v3c2 LARPIX_CHIP_V3C2_MDIR LARPIX_CHIP_V3C2_BIN "${LARPIX_RTL_V3C2_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V3C2}")
+  add_larpix_chip_target(chip_larpix_msg_rtl_build chip_larpix_msg_rtl LARPIX_CHIP_MSG_MDIR LARPIX_CHIP_MSG_BIN "${LARPIX_RTL_MSG_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_MSG}")
 else()
-  message(WARNING "verilator not found; chip_larpix target will not be available")
+  message(WARNING "verilator not found; chip_rtl/chip_larpix targets will not be available")
 endif()

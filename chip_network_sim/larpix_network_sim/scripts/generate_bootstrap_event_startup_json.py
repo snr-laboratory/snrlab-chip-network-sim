@@ -36,6 +36,7 @@ def main() -> int:
     ap.add_argument('--rows', type=int, required=True)
     ap.add_argument('--cols', type=int, required=True)
     ap.add_argument('--s', type=int, required=True)
+    ap.add_argument('--source-y', type=int, default=0)
     ap.add_argument('--target-x', type=int, required=True)
     ap.add_argument('--target-y', type=int, required=True)
     ap.add_argument('--out', required=True)
@@ -46,7 +47,7 @@ def main() -> int:
     if not (0 <= args.target_x < args.cols and 0 <= args.target_y < args.rows):
         raise SystemExit('target coordinates out of range')
 
-    builder = Builder(args.cols, args.rows, args.s, tick_start=args.tick_start, tick_step=args.tick_step)
+    builder = Builder(args.cols, args.rows, args.s, args.source_y, tick_start=args.tick_start, tick_step=args.tick_step)
     builder.build()
     builder.frames = [f for f in builder.frames if f.type != 'read']
 

@@ -64,11 +64,14 @@ typedef struct {
     const char *backend;
     const char *stimulus_json;
     const char *startup_json;
+    const char *init_regs_json;
     const char *trace_collector_bin;
     const char *trace_out;
     const char *occupancy_csv;
     int         occupancy_runtime_id;
     uint64_t    occupancy_tick_start;
+    const char *rx_debug_csv;
+    int         rx_debug_runtime_id;
     const char *base_uri;
     int         source_x;
     int         source_y;
@@ -96,13 +99,16 @@ usage(const char *prog)
         "  -backend <name>         chip backend (default cosim)\n"
         "  -stimulus_json <path>   charge stimulus JSON passed to each chip\n"
         "  -startup_json <path>    compiled startup schedule JSON passed to the FPGA controller\n"
+        "  -init_regs_json <path>  optional RTL register preload JSON passed to each chip\n"
         "  -trace_collector_bin <path> trace collector executable (default ./trace_collector_larpix)\n"
         "  -trace_out <path>       optional per-tick trace event JSONL output\n"
         "  -occupancy_csv <path>   write chip occupancy CSV for one runtime\n"
         "  -occupancy_runtime_id <N> runtime_id that writes occupancy CSV\n"
         "  -occupancy_tick_start <N> first tick included in occupancy CSV\n"
-        "  -source_x <N>           source-chip x coordinate on bottom row (default 0)\n"
-        "  -source_y <N>           source-chip y coordinate (default 0, must be 0 when startup_json is used)\n"
+        "  -rx_debug_csv <path>    write RX/Hydra debug CSV for one runtime\n"
+        "  -rx_debug_runtime_id <N> runtime_id that writes RX debug CSV\n"
+        "  -source_x <N>           source-chip x coordinate (default 0)\n"
+        "  -source_y <N>           source-chip y coordinate (default 0)\n"
         "  -base_uri <tcp://127.0.0.1:PORT> endpoint base port (default unique per run)\n",
         prog);
 }
@@ -169,11 +175,14 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
     opts->backend = "cosim";
     opts->stimulus_json = NULL;
     opts->startup_json = NULL;
+    opts->init_regs_json = NULL;
     opts->trace_collector_bin = default_peer_binary_path(argv[0], "trace_collector_larpix", default_trace_collector_bin, sizeof(default_trace_collector_bin));
     opts->trace_out = NULL;
     opts->occupancy_csv = NULL;
     opts->occupancy_runtime_id = -1;
     opts->occupancy_tick_start = 0;
+    opts->rx_debug_csv = NULL;
+    opts->rx_debug_runtime_id = -1;
     opts->base_uri = NULL;
     opts->source_x = 0;
     opts->source_y = 0;
@@ -213,6 +222,8 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
             opts->stimulus_json = argv[++i];
         } else if (strcmp(argv[i], "-startup_json") == 0 && i + 1 < argc) {
             opts->startup_json = argv[++i];
+        } else if (strcmp(argv[i], "-init_regs_json") == 0 && i + 1 < argc) {
+            opts->init_regs_json = argv[++i];
         } else if (strcmp(argv[i], "-trace_collector_bin") == 0 && i + 1 < argc) {
             opts->trace_collector_bin = argv[++i];
         } else if (strcmp(argv[i], "-trace_out") == 0 && i + 1 < argc) {
@@ -225,6 +236,12 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
             }
         } else if (strcmp(argv[i], "-occupancy_tick_start") == 0 && i + 1 < argc) {
             if (parse_u64(argv[++i], &opts->occupancy_tick_start) != 0) {
+                return -1;
+            }
+        } else if (strcmp(argv[i], "-rx_debug_csv") == 0 && i + 1 < argc) {
+            opts->rx_debug_csv = argv[++i];
+        } else if (strcmp(argv[i], "-rx_debug_runtime_id") == 0 && i + 1 < argc) {
+            if (parse_int(argv[++i], &opts->rx_debug_runtime_id) != 0) {
                 return -1;
             }
         } else if (strcmp(argv[i], "-base_uri") == 0 && i + 1 < argc) {
@@ -248,15 +265,12 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
     if (opts->source_x < 0 || opts->source_x >= opts->cols || opts->source_y < 0 || opts->source_y >= opts->rows) {
         return -1;
     }
-    if (opts->startup_json != NULL && opts->source_y != 0) {
-        fprintf(stderr, "source_y must be 0 when an FPGA startup source is used\n");
-        return -1;
-    }
     return 0;
 }
 
 static int
 build_endpoints(const orchestrator_larpix_options_t *opts,
+    int runtime_count,
     char *control_prefix, size_t control_prefix_len,
     char *metric_url, size_t metric_len,
     char *edge_prefix, size_t edge_prefix_len,
@@ -300,7 +314,7 @@ build_endpoints(const orchestrator_larpix_options_t *opts,
     }
 
     *control_port_base = base_port + 10;
-    *edge_port_base = base_port + 100;
+    *edge_port_base = *control_port_base + runtime_count + 16;
     return 0;
 }
 
@@ -365,9 +379,9 @@ launch_chip(const orchestrator_larpix_options_t *opts,
     char north_in[128], east_in[128], south_in[128], west_in[128];
     char north_out[128], east_out[128], south_out[128], west_out[128];
     char occupancy_tick_start_s[32];
-    char *argv_exec[56];
+    char *argv_exec[64];
     int idx = 0;
-    const bool attach_fpga = (opts->startup_json != NULL && runtime_id == source_chip_id);
+    const bool attach_fpga = ((opts->startup_json != NULL || opts->init_regs_json != NULL) && runtime_id == source_chip_id);
 
     snprintf(id_s, sizeof(id_s), "%d", runtime_id);
     snprintf(seed_s, sizeof(seed_s), "%u", (unsigned)(opts->seed + (uint32_t)runtime_id));
@@ -456,6 +470,10 @@ launch_chip(const orchestrator_larpix_options_t *opts,
         argv_exec[idx++] = "-stimulus_json";
         argv_exec[idx++] = (char *)opts->stimulus_json;
     }
+    if (opts->init_regs_json != NULL) {
+        argv_exec[idx++] = "-init_regs_json";
+        argv_exec[idx++] = (char *)opts->init_regs_json;
+    }
     if (trace_url != NULL) {
         argv_exec[idx++] = "-trace_url";
         argv_exec[idx++] = (char *)trace_url;
@@ -465,6 +483,10 @@ launch_chip(const orchestrator_larpix_options_t *opts,
         argv_exec[idx++] = (char *)opts->occupancy_csv;
         argv_exec[idx++] = "-occupancy_tick_start";
         argv_exec[idx++] = occupancy_tick_start_s;
+    }
+    if (opts->rx_debug_csv != NULL && opts->rx_debug_runtime_id == runtime_id) {
+        argv_exec[idx++] = "-rx_debug_csv";
+        argv_exec[idx++] = (char *)opts->rx_debug_csv;
     }
     argv_exec[idx++] = NULL;
 
@@ -596,7 +618,7 @@ terminate_children(pid_t *pids, int count)
 }
 
 static int
-recv_done_response(nng_socket control_req, int expected_runtime_id, uint64_t expected_seq)
+recv_done_response(nng_socket control_req, int expected_runtime_id, pid_t expected_pid, uint64_t expected_seq)
 {
     chipsim_done_msg_t msg;
     size_t msg_sz = sizeof(msg);
@@ -604,7 +626,31 @@ recv_done_response(nng_socket control_req, int expected_runtime_id, uint64_t exp
 
     rv = nng_recv(control_req, &msg, &msg_sz, 0);
     if (rv != 0) {
-        fprintf(stderr, "orchestrator_larpix recv(DONE) failed: %s\n", nng_strerror(rv));
+        fprintf(stderr,
+            "orchestrator_larpix recv(DONE) failed for runtime=%d pid=%ld seq=%" PRIu64 ": %s\n",
+            expected_runtime_id,
+            (long)expected_pid,
+            expected_seq,
+            nng_strerror(rv));
+        if (expected_pid > 0) {
+            int status = 0;
+            pid_t wait_rv = waitpid(expected_pid, &status, 0);
+            if (wait_rv == expected_pid) {
+                if (WIFEXITED(status)) {
+                    fprintf(stderr,
+                        "orchestrator_larpix runtime=%d pid=%ld exited with status=%d\n",
+                        expected_runtime_id,
+                        (long)expected_pid,
+                        WEXITSTATUS(status));
+                } else if (WIFSIGNALED(status)) {
+                    fprintf(stderr,
+                        "orchestrator_larpix runtime=%d pid=%ld terminated by signal=%d\n",
+                        expected_runtime_id,
+                        (long)expected_pid,
+                        WTERMSIG(status));
+                }
+            }
+        }
         return -1;
     }
     if (msg_sz != sizeof(msg) || msg.type != CHIPSIM_MSG_DONE) {
@@ -666,7 +712,7 @@ main(int argc, char **argv)
 
     chip_count = opts.rows * opts.cols;
     source_chip_id = chip_id_from_xy(opts.source_x, opts.source_y, opts.cols);
-    use_fpga = (opts.startup_json != NULL);
+    use_fpga = (opts.startup_json != NULL || opts.init_regs_json != NULL);
     fpga_runtime_id = chip_count;
     runtime_count = chip_count + (use_fpga ? 1 : 0);
 
@@ -680,7 +726,7 @@ main(int argc, char **argv)
 
     build_default_routes(&opts, routes);
 
-    if (build_endpoints(&opts, control_prefix, sizeof(control_prefix), metric_url, sizeof(metric_url),
+    if (build_endpoints(&opts, runtime_count, control_prefix, sizeof(control_prefix), metric_url, sizeof(metric_url),
             edge_prefix, sizeof(edge_prefix), &control_port_base, &edge_port_base) != 0) {
         fprintf(stderr, "failed to build endpoints\n");
         goto fail;
@@ -791,7 +837,7 @@ main(int argc, char **argv)
             }
         }
         for (i = 0; i < runtime_count; i++) {
-            if (recv_done_response(control_reqs[i], i, seq) != 0) {
+            if (recv_done_response(control_reqs[i], i, child_pids[i], seq) != 0) {
                 goto fail;
             }
         }
@@ -811,7 +857,7 @@ main(int argc, char **argv)
             }
         }
         for (i = 0; i < runtime_count; i++) {
-            if (recv_done_response(control_reqs[i], i, opts.ticks) != 0) {
+            if (recv_done_response(control_reqs[i], i, child_pids[i], opts.ticks) != 0) {
                 goto fail;
             }
         }

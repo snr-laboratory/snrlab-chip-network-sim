@@ -62,7 +62,9 @@ typedef struct {
     const char *trace_file;
     const char *backend_name;
     const char *stimulus_json;
+    const char *init_regs_json;
     const char *occupancy_csv;
+    const char *rx_debug_csv;
     uint64_t    occupancy_tick_start;
     const char *in_url[LARPIXSIM_EDGE_COUNT];
     const char *out_url[LARPIXSIM_EDGE_COUNT];
@@ -149,7 +151,9 @@ usage(const char *prog)
         "  -south_out_url <URI|-1>    south output bit service\n"
         "  -west_out_url <URI|-1>     west output bit service\n"
         "  -stimulus_json <path>      charge stimulus configuration\n"
+        "  -init_regs_json <path>     optional RTL register preload JSON\n"
         "  -occupancy_csv <path>      optional FIFO occupancy CSV output\n"
+        "  -rx_debug_csv <path>       optional per-tick RX/Hydra debug CSV output\n"
         "  -occupancy_tick_start <N>  first tick included in occupancy CSV (default 0)\n"
         "  -data_timeout_ms <N>       edge pull timeout in ms (default 5000)\n"
         "  -seed <N>                  RNG seed / backend seed (default 1)\n"
@@ -224,6 +228,8 @@ parse_args(int argc, char **argv, chip_options_t *opts)
     opts->metric_url      = CHIPSIM_DEFAULT_METRIC_URL;
     opts->trace_url       = NULL;
     opts->backend_name    = "cosim";
+    opts->init_regs_json  = NULL;
+    opts->rx_debug_csv    = NULL;
     opts->occupancy_tick_start = 0;
 
     for (i = 1; i < argc; i++) {
@@ -257,8 +263,12 @@ parse_args(int argc, char **argv, chip_options_t *opts)
             opts->out_url[LARPIX_EDGE_WEST] = parse_edge_url_arg(argv[++i]);
         } else if (strcmp(argv[i], "-stimulus_json") == 0 && i + 1 < argc) {
             opts->stimulus_json = argv[++i];
+        } else if (strcmp(argv[i], "-init_regs_json") == 0 && i + 1 < argc) {
+            opts->init_regs_json = argv[++i];
         } else if (strcmp(argv[i], "-occupancy_csv") == 0 && i + 1 < argc) {
             opts->occupancy_csv = argv[++i];
+        } else if (strcmp(argv[i], "-rx_debug_csv") == 0 && i + 1 < argc) {
+            opts->rx_debug_csv = argv[++i];
         } else if (strcmp(argv[i], "-occupancy_tick_start") == 0 && i + 1 < argc) {
             if (parse_u64(argv[++i], &opts->occupancy_tick_start) != 0) {
                 return -1;
@@ -391,6 +401,112 @@ extract_json_double(const std::string &obj, const char *key, double *value)
     token = obj.substr(start, end - start);
     *value = strtod(token.c_str(), NULL);
     return true;
+}
+
+static int
+load_init_registers(const chip_options_t *opts, std::vector<larpixsim_backend_register_init_t> *registers)
+{
+    std::string text;
+    std::size_t writes_key;
+    std::size_t lb;
+    std::size_t rb;
+    std::size_t pos;
+
+    registers->clear();
+    if (opts->init_regs_json == NULL) {
+        return 0;
+    }
+
+    text = strip_json_line_comments(read_file_text(opts->init_regs_json));
+    if (text.empty()) {
+        fprintf(stderr, "chip_larpix[%d] failed to read init_regs_json %s\n", opts->id, opts->init_regs_json);
+        return -1;
+    }
+
+    writes_key = text.find("\"register_writes\"");
+    if (writes_key == std::string::npos) {
+        fprintf(stderr, "chip_larpix[%d] init_regs_json missing register_writes array\n", opts->id);
+        return -1;
+    }
+    lb = text.find('[', writes_key);
+    if (lb == std::string::npos) {
+        return -1;
+    }
+    {
+        int bracket_depth = 0;
+        rb = lb;
+        while (rb < text.size()) {
+            if (text[rb] == '[') {
+                bracket_depth++;
+            } else if (text[rb] == ']') {
+                bracket_depth--;
+                if (bracket_depth == 0) {
+                    break;
+                }
+            }
+            rb++;
+        }
+    }
+    if (rb == std::string::npos || rb >= text.size()) {
+        return -1;
+    }
+
+    pos = lb + 1;
+    while (pos < rb) {
+        std::size_t obj_start = text.find('{', pos);
+        std::size_t obj_end;
+        int depth;
+        std::string obj;
+        int runtime_id = -1;
+        uint64_t reg_addr = 0;
+        uint64_t reg_data = 0;
+        larpixsim_backend_register_init_t entry{};
+
+        if (obj_start == std::string::npos || obj_start >= rb) {
+            break;
+        }
+        obj_end = obj_start;
+        depth = 0;
+        while (obj_end < rb) {
+            if (text[obj_end] == '{') {
+                depth++;
+            } else if (text[obj_end] == '}') {
+                depth--;
+                if (depth == 0) {
+                    obj_end++;
+                    break;
+                }
+            }
+            obj_end++;
+        }
+        if (obj_end <= obj_start || depth != 0) {
+            fprintf(stderr, "chip_larpix[%d] malformed init register object\n", opts->id);
+            return -1;
+        }
+        obj = text.substr(obj_start, obj_end - obj_start);
+        if (!extract_json_int_optional(obj, "runtime_id", &runtime_id) ||
+            !extract_json_u64(obj, "register_addr", &reg_addr) ||
+            !extract_json_u64(obj, "register_data", &reg_data)) {
+            fprintf(stderr, "chip_larpix[%d] malformed init register entry\n", opts->id);
+            return -1;
+        }
+        if (runtime_id != opts->id) {
+            pos = obj_end;
+            continue;
+        }
+        if (reg_addr > UINT8_MAX || reg_data > UINT8_MAX) {
+            fprintf(stderr, "chip_larpix[%d] init register entry out of range\n", opts->id);
+            return -1;
+        }
+        entry.register_addr = (uint8_t)reg_addr;
+        entry.register_data = (uint8_t)reg_data;
+        registers->push_back(entry);
+        pos = obj_end;
+    }
+
+
+
+    return 0;
 }
 
 static int
@@ -724,12 +840,20 @@ typedef struct {
     bool     active;
     uint8_t  bits[66];
     unsigned bit_count;
+    unsigned target_bits;
 } uart_frame_decoder_t;
+
+enum {
+    LARPIXSIM_UART_MSG_OP = 0u,
+    LARPIXSIM_UART_MSG_BITS = 7u,
+    LARPIXSIM_UART_FULL_BITS = 64u,
+};
 
 static void
 uart_decoder_init(uart_frame_decoder_t *dec)
 {
     memset(dec, 0, sizeof(*dec));
+    dec->target_bits = 1u + LARPIXSIM_UART_FULL_BITS + 1u;
 }
 
 static bool
@@ -741,6 +865,7 @@ uart_decoder_consume(uart_frame_decoder_t *dec, uint8_t line_bit, uint64_t *word
             dec->active = true;
             dec->bit_count = 1u;
             dec->bits[0] = 0u;
+            dec->target_bits = 1u + LARPIXSIM_UART_FULL_BITS + 1u;
         }
         return false;
     }
@@ -748,18 +873,22 @@ uart_decoder_consume(uart_frame_decoder_t *dec, uint8_t line_bit, uint64_t *word
     if (dec->bit_count < sizeof(dec->bits)) {
         dec->bits[dec->bit_count++] = line_bit;
     }
-    if (dec->bit_count < 66u) {
+    if (dec->bit_count == 3u) {
+        const uint8_t packet_type = (uint8_t)((dec->bits[1] ? 1u : 0u) | ((dec->bits[2] ? 1u : 0u) << 1u));
+        dec->target_bits = 1u + ((packet_type == LARPIXSIM_UART_MSG_OP) ? LARPIXSIM_UART_MSG_BITS : LARPIXSIM_UART_FULL_BITS) + 1u;
+    }
+    if (dec->bit_count < dec->target_bits) {
         return false;
     }
 
     dec->active = false;
     dec->bit_count = 0u;
-    if (dec->bits[0] != 0u || dec->bits[65] != 1u) {
+    if (dec->bits[0] != 0u || dec->bits[dec->target_bits - 1u] != 1u) {
         return false;
     }
 
     *word_out = 0u;
-    for (unsigned i = 0; i < 64u; ++i) {
+    for (unsigned i = 0; i < (dec->target_bits - 2u); ++i) {
         *word_out |= ((uint64_t)(dec->bits[1u + i] ? 1u : 0u) << i);
     }
     return true;
@@ -817,11 +946,18 @@ main(int argc, char **argv)
     uart_frame_decoder_t   tx_decoder[LARPIXSIM_EDGE_COUNT];
     chipsim_trace_writer_t trace;
     std::vector<stimulus_event_t> stimulus_events;
+    std::vector<larpixsim_backend_register_init_t> init_registers;
     FILE                  *occupancy_csv = NULL;
     FILE                  *channel_fifo_detail_csv = NULL;
+    FILE                  *rx_debug_csv = NULL;
     std::string            channel_generation_csv_path;
     std::string            channel_fifo_detail_csv_path;
     uint64_t               channel_generation_count[LARPIXSIM_CHANNEL_COUNT] = {0};
+    uint32_t               last_traced_chip_fifo_occupancy = 0;
+    bool                   last_traced_chip_fifo_valid = false;
+    uint8_t                last_traced_up_mask = 0u;
+    uint8_t                last_traced_down_mask = 0u;
+    bool                   last_traced_lane_state_valid = false;
     int                    edge;
     int                    rv;
     int                    exit_code = 1;
@@ -846,6 +982,9 @@ main(int argc, char **argv)
     if (load_stimulus_events(&opts, &stimulus_events) != 0) {
         return 1;
     }
+    if (load_init_registers(&opts, &init_registers) != 0) {
+        return 1;
+    }
     if (opts.occupancy_csv != NULL) {
         channel_generation_csv_path = channel_generation_summary_path(opts.occupancy_csv);
         channel_fifo_detail_csv_path = channel_fifo_detail_path(opts.occupancy_csv);
@@ -866,6 +1005,23 @@ main(int argc, char **argv)
         }
         fprintf(channel_fifo_detail_csv, "\n");
     }
+    if (opts.rx_debug_csv != NULL) {
+        rx_debug_csv = fopen(opts.rx_debug_csv, "w");
+        if (rx_debug_csv == NULL) {
+            fprintf(stderr, "chip_larpix[%d] failed to open rx debug csv %s\n", opts.id, opts.rx_debug_csv);
+            return 1;
+        }
+        fprintf(rx_debug_csv,
+            "tick,hydra_state,hydra_next_state,hydra_uart_has_data,hydra_sel_onehot,hydra_uld_rx_data_uart,"
+            "hydra_rx_data_flag,hydra_comms_busy,hydra_pkt_valid,hydra_fifo_write_n,"
+            "hydra_rx_data_word,hydra_comms_rcvd_pkt,hydra_comms_read_pkt,hydra_fifo_rd_data,hydra_fifo_read_pointer,hydra_fifo_write_pointer,hydra_fifo_counter_debug,hydra_fifo_read_n,hydra_fifo_write_n_internal,hydra_fifo_mem0,hydra_fifo_mem1,"
+            "hydra_ld_tx_data_uart,hydra_tx_busy,hydra_tx_sel_msg,north_tx_data,east_tx_data,south_tx_data,west_tx_data,"
+            "msg_valid,msg_pkt_data,ready_for_msg,msg_generated_valid,msg_fifo_write_n,msg_fifo_empty,msg_fifo_read_n,msg_fifo_counter_debug,msg_fifo_data_in,msg_fifo_data_out,msg_fifo_mem0,msg_fifo_mem1,"
+            "north_rx_empty,east_rx_empty,south_rx_empty,west_rx_empty,"
+            "north_hold_valid,east_hold_valid,south_hold_valid,west_hold_valid,"
+            "north_rx_data,east_rx_data,south_rx_data,west_rx_data,"
+            "north_hold_reg,east_hold_reg,south_hold_reg,west_hold_reg\n");
+    }
 
     init_err = nng_init(NULL);
     if (init_err != 0) {
@@ -883,6 +1039,16 @@ main(int argc, char **argv)
         }
     } else {
         fprintf(stderr, "chip_larpix[%d] unknown backend '%s'\n", opts.id, opts.backend_name);
+        goto cleanup;
+    }
+
+    if (larpixsim_backend_set_runtime_id(&backend, (uint8_t)opts.id) != 0) {
+        fprintf(stderr, "chip_larpix[%d] backend runtime_id setup failed\n", opts.id);
+        goto cleanup;
+    }
+
+    if (larpixsim_backend_preload_registers(&backend, init_registers.data(), init_registers.size()) != 0) {
+        fprintf(stderr, "chip_larpix[%d] backend register preload failed\n", opts.id);
         goto cleanup;
     }
 
@@ -1008,6 +1174,9 @@ main(int argc, char **argv)
             if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
                 goto cleanup;
             }
+            /* Give the REQ peer a chance to receive the terminal DONE before
+             * this process runs metric/trace shutdown and closes the socket. */
+            nng_msleep(10);
             break;
         }
         if (tick.type != CHIPSIM_MSG_TICK) {
@@ -1072,7 +1241,6 @@ main(int argc, char **argv)
             fprintf(stderr, "chip_larpix[%d] backend tick failed at seq=%" PRIu64 "\n", opts.id, tick.seq);
             goto cleanup;
         }
-
         for (edge = 0; edge < LARPIXSIM_EDGE_COUNT; edge++) {
             published_valid[edge] = out.tx_bit_valid[edge] ? 1u : 0u;
             published_bits[edge]  = out.tx_bit_value[edge] ? 1u : 0u;
@@ -1081,6 +1249,25 @@ main(int argc, char **argv)
         metrics.drop_count += out.drop_count;
         if (out.chip_fifo_occupancy > metrics.fifo_peak) {
             metrics.fifo_peak = out.chip_fifo_occupancy;
+        }
+        if (!last_traced_chip_fifo_valid || out.chip_fifo_occupancy != last_traced_chip_fifo_occupancy) {
+            if (send_trace_event(trace_push, &opts, tick.seq, LARPIXSIM_TRACE_EVENT_SHARED_FIFO_OCCUPANCY, 0u, 0u, out.chip_fifo_occupancy, 0u, 0.0) != 0) {
+                goto cleanup;
+            }
+            last_traced_chip_fifo_occupancy = out.chip_fifo_occupancy;
+            last_traced_chip_fifo_valid = true;
+        }
+        if (!last_traced_lane_state_valid ||
+                out.chip_up_mask != last_traced_up_mask ||
+                out.chip_down_mask != last_traced_down_mask) {
+            uint32_t packed_lane_state = ((uint32_t)(out.chip_down_mask & 0xF) << 4) |
+                                         ((uint32_t)(out.chip_up_mask & 0xF));
+            if (send_trace_event(trace_push, &opts, tick.seq, LARPIXSIM_TRACE_EVENT_LANE_STATE, 0u, 0u, packed_lane_state, 0u, 0.0) != 0) {
+                goto cleanup;
+            }
+            last_traced_up_mask = out.chip_up_mask & 0xF;
+            last_traced_down_mask = out.chip_down_mask & 0xF;
+            last_traced_lane_state_valid = true;
         }
         if (occupancy_csv != NULL && tick.seq >= opts.occupancy_tick_start) {
             fprintf(occupancy_csv,
@@ -1102,6 +1289,66 @@ main(int argc, char **argv)
         }
         for (int channel = 0; channel < LARPIXSIM_CHANNEL_COUNT; ++channel) {
             channel_generation_count[channel] += out.channel_packet_generated[channel] ? 1u : 0u;
+        }
+        if (rx_debug_csv != NULL) {
+            fprintf(rx_debug_csv,
+                "%" PRIu64 ",%u,%u,0x%X,0x%X,0x%X,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%X,0x%X,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 "\n",
+                tick.seq,
+                out.hydra_state,
+                out.hydra_next_state,
+                (unsigned)out.hydra_uart_has_data,
+                (unsigned)out.hydra_sel_onehot,
+                (unsigned)out.hydra_uld_rx_data_uart,
+                out.hydra_rx_data_flag,
+                out.hydra_comms_busy,
+                out.hydra_pkt_valid,
+                out.hydra_fifo_write_n,
+                out.hydra_rx_data_word,
+                out.hydra_comms_rcvd_pkt,
+                out.hydra_comms_read_pkt,
+                out.hydra_fifo_rd_data,
+                out.hydra_fifo_read_pointer,
+                out.hydra_fifo_write_pointer,
+                out.hydra_fifo_counter_debug,
+                out.hydra_fifo_read_n,
+                out.hydra_fifo_write_n_internal,
+                out.hydra_fifo_mem0,
+                out.hydra_fifo_mem1,
+                (unsigned)out.hydra_ld_tx_data_uart,
+                (unsigned)out.hydra_tx_busy,
+                out.hydra_tx_sel_msg,
+                out.hydra_tx_data_uart[LARPIX_EDGE_NORTH],
+                out.hydra_tx_data_uart[LARPIX_EDGE_EAST],
+                out.hydra_tx_data_uart[LARPIX_EDGE_SOUTH],
+                out.hydra_tx_data_uart[LARPIX_EDGE_WEST],
+                out.msg_valid,
+                out.msg_pkt_data,
+                out.ready_for_msg,
+                out.msg_generated_valid,
+                out.msg_fifo_write_n,
+                out.msg_fifo_empty,
+                out.msg_fifo_read_n,
+                out.msg_fifo_counter_debug,
+                out.msg_fifo_data_in,
+                out.msg_fifo_data_out,
+                out.msg_fifo_mem0,
+                out.msg_fifo_mem1,
+                out.rx_lane_empty[LARPIX_EDGE_NORTH],
+                out.rx_lane_empty[LARPIX_EDGE_EAST],
+                out.rx_lane_empty[LARPIX_EDGE_SOUTH],
+                out.rx_lane_empty[LARPIX_EDGE_WEST],
+                out.rx_lane_hold_valid[LARPIX_EDGE_NORTH],
+                out.rx_lane_hold_valid[LARPIX_EDGE_EAST],
+                out.rx_lane_hold_valid[LARPIX_EDGE_SOUTH],
+                out.rx_lane_hold_valid[LARPIX_EDGE_WEST],
+                out.rx_lane_data[LARPIX_EDGE_NORTH],
+                out.rx_lane_data[LARPIX_EDGE_EAST],
+                out.rx_lane_data[LARPIX_EDGE_SOUTH],
+                out.rx_lane_data[LARPIX_EDGE_WEST],
+                out.rx_lane_hold[LARPIX_EDGE_NORTH],
+                out.rx_lane_hold[LARPIX_EDGE_EAST],
+                out.rx_lane_hold[LARPIX_EDGE_SOUTH],
+                out.rx_lane_hold[LARPIX_EDGE_WEST]);
         }
 
         if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
@@ -1163,6 +1410,9 @@ cleanup:
     }
     if (channel_fifo_detail_csv != NULL) {
         fclose(channel_fifo_detail_csv);
+    }
+    if (rx_debug_csv != NULL) {
+        fclose(rx_debug_csv);
     }
     if (occupancy_csv != NULL) {
         fclose(occupancy_csv);

@@ -29,11 +29,13 @@ startup_in="$repo_root/larpix_network_sim/config/startup_1chip_event_source.json
 stimulus_json="$repo_root/larpix_network_sim/config/stimulus_1chip_event_source.json"
 startup_compiled="$work_dir/startup_1chip_event_source.compiled.json"
 log_file="$work_dir/run.log"
+chip_target="${CHIP_TARGET:-chip_larpix_build}"
+chip_bin_name="${CHIP_BIN_NAME:-chip_larpix}"
 
 mkdir -p "$work_dir"
 
 cmake -S "$repo_root" -B "$build_dir"
-cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix chip_larpix_build -j
+cmake --build "$build_dir" --target fpga_larpix orchestrator_larpix "$chip_target" -j
 
 python3 "$repo_root/larpix_network_sim/scripts/compile_startup_json.py" \
   "$startup_in" \
@@ -57,7 +59,7 @@ PYT
   -ticks "$ticks" \
   -source_x 0 \
   -source_y 0 \
-  -chip_bin "$build_dir/chip_larpix" \
+  -chip_bin "$build_dir/$chip_bin_name" \
   -fpga_bin "$build_dir/fpga_larpix" \
   -startup_json "$startup_compiled" \
   -stimulus_json "$stimulus_json" \

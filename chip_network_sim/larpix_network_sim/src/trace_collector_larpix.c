@@ -61,6 +61,8 @@ static const char *event_name(uint8_t event_type) {
     case LARPIXSIM_TRACE_EVENT_CHARGE_INJECTED: return "charge_injected";
     case LARPIXSIM_TRACE_EVENT_RX_PACKET: return "rx_packet";
     case LARPIXSIM_TRACE_EVENT_TX_PACKET: return "tx_packet";
+    case LARPIXSIM_TRACE_EVENT_SHARED_FIFO_OCCUPANCY: return "shared_fifo_occupancy";
+    case LARPIXSIM_TRACE_EVENT_LANE_STATE: return "lane_state";
     case LARPIXSIM_TRACE_EVENT_FINISH: return "finish";
     default: return "unknown";
     }

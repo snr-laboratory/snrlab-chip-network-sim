@@ -1,23 +1,24 @@
 # Documentation Guide
 
-This directory contains top-level documentation for the public-facing LArPix simulator.
+This directory contains architecture and API documentation inputs and build configs.
 
 ## Main Documents
-- `architecture.md`: top-level architecture and runtime model for the LArPix simulator.
-- `../larpix_network_sim/config/WORKFLOW.md`: practical run workflow and artifact layout.
-- `../larpix_network_sim/config/CONFIGURATION_TESTS.md`: startup/configuration test flows.
-- `Doxyfile`: API documentation configuration.
+- `architecture.md`: system architecture, message model, sync/tick behavior, and backend design.
+- `packet_trace_plan.md`: packet-level tracing design (binary schema, event model, reconstruction flow).
+- `../scripts/reconstruct_trace.py`: offline parser/reconstructor for `tracebin` runs, including ASCII packet lifetime history plots (`packet-columns` and `chip-lanes` modes).
+- `../BENCHMARKS.md`: benchmark results and reproduction commands.
+- `Doxyfile`: Doxygen configuration for code-level API docs.
 
 ## Build Outputs
-- `build/architecture.html`
-- `build/doxygen/html/index.html`
+- `build/architecture.html`: rendered architecture document (Pandoc + Mermaid).
+- `build/doxygen/html/index.html`: Doxygen site entry point.
 
 ## Build Commands
-- `make html`
-- `make doxygen`
-- `make pdf`
-- `make clean`
+- `make html`: generate `build/architecture.html`.
+- `make doxygen`: generate API docs under `build/doxygen/html`.
+- `make pdf`: generate `build/architecture.pdf` (requires `xelatex`).
+- `make clean`: remove generated docs under `build/`.
 
-## Notes
-- The retired legacy packet/FIFO simulator is intentionally no longer documented here.
-- Mermaid diagrams are loaded via `mermaid-header.html`.
+## Tooling Notes
+- Mermaid diagrams are loaded via `mermaid-header.html` and rendered from fenced `mermaid` blocks in `architecture.md`.
+- `Makefile` tracks `pandoc.yaml`, `pandoc.css`, and `mermaid-header.html` as HTML build dependencies to avoid stale output.
