@@ -1,0 +1,11 @@
+// Generic single-charge stimulus applied at tick 600.
+{
+  "charges": [
+    {
+      "runtime_id": 0,
+      "tick": 600,
+      "channel": 0,
+      "charge": -5.0e-15
+    }
+  ]
+}

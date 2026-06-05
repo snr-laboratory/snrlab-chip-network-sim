@@ -233,8 +233,8 @@ fp-info-cache
 
 # chip_network_sim
 /chip_network_sim/nng
-/chip_network_sim/nifty-routing-board-game
-/chip_network_sim/larpix_network_sim/msg_rtl
+/chip_network_sim/rtl/**/
+/chip_network_sim/.codex
 /chip_network_sim/larpix_network_sim/larpix_v3*
 /chip_network_sim/github_pages_export
 /chip_network_sim/**/*.tracebin
