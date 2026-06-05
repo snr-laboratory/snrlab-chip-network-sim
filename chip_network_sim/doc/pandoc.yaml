@@ -1,0 +1,16 @@
+from: gfm
+to: html5
+standalone: true
+toc: true
+toc-depth: 4
+number-sections: true
+section-divs: true
+highlight-style: pygments
+include-in-header:
+  - mermaid-header.html
+css:
+  - pandoc.css
+metadata:
+  title: chip_network_sim Architecture
+  lang: en-US
+  maxwidth: 60em

@@ -1,0 +1,38 @@
+body {
+  margin: 2rem auto;
+  padding: 0 1rem;
+  max-width: 62rem;
+  line-height: 1.55;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.25;
+}
+
+code, pre {
+  font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+pre {
+  padding: 0.8rem;
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+}
+
+thead th {
+  background: #f3f3f3;
+}

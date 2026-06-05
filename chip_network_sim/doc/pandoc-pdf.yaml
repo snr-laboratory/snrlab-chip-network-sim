@@ -1,0 +1,23 @@
+from: gfm
+to: pdf
+standalone: true
+toc: true
+toc-depth: 4
+number-sections: true
+highlight-style: pygments
+pdf-engine: xelatex
+variables:
+  geometry:
+    - margin=1in
+  papersize: letter
+  fontsize: 11pt
+  linestretch: 1.12
+  colorlinks: true
+  linkcolor: navy
+  urlcolor: blue
+metadata:
+  title: chip_network_sim Architecture
+  subtitle: Software and RTL Network Simulation Design
+  author: chip_network_sim contributors
+  date: 2026-02-26
+  lang: en-US

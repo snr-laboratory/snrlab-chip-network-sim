@@ -239,6 +239,5 @@ fp-info-cache
 /chip_network_sim/github_pages_export
 /chip_network_sim/**/*.tracebin
 /chip_network_sim/reports
-/chip_network_sim/doc
 /chip_network_sim/traces
 /dev_journals
