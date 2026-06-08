@@ -241,3 +241,5 @@ fp-info-cache
 /chip_network_sim/reports
 /chip_network_sim/traces
 /dev_journals
+/chip_network_sim/doc/patches/
+/chip_network_sim/doc/msg_rtl_patches/
