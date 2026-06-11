@@ -181,6 +181,18 @@ In the active RTL trees, the gate-edge modules use a conditional `VERILATOR` pat
 
 - `doc/patches/verilator_rtl_compatibility_minimal.patch`
 
+That patch is written relative to a generic RTL `src/` directory so it can be reused for any user RTL variant that follows this repo's normal layout.
+
+The intended application pattern is:
+
+```bash
+cd rtl/<your_variant>
+patch --dry-run -p0 < ../../doc/patches/verilator_rtl_compatibility_minimal.patch
+patch -p0 < ../../doc/patches/verilator_rtl_compatibility_minimal.patch
+```
+
+In other words, the user applies the patch from inside their RTL variant directory, not from the repo root.
+
 Instead of requiring cells such as:
 
 - `CKLNQD8`

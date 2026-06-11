@@ -1,6 +1,6 @@
-diff -ruN /tmp/orig_rtl/src/gate_negedge_clk.sv rtl/v3c/src/gate_negedge_clk.sv
+diff -ruN /tmp/orig_rtl/src/gate_negedge_clk.sv src/gate_negedge_clk.sv
 --- /tmp/orig_rtl/src/gate_negedge_clk.sv
-+++ rtl/v3c/src/gate_negedge_clk.sv
++++ src/gate_negedge_clk.sv
 @@ -11,6 +11,18 @@
      input logic EN,                // clock-gating: enable clock (active high)
      input logic CLK);             // negedge clock
@@ -29,9 +29,9 @@ diff -ruN /tmp/orig_rtl/src/gate_negedge_clk.sv rtl/v3c/src/gate_negedge_clk.sv
 +`endif
  
  endmodule
-diff -ruN /tmp/orig_rtl/src/gate_posedge_clk.sv rtl/v3c/src/gate_posedge_clk.sv
+diff -ruN /tmp/orig_rtl/src/gate_posedge_clk.sv src/gate_posedge_clk.sv
 --- /tmp/orig_rtl/src/gate_posedge_clk.sv
-+++ rtl/v3c/src/gate_posedge_clk.sv
++++ src/gate_posedge_clk.sv
 @@ -12,6 +12,18 @@
      input logic EN,               // clock-gating: enable clock (active high)
      input logic CLK);             // posedge clock
@@ -60,9 +60,9 @@ diff -ruN /tmp/orig_rtl/src/gate_posedge_clk.sv rtl/v3c/src/gate_posedge_clk.sv
 +`endif
  
  endmodule
-diff -ruN /tmp/orig_rtl/src/larpix_constants.sv rtl/v3c/src/larpix_constants.sv
+diff -ruN /tmp/orig_rtl/src/larpix_constants.sv src/larpix_constants.sv
 --- /tmp/orig_rtl/src/larpix_constants.sv
-+++ rtl/v3c/src/larpix_constants.sv
++++ src/larpix_constants.sv
 @@ -5,10 +5,10 @@
  //
  ///////////////////////////////////////////////////////////////////
@@ -85,9 +85,9 @@ diff -ruN /tmp/orig_rtl/src/larpix_constants.sv rtl/v3c/src/larpix_constants.sv
 -
 -
 -`endif // _larpix_constants_
-diff -ruN /tmp/orig_rtl/src/digital_core.sv rtl/v3c/src/digital_core.sv
+diff -ruN /tmp/orig_rtl/src/digital_core.sv src/digital_core.sv
 --- /tmp/orig_rtl/src/digital_core.sv
-+++ rtl/v3c/src/digital_core.sv
++++ src/digital_core.sv
 @@ -103,6 +103,8 @@
      input logic [ADCBITS*NUMCHANNELS-1:0] dout,                 // bits from ADC
      input logic [NUMCHANNELS-1:0] done,   // high when ADC conversion finished
