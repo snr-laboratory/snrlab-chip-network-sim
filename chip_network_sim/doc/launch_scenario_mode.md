@@ -362,6 +362,7 @@ Good starting templates are:
 
 - `sim_core/scenarios/run_1chip_event_startup.sh`
 - `sim_core/scenarios/run_1chip_fullreg_readback_startup.sh`
+- `sim_core/scenarios/run_3x5_bootstrap_id_startup.sh`
 - `sim_core/scenarios/run_3x5_event_top_right.sh`
 - `sim_core/scenarios/run_15x15_event_staggered_multichip.sh`
 
@@ -386,6 +387,13 @@ The currently maintained scenario runners are:
   Instantiates a `1x1` LArPix network with source chip `(0,0)`.
   Generates a startup packet file containing one south-TX enable write followed by full register readback requests; no analog stimulus file is used.
   Pass condition: every returned config-read reply matches the expected RTL startup-default register value.
+
+### Bootstrap configuration scenario
+
+- `sim_core/scenarios/run_3x5_bootstrap_id_startup.sh`
+  Instantiates a `3x5` LArPix network with source chip `(0,0)`.
+  Uses a generated startup packet file containing bootstrap `CHIP_ID` writes, lane-enable writes, and immediate `CHIP_ID` readbacks; no analog stimulus file is used.
+  Pass condition: the returned `CHIP_ID` readback sequence matches the expected bootstrap traversal and a bootstrap playback JSON is produced.
 
 ### Preconfigured event scenarios
 

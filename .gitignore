@@ -241,5 +241,7 @@ fp-info-cache
 /chip_network_sim/reports
 /chip_network_sim/traces
 /dev_journals
-/chip_network_sim/doc/patches/
+/chip_network_sim/doc/patches/v3c_import_to_v3c2.patch
+/chip_network_sim/doc/patches/v3c_to_v3c2_packetloss_only.patch
+/chip_network_sim/nifty-routing-board-game/
 /chip_network_sim/doc/msg_rtl_patches/

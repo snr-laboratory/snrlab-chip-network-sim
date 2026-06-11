@@ -12,9 +12,9 @@ from typing import Deque, Dict, Iterable, List, Tuple
 
 THIS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = THIS_DIR.parents[2]
-SCRIPTS_DIR = REPO_ROOT / "larpix_network_sim" / "scripts"
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
+TOOLS_DIR = REPO_ROOT / "sim_core" / "tools"
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
 
 from larpix_uart import decode_packet
 
@@ -235,7 +235,7 @@ def build_fpga_events(startup_frames: List[dict], tx_log: List[dict], rx_log: Li
 
 
 def rtl_shared_fifo_depth() -> int:
-    rtl_path = REPO_ROOT / "larpix_network_sim" / "larpix_v3b_rtl" / "src" / "digital_core.sv"
+    rtl_path = REPO_ROOT / "rtl" / "v3b" / "src" / "digital_core.sv"
     for line in rtl_path.read_text().splitlines():
         stripped = line.strip()
         if stripped.startswith("//"):

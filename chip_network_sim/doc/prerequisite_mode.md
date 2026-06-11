@@ -175,7 +175,9 @@ The relevant files are:
 - `gate_negedge_clk.sv`
 - `larpix_constants.sv`
 
-In the active RTL trees, the gate-edge modules use a conditional `VERILATOR` path with a simple functional model, while keeping the foundry-cell instantiation for non-Verilator flows. You can find patches to these files with a conditional `VERILATOR` path under the `doc/patches/` directory.
+In the active RTL trees, the gate-edge modules use a conditional `VERILATOR` path with a simple functional model, while keeping the foundry-cell instantiation for non-Verilator flows. The minimal standalone patch record for these required compatibility edits is:
+
+- `doc/patches/verilator_rtl_compatibility_minimal.patch`
 
 Instead of requiring cells such as:
 

@@ -1,8 +1,8 @@
 # Documentation Order
 
-There are four documents outlining how to get started with using this simulation framework. They go through the steps of (1) downloading required prerequisites, (2) integrating a user's unique RTL design into the simulation framework, (3) running a simulation, and (4) optionality for enabling internal state visibility for futher investigation of chip/network behavior. 
+Read the documents in this directory in the following order.
 
-# 1. Prerequisite Mode
+## 1. Prerequisite Mode
 
 Start with:
 

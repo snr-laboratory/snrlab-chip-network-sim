@@ -12,9 +12,9 @@ from typing import Dict, List, Tuple
 
 THIS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = THIS_DIR.parents[2]
-SCRIPTS_DIR = REPO_ROOT / "larpix_network_sim" / "scripts"
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
+TOOLS_DIR = REPO_ROOT / "sim_core" / "tools"
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
 
 from larpix_uart import decode_packet
 

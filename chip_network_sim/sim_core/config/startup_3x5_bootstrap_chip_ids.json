@@ -6,7 +6,7 @@
       "chip_id": 1,
       "register_addr": 122,
       "register_data": 0,
-      "label": "bottom-row source assignment (s=0)"
+      "label": "source assignment at (0,0)"
     },
     {
       "tick_start": 140,
@@ -14,7 +14,7 @@
       "chip_id": 0,
       "register_addr": 125,
       "register_data": 4,
-      "label": "bottom-row source south enable at (0,0)"
+      "label": "source south downstream keep for chip at (0,0)"
     },
     {
       "tick_start": 260,
@@ -30,7 +30,7 @@
       "chip_id": 0,
       "register_addr": 124,
       "register_data": 2,
-      "label": "bottom-row source east enable for chip at (0,0)"
+      "label": "source-row east prepare for chip at (0,0)"
     },
     {
       "tick_start": 500,
@@ -38,7 +38,7 @@
       "chip_id": 1,
       "register_addr": 122,
       "register_data": 254,
-      "label": "bottom-row assign east neighbor of chip at (0,0)"
+      "label": "source-row assign east neighbor of chip at (0,0)"
     },
     {
       "tick_start": 620,
@@ -46,7 +46,7 @@
       "chip_id": 254,
       "register_addr": 125,
       "register_data": 8,
-      "label": "bottom-row west downstream enable for chip at (1,0)"
+      "label": "source-row west downstream enable for chip at (1,0)"
     },
     {
       "tick_start": 740,
@@ -62,7 +62,7 @@
       "chip_id": 254,
       "register_addr": 124,
       "register_data": 2,
-      "label": "bottom-row east-only upstream enable for chip at (1,0)"
+      "label": "source-row east-only propagation enable for chip at (1,0)"
     },
     {
       "tick_start": 980,
@@ -70,7 +70,7 @@
       "chip_id": 1,
       "register_addr": 122,
       "register_data": 2,
-      "label": "bottom-row assign east neighbor of chip at (1,0)"
+      "label": "source-row assign east neighbor of chip at (1,0)"
     },
     {
       "tick_start": 1100,
@@ -78,7 +78,7 @@
       "chip_id": 2,
       "register_addr": 125,
       "register_data": 8,
-      "label": "bottom-row west downstream enable for chip at (2,0)"
+      "label": "source-row west downstream enable for chip at (2,0)"
     },
     {
       "tick_start": 1220,
@@ -94,7 +94,7 @@
       "chip_id": 2,
       "register_addr": 124,
       "register_data": 2,
-      "label": "bottom-row east-only upstream enable for chip at (2,0)"
+      "label": "source-row east-only propagation enable for chip at (2,0)"
     },
     {
       "tick_start": 1460,
@@ -102,7 +102,7 @@
       "chip_id": 1,
       "register_addr": 122,
       "register_data": 3,
-      "label": "bottom-row assign east neighbor of chip at (2,0)"
+      "label": "source-row assign east neighbor of chip at (2,0)"
     },
     {
       "tick_start": 1580,
@@ -110,7 +110,7 @@
       "chip_id": 3,
       "register_addr": 125,
       "register_data": 8,
-      "label": "bottom-row west downstream enable for chip at (3,0)"
+      "label": "source-row west downstream enable for chip at (3,0)"
     },
     {
       "tick_start": 1700,
@@ -126,7 +126,7 @@
       "chip_id": 3,
       "register_addr": 124,
       "register_data": 2,
-      "label": "bottom-row east-only upstream enable for chip at (3,0)"
+      "label": "source-row east-only propagation enable for chip at (3,0)"
     },
     {
       "tick_start": 1940,
@@ -134,7 +134,7 @@
       "chip_id": 1,
       "register_addr": 122,
       "register_data": 4,
-      "label": "bottom-row assign east neighbor of chip at (3,0)"
+      "label": "source-row assign east neighbor of chip at (3,0)"
     },
     {
       "tick_start": 2060,
@@ -142,7 +142,7 @@
       "chip_id": 4,
       "register_addr": 125,
       "register_data": 8,
-      "label": "bottom-row west downstream enable for chip at (4,0)"
+      "label": "source-row west downstream enable for chip at (4,0)"
     },
     {
       "tick_start": 2180,
@@ -157,19 +157,11 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 3,
-      "label": "source special prepare for chip at (0,0)"
+      "register_data": 1,
+      "label": "column 0 root prepare north enable for chip at (0,0)"
     },
     {
       "tick_start": 2420,
-      "type": "write",
-      "chip_id": 0,
-      "register_addr": 125,
-      "register_data": 4,
-      "label": "source south downstream keep for chip at (0,0)"
-    },
-    {
-      "tick_start": 2540,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -177,7 +169,7 @@
       "label": "column 0 assign north neighbor of chip at (0,0)"
     },
     {
-      "tick_start": 2660,
+      "tick_start": 2540,
       "type": "write",
       "chip_id": 5,
       "register_addr": 125,
@@ -185,7 +177,7 @@
       "label": "column 0 downstream return enable for chip at (0,1)"
     },
     {
-      "tick_start": 2780,
+      "tick_start": 2660,
       "type": "read",
       "chip_id": 5,
       "register_addr": 122,
@@ -193,7 +185,7 @@
       "label": "read CHIP_ID from chip 5 at (0,1)"
     },
     {
-      "tick_start": 2900,
+      "tick_start": 2780,
       "type": "write",
       "chip_id": 5,
       "register_addr": 124,
@@ -201,7 +193,7 @@
       "label": "column 0 north-only propagation enable for chip at (0,1)"
     },
     {
-      "tick_start": 3020,
+      "tick_start": 2900,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -209,7 +201,7 @@
       "label": "column 0 assign north neighbor of chip at (0,1)"
     },
     {
-      "tick_start": 3140,
+      "tick_start": 3020,
       "type": "write",
       "chip_id": 10,
       "register_addr": 125,
@@ -217,7 +209,7 @@
       "label": "column 0 downstream return enable for chip at (0,2)"
     },
     {
-      "tick_start": 3260,
+      "tick_start": 3140,
       "type": "read",
       "chip_id": 10,
       "register_addr": 122,
@@ -225,12 +217,20 @@
       "label": "read CHIP_ID from chip 10 at (0,2)"
     },
     {
+      "tick_start": 3260,
+      "type": "write",
+      "chip_id": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row path prepare toward column 1 via east from (0,0)"
+    },
+    {
       "tick_start": 3380,
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 3,
-      "label": "second-column bottom prepare for chip at (1,0)"
+      "register_data": 1,
+      "label": "column 1 root prepare north enable for chip at (1,0)"
     },
     {
       "tick_start": 3500,
@@ -291,13 +291,29 @@
     {
       "tick_start": 4340,
       "type": "write",
-      "chip_id": 2,
+      "chip_id": 0,
       "register_addr": 124,
-      "register_data": 3,
-      "label": "column 2 bottom prepare east-side north enable"
+      "register_data": 2,
+      "label": "source-row path prepare toward column 2 via east from (0,0)"
     },
     {
       "tick_start": 4460,
+      "type": "write",
+      "chip_id": 254,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row relay prepare toward column 2 via east for chip at (1,0)"
+    },
+    {
+      "tick_start": 4580,
+      "type": "write",
+      "chip_id": 2,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "column 2 root prepare north enable for chip at (2,0)"
+    },
+    {
+      "tick_start": 4700,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -305,7 +321,7 @@
       "label": "column 2 assign north neighbor of chip at (2,0)"
     },
     {
-      "tick_start": 4580,
+      "tick_start": 4820,
       "type": "write",
       "chip_id": 7,
       "register_addr": 125,
@@ -313,7 +329,7 @@
       "label": "column 2 downstream return enable for chip at (2,1)"
     },
     {
-      "tick_start": 4700,
+      "tick_start": 4940,
       "type": "read",
       "chip_id": 7,
       "register_addr": 122,
@@ -321,7 +337,7 @@
       "label": "read CHIP_ID from chip 7 at (2,1)"
     },
     {
-      "tick_start": 4820,
+      "tick_start": 5060,
       "type": "write",
       "chip_id": 7,
       "register_addr": 124,
@@ -329,7 +345,7 @@
       "label": "column 2 north-only propagation enable for chip at (2,1)"
     },
     {
-      "tick_start": 4940,
+      "tick_start": 5180,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -337,7 +353,7 @@
       "label": "column 2 assign north neighbor of chip at (2,1)"
     },
     {
-      "tick_start": 5060,
+      "tick_start": 5300,
       "type": "write",
       "chip_id": 12,
       "register_addr": 125,
@@ -345,7 +361,7 @@
       "label": "column 2 downstream return enable for chip at (2,2)"
     },
     {
-      "tick_start": 5180,
+      "tick_start": 5420,
       "type": "read",
       "chip_id": 12,
       "register_addr": 122,
@@ -353,15 +369,39 @@
       "label": "read CHIP_ID from chip 12 at (2,2)"
     },
     {
-      "tick_start": 5300,
+      "tick_start": 5540,
+      "type": "write",
+      "chip_id": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row path prepare toward column 3 via east from (0,0)"
+    },
+    {
+      "tick_start": 5660,
+      "type": "write",
+      "chip_id": 254,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row relay prepare toward column 3 via east for chip at (1,0)"
+    },
+    {
+      "tick_start": 5780,
+      "type": "write",
+      "chip_id": 2,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row relay prepare toward column 3 via east for chip at (2,0)"
+    },
+    {
+      "tick_start": 5900,
       "type": "write",
       "chip_id": 3,
       "register_addr": 124,
-      "register_data": 3,
-      "label": "column 3 bottom prepare east-side north enable"
+      "register_data": 1,
+      "label": "column 3 root prepare north enable for chip at (3,0)"
     },
     {
-      "tick_start": 5420,
+      "tick_start": 6020,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -369,7 +409,7 @@
       "label": "column 3 assign north neighbor of chip at (3,0)"
     },
     {
-      "tick_start": 5540,
+      "tick_start": 6140,
       "type": "write",
       "chip_id": 8,
       "register_addr": 125,
@@ -377,7 +417,7 @@
       "label": "column 3 downstream return enable for chip at (3,1)"
     },
     {
-      "tick_start": 5660,
+      "tick_start": 6260,
       "type": "read",
       "chip_id": 8,
       "register_addr": 122,
@@ -385,7 +425,7 @@
       "label": "read CHIP_ID from chip 8 at (3,1)"
     },
     {
-      "tick_start": 5780,
+      "tick_start": 6380,
       "type": "write",
       "chip_id": 8,
       "register_addr": 124,
@@ -393,7 +433,7 @@
       "label": "column 3 north-only propagation enable for chip at (3,1)"
     },
     {
-      "tick_start": 5900,
+      "tick_start": 6500,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -401,7 +441,7 @@
       "label": "column 3 assign north neighbor of chip at (3,1)"
     },
     {
-      "tick_start": 6020,
+      "tick_start": 6620,
       "type": "write",
       "chip_id": 13,
       "register_addr": 125,
@@ -409,7 +449,7 @@
       "label": "column 3 downstream return enable for chip at (3,2)"
     },
     {
-      "tick_start": 6140,
+      "tick_start": 6740,
       "type": "read",
       "chip_id": 13,
       "register_addr": 122,
@@ -417,15 +457,47 @@
       "label": "read CHIP_ID from chip 13 at (3,2)"
     },
     {
-      "tick_start": 6260,
+      "tick_start": 6860,
+      "type": "write",
+      "chip_id": 0,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row path prepare toward column 4 via east from (0,0)"
+    },
+    {
+      "tick_start": 6980,
+      "type": "write",
+      "chip_id": 254,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row relay prepare toward column 4 via east for chip at (1,0)"
+    },
+    {
+      "tick_start": 7100,
+      "type": "write",
+      "chip_id": 2,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row relay prepare toward column 4 via east for chip at (2,0)"
+    },
+    {
+      "tick_start": 7220,
+      "type": "write",
+      "chip_id": 3,
+      "register_addr": 124,
+      "register_data": 2,
+      "label": "source-row relay prepare toward column 4 via east for chip at (3,0)"
+    },
+    {
+      "tick_start": 7340,
       "type": "write",
       "chip_id": 4,
       "register_addr": 124,
       "register_data": 1,
-      "label": "column 4 bottom prepare east-side north enable"
+      "label": "column 4 root prepare north enable for chip at (4,0)"
     },
     {
-      "tick_start": 6380,
+      "tick_start": 7460,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -433,7 +505,7 @@
       "label": "column 4 assign north neighbor of chip at (4,0)"
     },
     {
-      "tick_start": 6500,
+      "tick_start": 7580,
       "type": "write",
       "chip_id": 9,
       "register_addr": 125,
@@ -441,7 +513,7 @@
       "label": "column 4 downstream return enable for chip at (4,1)"
     },
     {
-      "tick_start": 6620,
+      "tick_start": 7700,
       "type": "read",
       "chip_id": 9,
       "register_addr": 122,
@@ -449,7 +521,7 @@
       "label": "read CHIP_ID from chip 9 at (4,1)"
     },
     {
-      "tick_start": 6740,
+      "tick_start": 7820,
       "type": "write",
       "chip_id": 9,
       "register_addr": 124,
@@ -457,7 +529,7 @@
       "label": "column 4 north-only propagation enable for chip at (4,1)"
     },
     {
-      "tick_start": 6860,
+      "tick_start": 7940,
       "type": "write",
       "chip_id": 1,
       "register_addr": 122,
@@ -465,7 +537,7 @@
       "label": "column 4 assign north neighbor of chip at (4,1)"
     },
     {
-      "tick_start": 6980,
+      "tick_start": 8060,
       "type": "write",
       "chip_id": 14,
       "register_addr": 125,
@@ -473,7 +545,7 @@
       "label": "column 4 downstream return enable for chip at (4,2)"
     },
     {
-      "tick_start": 7100,
+      "tick_start": 8180,
       "type": "read",
       "chip_id": 14,
       "register_addr": 122,
@@ -481,7 +553,127 @@
       "label": "read CHIP_ID from chip 14 at (4,2)"
     },
     {
-      "tick_start": 7220,
+      "tick_start": 8300,
+      "type": "write",
+      "chip_id": 0,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "final source-row normalize for chip at (0,0)"
+    },
+    {
+      "tick_start": 8420,
+      "type": "write",
+      "chip_id": 254,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "final source-row normalize for chip at (1,0)"
+    },
+    {
+      "tick_start": 8540,
+      "type": "write",
+      "chip_id": 2,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "final source-row normalize for chip at (2,0)"
+    },
+    {
+      "tick_start": 8660,
+      "type": "write",
+      "chip_id": 3,
+      "register_addr": 124,
+      "register_data": 3,
+      "label": "final source-row normalize for chip at (3,0)"
+    },
+    {
+      "tick_start": 8780,
+      "type": "write",
+      "chip_id": 4,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "final source-row normalize for chip at (4,0)"
+    },
+    {
+      "tick_start": 8900,
+      "type": "write",
+      "chip_id": 5,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "final north-column normalize for chip at (0,1)"
+    },
+    {
+      "tick_start": 9020,
+      "type": "write",
+      "chip_id": 10,
+      "register_addr": 124,
+      "register_data": 0,
+      "label": "final north-column normalize for chip at (0,2)"
+    },
+    {
+      "tick_start": 9140,
+      "type": "write",
+      "chip_id": 6,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "final north-column normalize for chip at (1,1)"
+    },
+    {
+      "tick_start": 9260,
+      "type": "write",
+      "chip_id": 11,
+      "register_addr": 124,
+      "register_data": 0,
+      "label": "final north-column normalize for chip at (1,2)"
+    },
+    {
+      "tick_start": 9380,
+      "type": "write",
+      "chip_id": 7,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "final north-column normalize for chip at (2,1)"
+    },
+    {
+      "tick_start": 9500,
+      "type": "write",
+      "chip_id": 12,
+      "register_addr": 124,
+      "register_data": 0,
+      "label": "final north-column normalize for chip at (2,2)"
+    },
+    {
+      "tick_start": 9620,
+      "type": "write",
+      "chip_id": 8,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "final north-column normalize for chip at (3,1)"
+    },
+    {
+      "tick_start": 9740,
+      "type": "write",
+      "chip_id": 13,
+      "register_addr": 124,
+      "register_data": 0,
+      "label": "final north-column normalize for chip at (3,2)"
+    },
+    {
+      "tick_start": 9860,
+      "type": "write",
+      "chip_id": 9,
+      "register_addr": 124,
+      "register_data": 1,
+      "label": "final north-column normalize for chip at (4,1)"
+    },
+    {
+      "tick_start": 9980,
+      "type": "write",
+      "chip_id": 14,
+      "register_addr": 124,
+      "register_data": 0,
+      "label": "final north-column normalize for chip at (4,2)"
+    },
+    {
+      "tick_start": 10100,
       "type": "write",
       "chip_id": 254,
       "register_addr": 122,
@@ -489,7 +681,7 @@
       "label": "cleanup remap 254 -> 1 at (1,0)"
     },
     {
-      "tick_start": 7340,
+      "tick_start": 10220,
       "type": "read",
       "chip_id": 1,
       "register_addr": 122,
