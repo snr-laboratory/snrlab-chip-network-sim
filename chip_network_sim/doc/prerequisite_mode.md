@@ -168,12 +168,14 @@ For the LArPix-like RTL used in this repository, the functional-cosimulation com
 
 - modify the gate-edge files so they no longer depend on specific foundry clock-gate models in the Verilator path
 - remove the global include guard pattern from `larpix_constants.sv` so each including module still receives its own localparams during Verilator compilation
+- expose the framework-required `digital_core` top-level ports `runtime_id` and `preload_done`
 
 The relevant files are:
 
 - `gate_posedge_clk.sv`
 - `gate_negedge_clk.sv`
 - `larpix_constants.sv`
+- `digital_core.sv`
 
 In the active RTL trees, the gate-edge modules use a conditional `VERILATOR` path with a simple functional model, while keeping the foundry-cell instantiation for non-Verilator flows. The minimal standalone patch record for these required compatibility edits is:
 
@@ -191,6 +193,20 @@ For `larpix_constants.sv`, the active pattern is:
 - do not use a global include guard if the file is intended to be `include`d inside multiple modules
 - allow each including module to receive its own copy of the localparams during Verilator compilation
 
+For `digital_core.sv`, the active framework-compatible pattern is to expose these additional top-level inputs:
+
+- `runtime_id`
+- `preload_done`
+
+These are required by the simulator/backend contract in this repository even if the RTL does not use them internally for chip logic.
+
+During a live simulation:
+
+- `runtime_id` is used by the framework as chip-instance identity plumbing so the backend can keep the launched chip process aligned with the simulator's runtime/chip numbering
+- `preload_done` is used by the framework as the register-preload completion handshake for runs that use `init_regs_json`, so the backend can mark when direct RTL register preload has finished before normal execution proceeds
+
+In the current LArPix RTL trees, these ports may be functionally unused inside `digital_core`, but they still need to exist on the top-level module so the Verilated model exposes them to the cosimulation backend.
+
 These changes are the ones required to preserve functional cosimulation in the current Verilator flow.
 
 Optional internal-signal exposure for richer debug and observability is documented separately in `internal_inspection_mode.md`.
@@ -204,6 +220,7 @@ Do not move on to RTL integration until all of the following are true:
 - `verilator --version` works
 - the RTL no longer depends on foundry-specific gate-edge cell models in the Verilator path
 - the RTL no longer relies on the problematic global include-guard pattern for `larpix_constants.sv`
+- the RTL exposes the framework-required `digital_core` ports `runtime_id` and `preload_done`
 - you understand which RTL files were modified for functional Verilator compatibility
 
 After that, the next document should be `integrate_rtl_mode.md`.

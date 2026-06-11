@@ -85,3 +85,15 @@ diff -ruN /tmp/orig_rtl/src/larpix_constants.sv rtl/v3c/src/larpix_constants.sv
 -
 -
 -`endif // _larpix_constants_
+diff -ruN /tmp/orig_rtl/src/digital_core.sv rtl/v3c/src/digital_core.sv
+--- /tmp/orig_rtl/src/digital_core.sv
++++ rtl/v3c/src/digital_core.sv
+@@ -103,6 +103,8 @@
+     input logic [ADCBITS*NUMCHANNELS-1:0] dout,                 // bits from ADC
+     input logic [NUMCHANNELS-1:0] done,   // high when ADC conversion finished
+     input logic [NUMCHANNELS-1:0] hit,    // high when discriminator fires
++    input logic [7:0] runtime_id,         // simulator runtime id 
++    input logic preload_done,             // backend preload-complete gate 
+     input logic external_trigger,     // high to trigger channel
+     input logic [3:0] posi,// PRIMARY-OUT-SECONDARY-IN: RX UART input bit
+     input clk,    // primary clk
