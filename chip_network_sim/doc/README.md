@@ -58,4 +58,5 @@ For a new user, the intended reading order is:
 1. `prerequisite_mode.md`
 2. `integrate_rtl_mode.md`
 3. `launch_scenario_mode.md`
-4. `internal_inspection_mode.md`
+4. `visualizer_mode.md`
+5. `internal_inspection_mode.md`

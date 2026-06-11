@@ -114,13 +114,17 @@ if [[ "$run_ok" -ne 1 ]]; then
   exit 1
 fi
 
-python3 "$repo_root/sim_core/visualizers/packet_transmission/convert_live_bootstrap_log_to_playback.py" \
+python3 "$repo_root/sim_core/visualizers/packet_transmission/convert_live_trace_to_playback.py" \
   --rows 3 \
   --cols 5 \
-  --s 0 \
-  --startup-json "$startup_in" \
+  --source-x 0 \
+  --source-y 0 \
+  --startup-json "$startup_compiled" \
   --run-log "$log_file" \
-  --out "$playback_json"
+  --trace-jsonl "$trace_jsonl" \
+  --out "$playback_json" \
+  --rtl-version "$chip_variant" \
+  --name "Live bootstrap 3x5 CHIP_ID assignment"
 
 python3 - "$startup_in" "$log_file" "$playback_json" "$repo_root/sim_core/tools/larpix_uart.py" <<'PY2'
 import importlib.util
