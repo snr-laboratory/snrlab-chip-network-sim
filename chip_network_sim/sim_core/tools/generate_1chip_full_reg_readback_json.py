@@ -25,7 +25,7 @@ HEADER = """// 1-chip exhaustive LArPix startup/readback test configuration.
 // - issue a CONFIG_READ for every explicit startup-default register described in
 //   the mirrored RTL default-assignment file
 // - skip register 125 because the first write in this test intentionally changes
-//   ENABLE_PISO_DOWN from its RTL default 0x00 to 0x04
+//   ENABLE_PISO_DOWN from its RTL default 0x00 to 0x02
 //
 // Expected behavior:
 // - every CONFIG_READ reply should match the RTL startup-default value for that
@@ -43,7 +43,7 @@ def build_frames(defaults: dict[int, int]) -> list[dict[str, int | str]]:
             'type': 'write',
             'chip_id': 1,
             'register_addr': MODIFIED_REGISTER_ADDR,
-            'register_data': 4,
+            'register_data': 2,
             'label': 'enable source south tx lane',
         }
     ]

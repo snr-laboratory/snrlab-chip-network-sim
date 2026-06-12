@@ -38,7 +38,8 @@ const filterSharedFifoEl = document.getElementById('filterSharedFifo');
 const filterPacketLabelsEl = document.getElementById('filterPacketLabels');
 const filterPersistentInjectionEl = document.getElementById('filterPersistentInjection');
 
-const EDGE_TO_BIT = { north: 0, east: 1, south: 2, west: 3 };
+const PISO_EDGE_TO_BIT = { north: 3, east: 2, south: 1, west: 0 };
+const POSI_EDGE_TO_BIT = { north: 0, east: 3, south: 2, west: 1 };
 
 let playback = null;
 let playbackSourceUrl = null;
@@ -420,8 +421,8 @@ function updateHud() {
       selectionEl.textContent = 'Selection: chip 0 internals | no debug sample for this tick';
       return;
     }
-    const sel = laneNamesFromMask(row.hydra_sel_onehot).join(',') || 'none';
-    const unload = laneNamesFromMask(row.hydra_uld_rx_data_uart).join(',') || 'none';
+    const sel = laneNamesFromMask(row.hydra_sel_onehot, POSI_EDGE_TO_BIT).join(',') || 'none';
+    const unload = laneNamesFromMask(row.hydra_uld_rx_data_uart, POSI_EDGE_TO_BIT).join(',') || 'none';
     selectionEl.textContent = `Selection: chip 0 internals | Hydra ${hydraStateName(row.hydra_state)} -> ${hydraStateName(row.hydra_next_state)} | select ${sel} | unload ${unload} | rx_data ${abbreviateWord(row.hydra_rx_data_word)}`;
     return;
   }
@@ -464,7 +465,7 @@ function updateHud() {
 }
 
 function laneEnabled(mask, edge) {
-  return ((mask >> EDGE_TO_BIT[edge]) & 1) === 1;
+  return ((mask >> PISO_EDGE_TO_BIT[edge]) & 1) === 1;
 }
 
 function drawLane(cx, cy, cell, edge, color, active = false) {
@@ -577,9 +578,9 @@ function maskHasLane(mask, lane) {
   return ((parseMaskValue(mask) >> lane) & 1) === 1;
 }
 
-function laneNamesFromMask(mask) {
+function laneNamesFromMask(mask, edgeToBit = POSI_EDGE_TO_BIT) {
   const names = [];
-  for (const [name, bit] of Object.entries(EDGE_TO_BIT)) {
+  for (const [name, bit] of Object.entries(edgeToBit)) {
     if (maskHasLane(mask, bit)) names.push(name);
   }
   return names;
@@ -911,7 +912,7 @@ function drawChipInternalView(width, height) {
 
   const laneWord = (lane) => formatHexWord(row[`${lane}_rx_data`]);
   const holdWord = (lane) => formatHexWord(row[`${lane}_hold_reg`]);
-  const laneActive = (lane) => Number(row[`${lane}_rx_empty`] || 0) === 0 || Number(row[`${lane}_hold_valid`] || 0) === 1 || maskHasLane(row.hydra_sel_onehot, EDGE_TO_BIT[lane]) || maskHasLane(row.hydra_uld_rx_data_uart, EDGE_TO_BIT[lane]);
+  const laneActive = (lane) => Number(row[`${lane}_rx_empty`] || 0) === 0 || Number(row[`${lane}_hold_valid`] || 0) === 1 || maskHasLane(row.hydra_sel_onehot, POSI_EDGE_TO_BIT[lane]) || maskHasLane(row.hydra_uld_rx_data_uart, POSI_EDGE_TO_BIT[lane]);
   const commsPacketWord = formatHexWord(row.hydra_comms_rcvd_pkt);
   const commsPacketType = packetTypeNameFromWord(row.hydra_comms_rcvd_pkt);
   const commsRoutesToMsg = Number(row.msg_valid || 0) === 1;
@@ -941,8 +942,8 @@ function drawChipInternalView(width, height) {
     [
       `state: ${hydraStateName(row.hydra_state)}`,
       `next: ${hydraStateName(row.hydra_next_state)}`,
-      `sel_onehot: ${laneNamesFromMask(row.hydra_sel_onehot).join(',') || 'none'}`,
-      `uld_rx: ${laneNamesFromMask(row.hydra_uld_rx_data_uart).join(',') || 'none'}`,
+      `sel_onehot: ${laneNamesFromMask(row.hydra_sel_onehot, POSI_EDGE_TO_BIT).join(',') || 'none'}`,
+      `uld_rx: ${laneNamesFromMask(row.hydra_uld_rx_data_uart, POSI_EDGE_TO_BIT).join(',') || 'none'}`,
       `rx_data_flag: ${row.hydra_rx_data_flag}`,
       `rx_data: ${abbreviateWord(formatHexWord(row.hydra_rx_data_word))}`,
       `fifo_write_n: ${row.hydra_fifo_write_n}`,
@@ -1036,7 +1037,7 @@ function drawChipInternalView(width, height) {
   for (const lane of ['north', 'east', 'south', 'west']) {
     const laneRect = laneRects[lane];
     const color = lane === 'north' ? '#4db0ff' : lane === 'east' ? '#ffb04d' : '#8192ad';
-    const selected = maskHasLane(row.hydra_sel_onehot, EDGE_TO_BIT[lane]);
+    const selected = maskHasLane(row.hydra_sel_onehot, POSI_EDGE_TO_BIT[lane]);
     const populated = Number(row[`${lane}_rx_empty`] || 0) === 0;
     drawFlowArrow(laneRect.left + laneRect.width, laneRect.top + laneRect.height * 0.5, hydraRect.left, hydraRect.top + hydraRect.height * 0.5, color, selected || populated, selected ? 'selected' : populated ? 'ready' : 'idle');
   }

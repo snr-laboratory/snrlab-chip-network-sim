@@ -39,13 +39,7 @@ This document explains how to run live simulations:
 - understand the scenario artifacts
 - write a new scenario runner script
 
-## 4. Launch Web-Based Visualizer
-
-All maintained runner scripts (aside from the single-chip smoke-test scripts) produce an output playback JSON which can act as input to a web-based visualizer of the chip network at each tick in the simulation. Details about how to launch the visualizer and see outputs from a simulation run are here: 
-
-- `visualizer_mode.md`
-
-## 5. Internal Inspection Mode
+## 4. Internal Inspection Mode
 
 Finally read:
 

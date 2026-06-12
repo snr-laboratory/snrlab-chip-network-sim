@@ -1016,6 +1016,8 @@ main(int argc, char **argv)
             "hydra_rx_data_flag,hydra_comms_busy,hydra_pkt_valid,hydra_fifo_write_n,"
             "hydra_rx_data_word,hydra_comms_rcvd_pkt,hydra_comms_read_pkt,hydra_fifo_rd_data,hydra_fifo_read_pointer,hydra_fifo_write_pointer,hydra_fifo_counter_debug,hydra_fifo_read_n,hydra_fifo_write_n_internal,hydra_fifo_mem0,hydra_fifo_mem1,"
             "hydra_ld_tx_data_uart,hydra_tx_busy,hydra_tx_sel_msg,north_tx_data,east_tx_data,south_tx_data,west_tx_data,"
+            "north_tx_bit_valid,east_tx_bit_valid,south_tx_bit_valid,west_tx_bit_valid,"
+            "north_tx_bit,east_tx_bit,south_tx_bit,west_tx_bit,"
             "msg_valid,msg_pkt_data,ready_for_msg,msg_generated_valid,msg_fifo_write_n,msg_fifo_empty,msg_fifo_read_n,msg_fifo_counter_debug,msg_fifo_data_in,msg_fifo_data_out,msg_fifo_mem0,msg_fifo_mem1,"
             "north_rx_empty,east_rx_empty,south_rx_empty,west_rx_empty,"
             "north_hold_valid,east_hold_valid,south_hold_valid,west_hold_valid,"
@@ -1292,7 +1294,7 @@ main(int argc, char **argv)
         }
         if (rx_debug_csv != NULL) {
             fprintf(rx_debug_csv,
-                "%" PRIu64 ",%u,%u,0x%X,0x%X,0x%X,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%X,0x%X,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 "\n",
+                "%" PRIu64 ",%u,%u,0x%X,0x%X,0x%X,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%X,0x%X,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",%u,%u,%u,%u,%u,%u,%u,%u,0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 ",0x%016" PRIx64 "\n",
                 tick.seq,
                 out.hydra_state,
                 out.hydra_next_state,
@@ -1321,6 +1323,14 @@ main(int argc, char **argv)
                 out.hydra_tx_data_uart[LARPIX_EDGE_EAST],
                 out.hydra_tx_data_uart[LARPIX_EDGE_SOUTH],
                 out.hydra_tx_data_uart[LARPIX_EDGE_WEST],
+                out.tx_bit_valid[LARPIX_EDGE_NORTH],
+                out.tx_bit_valid[LARPIX_EDGE_EAST],
+                out.tx_bit_valid[LARPIX_EDGE_SOUTH],
+                out.tx_bit_valid[LARPIX_EDGE_WEST],
+                out.tx_bit_value[LARPIX_EDGE_NORTH],
+                out.tx_bit_value[LARPIX_EDGE_EAST],
+                out.tx_bit_value[LARPIX_EDGE_SOUTH],
+                out.tx_bit_value[LARPIX_EDGE_WEST],
                 out.msg_valid,
                 out.msg_pkt_data,
                 out.ready_for_msg,

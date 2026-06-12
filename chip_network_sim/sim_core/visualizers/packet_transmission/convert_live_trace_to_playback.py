@@ -31,6 +31,13 @@ EDGE_TO_DELTA = {
     "west": (-1, 0),
 }
 
+PISO_MASK_BIT_TO_EDGE = {
+    0: "west",
+    1: "south",
+    2: "east",
+    3: "north",
+}
+
 MSG_TAG_NAMES = {
     0: "N",
     1: "E",
@@ -88,7 +95,8 @@ def initial_chips(grid: List[List[Chip]], rows: int, cols: int) -> List[dict]:
 def neighbors_from_mask(coord: Tuple[int, int], mask: int, rows: int, cols: int) -> List[Tuple[int, int]]:
     x, y = coord
     out = []
-    for bit, (dx, dy) in enumerate(EDGE_TO_DELTA.values()):
+    for bit, edge in PISO_MASK_BIT_TO_EDGE.items():
+        dx, dy = EDGE_TO_DELTA[edge]
         if (mask >> bit) & 1:
             nx, ny = x + dx, y + dy
             if 0 <= nx < cols and 0 <= ny < rows:
@@ -157,7 +165,7 @@ def frame_bits_for_word(word_hex: str) -> int:
 
 
 def mask_direction_name(mask: int) -> str | None:
-    names = {1: "North", 2: "East", 4: "South", 8: "West"}
+    names = {0x08: "North", 0x04: "East", 0x02: "South", 0x01: "West"}
     return names.get(mask)
 
 

@@ -14,7 +14,7 @@ set -euo pipefail
 #   except register 125 which this test intentionally modifies first
 #
 # Sequence:
-# 1. CONFIG_WRITE chip_id=1, register 125 (ENABLE_PISO_DOWN), data 0x04 so the
+# 1. CONFIG_WRITE chip_id=1, register 125 (ENABLE_PISO_DOWN), data 0x02 so the
 #    chip's south TX lane is enabled for reply traffic back to the FPGA
 # 2. CONFIG_READ chip_id=1 for every explicit startup-default register in the
 #    mirrored RTL, excluding register 125 because it was intentionally changed

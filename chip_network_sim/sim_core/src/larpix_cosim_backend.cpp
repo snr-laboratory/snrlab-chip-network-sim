@@ -14,6 +14,20 @@
 
 namespace {
 
+constexpr std::array<uint8_t, LARPIXSIM_EDGE_COUNT> kPosiBitForEdge = {
+    0u,  // north -> POSI0
+    3u,  // east  -> POSI3
+    2u,  // south -> POSI2
+    1u,  // west  -> POSI1
+};
+
+constexpr std::array<uint8_t, LARPIXSIM_EDGE_COUNT> kPisoBitForEdge = {
+    3u,  // north <- PISO3
+    2u,  // east  <- PISO2
+    1u,  // south <- PISO1
+    0u,  // west  <- PISO0
+};
+
 class NullBackend {
   public:
     int tick(const larpixsim_backend_tick_inputs_t* in, larpixsim_backend_tick_outputs_t* out) {
@@ -126,10 +140,11 @@ class CosimBackend {
         uint8_t posi = 0xF;
         for (int edge = 0; edge < LARPIXSIM_EDGE_COUNT; ++edge) {
             const uint8_t bit = in.rx_bit_valid[edge] ? (in.rx_bit_value[edge] ? 1u : 0u) : 1u;
+            const uint8_t posi_bit = kPosiBitForEdge[edge];
             if (bit) {
-                posi |= static_cast<uint8_t>(1u << edge);
+                posi |= static_cast<uint8_t>(1u << posi_bit);
             } else {
-                posi &= static_cast<uint8_t>(~(1u << edge));
+                posi &= static_cast<uint8_t>(~(1u << posi_bit));
             }
         }
         dut_.posi = posi;
@@ -172,8 +187,9 @@ class CosimBackend {
         const uint8_t piso = dut_.piso;
         const uint8_t tx_enable = dut_.tx_enable;
         for (int edge = 0; edge < LARPIXSIM_EDGE_COUNT; ++edge) {
-            out->tx_bit_valid[edge] = (tx_enable >> edge) & 1u;
-            out->tx_bit_value[edge] = (piso >> edge) & 1u;
+            const uint8_t piso_bit = kPisoBitForEdge[edge];
+            out->tx_bit_valid[edge] = (tx_enable >> piso_bit) & 1u;
+            out->tx_bit_value[edge] = (piso >> piso_bit) & 1u;
         }
     }
 

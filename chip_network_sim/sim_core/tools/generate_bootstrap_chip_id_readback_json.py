@@ -14,10 +14,12 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-NORTH = 0x01
-EAST = 0x02
-SOUTH = 0x04
-WEST = 0x08
+# ENABLE_PISO_* lane masks follow the RTL PISO bit order:
+# PISO0=W, PISO1=S, PISO2=E, PISO3=N.
+NORTH = 0x08
+EAST = 0x04
+SOUTH = 0x02
+WEST = 0x01
 
 NORTH_ONLY = NORTH
 EAST_ONLY = EAST

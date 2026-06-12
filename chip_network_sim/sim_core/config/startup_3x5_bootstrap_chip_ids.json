@@ -13,7 +13,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "source south downstream keep for chip at (0,0)"
     },
     {
@@ -29,7 +29,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row east prepare for chip at (0,0)"
     },
     {
@@ -45,7 +45,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 125,
-      "register_data": 8,
+      "register_data": 1,
       "label": "source-row west downstream enable for chip at (1,0)"
     },
     {
@@ -61,7 +61,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row east-only propagation enable for chip at (1,0)"
     },
     {
@@ -77,7 +77,7 @@
       "type": "write",
       "chip_id": 2,
       "register_addr": 125,
-      "register_data": 8,
+      "register_data": 1,
       "label": "source-row west downstream enable for chip at (2,0)"
     },
     {
@@ -93,7 +93,7 @@
       "type": "write",
       "chip_id": 2,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row east-only propagation enable for chip at (2,0)"
     },
     {
@@ -109,7 +109,7 @@
       "type": "write",
       "chip_id": 3,
       "register_addr": 125,
-      "register_data": 8,
+      "register_data": 1,
       "label": "source-row west downstream enable for chip at (3,0)"
     },
     {
@@ -125,7 +125,7 @@
       "type": "write",
       "chip_id": 3,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row east-only propagation enable for chip at (3,0)"
     },
     {
@@ -141,7 +141,7 @@
       "type": "write",
       "chip_id": 4,
       "register_addr": 125,
-      "register_data": 8,
+      "register_data": 1,
       "label": "source-row west downstream enable for chip at (4,0)"
     },
     {
@@ -157,7 +157,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 0 root prepare north enable for chip at (0,0)"
     },
     {
@@ -173,7 +173,7 @@
       "type": "write",
       "chip_id": 5,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 0 downstream return enable for chip at (0,1)"
     },
     {
@@ -189,7 +189,7 @@
       "type": "write",
       "chip_id": 5,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 0 north-only propagation enable for chip at (0,1)"
     },
     {
@@ -205,7 +205,7 @@
       "type": "write",
       "chip_id": 10,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 0 downstream return enable for chip at (0,2)"
     },
     {
@@ -221,7 +221,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row path prepare toward column 1 via east from (0,0)"
     },
     {
@@ -229,7 +229,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 1 root prepare north enable for chip at (1,0)"
     },
     {
@@ -245,7 +245,7 @@
       "type": "write",
       "chip_id": 6,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 1 downstream return enable for chip at (1,1)"
     },
     {
@@ -261,7 +261,7 @@
       "type": "write",
       "chip_id": 6,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 1 north-only propagation enable for chip at (1,1)"
     },
     {
@@ -277,7 +277,7 @@
       "type": "write",
       "chip_id": 11,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 1 downstream return enable for chip at (1,2)"
     },
     {
@@ -293,7 +293,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row path prepare toward column 2 via east from (0,0)"
     },
     {
@@ -301,7 +301,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row relay prepare toward column 2 via east for chip at (1,0)"
     },
     {
@@ -309,7 +309,7 @@
       "type": "write",
       "chip_id": 2,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 2 root prepare north enable for chip at (2,0)"
     },
     {
@@ -325,7 +325,7 @@
       "type": "write",
       "chip_id": 7,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 2 downstream return enable for chip at (2,1)"
     },
     {
@@ -341,7 +341,7 @@
       "type": "write",
       "chip_id": 7,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 2 north-only propagation enable for chip at (2,1)"
     },
     {
@@ -357,7 +357,7 @@
       "type": "write",
       "chip_id": 12,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 2 downstream return enable for chip at (2,2)"
     },
     {
@@ -373,7 +373,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row path prepare toward column 3 via east from (0,0)"
     },
     {
@@ -381,7 +381,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row relay prepare toward column 3 via east for chip at (1,0)"
     },
     {
@@ -389,7 +389,7 @@
       "type": "write",
       "chip_id": 2,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row relay prepare toward column 3 via east for chip at (2,0)"
     },
     {
@@ -397,7 +397,7 @@
       "type": "write",
       "chip_id": 3,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 3 root prepare north enable for chip at (3,0)"
     },
     {
@@ -413,7 +413,7 @@
       "type": "write",
       "chip_id": 8,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 3 downstream return enable for chip at (3,1)"
     },
     {
@@ -429,7 +429,7 @@
       "type": "write",
       "chip_id": 8,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 3 north-only propagation enable for chip at (3,1)"
     },
     {
@@ -445,7 +445,7 @@
       "type": "write",
       "chip_id": 13,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 3 downstream return enable for chip at (3,2)"
     },
     {
@@ -461,7 +461,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row path prepare toward column 4 via east from (0,0)"
     },
     {
@@ -469,7 +469,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row relay prepare toward column 4 via east for chip at (1,0)"
     },
     {
@@ -477,7 +477,7 @@
       "type": "write",
       "chip_id": 2,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row relay prepare toward column 4 via east for chip at (2,0)"
     },
     {
@@ -485,7 +485,7 @@
       "type": "write",
       "chip_id": 3,
       "register_addr": 124,
-      "register_data": 2,
+      "register_data": 4,
       "label": "source-row relay prepare toward column 4 via east for chip at (3,0)"
     },
     {
@@ -493,7 +493,7 @@
       "type": "write",
       "chip_id": 4,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 4 root prepare north enable for chip at (4,0)"
     },
     {
@@ -509,7 +509,7 @@
       "type": "write",
       "chip_id": 9,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 4 downstream return enable for chip at (4,1)"
     },
     {
@@ -525,7 +525,7 @@
       "type": "write",
       "chip_id": 9,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "column 4 north-only propagation enable for chip at (4,1)"
     },
     {
@@ -541,7 +541,7 @@
       "type": "write",
       "chip_id": 14,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "column 4 downstream return enable for chip at (4,2)"
     },
     {
@@ -557,7 +557,7 @@
       "type": "write",
       "chip_id": 0,
       "register_addr": 124,
-      "register_data": 3,
+      "register_data": 12,
       "label": "final source-row normalize for chip at (0,0)"
     },
     {
@@ -565,7 +565,7 @@
       "type": "write",
       "chip_id": 254,
       "register_addr": 124,
-      "register_data": 3,
+      "register_data": 12,
       "label": "final source-row normalize for chip at (1,0)"
     },
     {
@@ -573,7 +573,7 @@
       "type": "write",
       "chip_id": 2,
       "register_addr": 124,
-      "register_data": 3,
+      "register_data": 12,
       "label": "final source-row normalize for chip at (2,0)"
     },
     {
@@ -581,7 +581,7 @@
       "type": "write",
       "chip_id": 3,
       "register_addr": 124,
-      "register_data": 3,
+      "register_data": 12,
       "label": "final source-row normalize for chip at (3,0)"
     },
     {
@@ -589,7 +589,7 @@
       "type": "write",
       "chip_id": 4,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "final source-row normalize for chip at (4,0)"
     },
     {
@@ -597,7 +597,7 @@
       "type": "write",
       "chip_id": 5,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "final north-column normalize for chip at (0,1)"
     },
     {
@@ -613,7 +613,7 @@
       "type": "write",
       "chip_id": 6,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "final north-column normalize for chip at (1,1)"
     },
     {
@@ -629,7 +629,7 @@
       "type": "write",
       "chip_id": 7,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "final north-column normalize for chip at (2,1)"
     },
     {
@@ -645,7 +645,7 @@
       "type": "write",
       "chip_id": 8,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "final north-column normalize for chip at (3,1)"
     },
     {
@@ -661,7 +661,7 @@
       "type": "write",
       "chip_id": 9,
       "register_addr": 124,
-      "register_data": 1,
+      "register_data": 8,
       "label": "final north-column normalize for chip at (4,1)"
     },
     {

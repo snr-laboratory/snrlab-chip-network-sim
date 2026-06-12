@@ -7,7 +7,7 @@
 //   provided separately by stimulus_1chip_event_source.json
 //
 // Sequence:
-// 1. ENABLE_PISO_DOWN (125) <- 0x04 so south TX is enabled back toward the FPGA
+// 1. ENABLE_PISO_DOWN (125) <- 0x02 so south TX is enabled back toward the FPGA
 // 2. GLOBAL_THRESH (64) <- 0x0F so the analog threshold is explicitly programmed
 //    to the documented event-test value instead of relying on the RTL reset default
 // 3. CSA_ENABLE (66) <- 0x01 so channel 0 is enabled
@@ -27,7 +27,7 @@
       "type": "write",
       "chip_id": 1,
       "register_addr": 125,
-      "register_data": 4,
+      "register_data": 2,
       "label": "enable source south tx lane"
     },
     {
