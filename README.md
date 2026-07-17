@@ -1,4 +1,4 @@
-# Chip network simulator
+# RTLSwarm: A massively parallelized chip simulator
 
 This project aims to develop a deterministic, scalable simulation architecture for modeling the behavior of a network of ASIC chips. In this framework, each chip is represented as an independent software process in which the digital backend is specified entirely by RTL, while analog components in mixed-signal designs are simulated in software and coupled to the RTL-defined digital logic. A network can be composed of arbitrarily many chips which are coordinated by a central simulation orchestrator operating in a global lock-step where data is transmitted between chip processes via socket-based inter-process communication. The objective is to reproduce the essential routing, data flow, register configuration, data generation, arbitration, and timing behavior of a networked chip system while leveraging the independent nature of each chip process for scalability.
 
