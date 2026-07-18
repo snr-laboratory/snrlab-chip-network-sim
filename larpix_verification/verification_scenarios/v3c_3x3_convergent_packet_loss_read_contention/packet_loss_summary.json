@@ -1,0 +1,242 @@
+{
+  "scenario": "3x3 v3c Convergent Packet Loss Probe",
+  "source_runtime_id": 0,
+  "injected_runtime_ids": [
+    3,
+    5,
+    7
+  ],
+  "injection_tick": 1000,
+  "channels_per_injected_chip": 64,
+  "expected_packets": 192,
+  "routing_overrides": {
+    "3": {
+      "upstream": "north-only",
+      "downstream": "east-only"
+    },
+    "4": {
+      "upstream": "north-only",
+      "downstream": "south-only"
+    },
+    "5": {
+      "upstream": "north-only",
+      "downstream": "west-only"
+    },
+    "7": {
+      "upstream": "south-only",
+      "downstream": "south-only"
+    }
+  },
+  "chip4_rx_packet_counts_by_edge": {
+    "north": 69,
+    "east": 64,
+    "west": 64,
+    "south": 5
+  },
+  "chip4_distinct_data_source_ids_by_edge": {
+    "north": [
+      5,
+      7
+    ],
+    "east": [
+      5
+    ],
+    "west": [
+      3
+    ]
+  },
+  "chip4_config_read_rx": [
+    {
+      "seq": 1309,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 122,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 1409,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 124,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 1509,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 125,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 1609,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 64,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 2586,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 125,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 5625,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 122,
+      "register_data": 7,
+      "downstream": 1
+    },
+    {
+      "seq": 5696,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 124,
+      "register_data": 2,
+      "downstream": 1
+    },
+    {
+      "seq": 5838,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 64,
+      "register_data": 15,
+      "downstream": 1
+    },
+    {
+      "seq": 5909,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 125,
+      "register_data": 2,
+      "downstream": 1
+    }
+  ],
+  "chip4_config_read_tx": [
+    {
+      "seq": 1380,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 122,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 1480,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 124,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 1680,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 64,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 2513,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 125,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 2658,
+      "edge": "north",
+      "chip_id": 7,
+      "register_addr": 125,
+      "register_data": 0,
+      "downstream": 0
+    },
+    {
+      "seq": 14796,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 122,
+      "register_data": 7,
+      "downstream": 1
+    },
+    {
+      "seq": 14867,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 124,
+      "register_data": 2,
+      "downstream": 1
+    },
+    {
+      "seq": 15009,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 64,
+      "register_data": 15,
+      "downstream": 1
+    },
+    {
+      "seq": 15080,
+      "edge": "south",
+      "chip_id": 7,
+      "register_addr": 125,
+      "register_data": 2,
+      "downstream": 1
+    }
+  ],
+  "chip4_tx_packet_counts_by_edge": {
+    "south": 197,
+    "north": 5
+  },
+  "chip0_rx_packet_counts_by_edge": {
+    "south": 4,
+    "east": 196
+  },
+  "fpga_unique_packet_counts_by_chip_id": {
+    "3": 64,
+    "5": 64,
+    "7": 64
+  },
+  "fpga_arrival_counts_by_chip_id": {
+    "3": 64,
+    "5": 64,
+    "7": 64
+  },
+  "fpga_total_unique_packets": 192,
+  "fpga_total_arrivals": 192,
+  "fpga_chip7_config_read_replies": [
+    {
+      "seq": 14955,
+      "register_addr": 122,
+      "register_data": 7,
+      "downstream": 1
+    },
+    {
+      "seq": 15026,
+      "register_addr": 124,
+      "register_data": 2,
+      "downstream": 1
+    },
+    {
+      "seq": 15168,
+      "register_addr": 64,
+      "register_data": 15,
+      "downstream": 1
+    },
+    {
+      "seq": 15239,
+      "register_addr": 125,
+      "register_data": 2,
+      "downstream": 1
+    }
+  ]
+}

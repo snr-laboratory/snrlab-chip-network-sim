@@ -2221,7 +2221,7 @@ updateChipViewHudControls();
 updateLaneOrderStatus();
 resize();
 const playbackUrl = new URLSearchParams(window.location.search).get('playback')
-  || 'playback/v3c_2x2_packet_loss_probe/live_event_2x2_packet_loss_probe.json';
+  || 'https://raw.githubusercontent.com/snr-laboratory/snrlab-chip-network-sim/main/larpix_verification/verification_scenarios/v3c_2x2_packet_loss_probe/live_event_2x2_packet_loss_probe.json';
 loadPlaybackFromUrl(playbackUrl).catch((error) => {
   scenarioEl.textContent = 'Scenario: failed to load sample';
   selectionEl.textContent = error.message;
