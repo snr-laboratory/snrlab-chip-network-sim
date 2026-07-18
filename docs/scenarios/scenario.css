@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@600&display=swap");
+
+:root {
+  --bar-height: 52px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #0a0d12;
+}
+
+.scenario-bar {
+  display: flex;
+  height: var(--bar-height);
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1rem;
+  color: #e8edf8;
+  border-bottom: 1px solid #2c394c;
+  background: #111722;
+  font-family: "DM Mono", monospace;
+}
+
+.scenario-bar a {
+  flex: 0 0 auto;
+  color: #88bfe8;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.scenario-bar a:hover {
+  text-decoration: underline;
+}
+
+.scenario-bar h1 {
+  margin: 0;
+  overflow: hidden;
+  font: 600 clamp(0.78rem, 1.7vw, 1rem)/1.2 "Manrope", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scenario-bar .tag {
+  margin-left: auto;
+  padding: 0.25rem 0.45rem;
+  color: #9faec4;
+  border: 1px solid #35465e;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+iframe {
+  display: block;
+  width: 100%;
+  height: calc(100% - var(--bar-height));
+  border: 0;
+}
+
+@media (max-width: 620px) {
+  .scenario-bar .tag {
+    display: none;
+  }
+}

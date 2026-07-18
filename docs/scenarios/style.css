@@ -1,0 +1,196 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700&display=swap");
+
+:root {
+  --ink: #17211d;
+  --paper: #f2f0e8;
+  --line: rgba(23, 33, 29, 0.2);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    linear-gradient(rgba(23, 33, 29, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 33, 29, 0.045) 1px, transparent 1px),
+    var(--paper);
+  background-size: 32px 32px;
+  font-family: "Manrope", sans-serif;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
+  gap: 3rem;
+  align-items: end;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 7rem 2rem 4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  grid-column: 1 / -1;
+  margin: 0 0 -1rem;
+  font: 500 0.75rem/1.2 "DM Mono", monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  max-width: 850px;
+  font-size: clamp(3.4rem, 8vw, 7.8rem);
+  line-height: 0.88;
+  letter-spacing: -0.065em;
+}
+
+.lede {
+  margin: 0;
+  max-width: 40rem;
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  line-height: 1.6;
+}
+
+main {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.scenario-card {
+  position: relative;
+  display: flex;
+  min-height: 420px;
+  flex-direction: column;
+  padding: 1.5rem;
+  overflow: hidden;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.scenario-card::after {
+  position: absolute;
+  right: -70px;
+  bottom: -100px;
+  width: 260px;
+  height: 260px;
+  border: 1px solid rgba(23, 33, 29, 0.28);
+  border-radius: 50%;
+  content: "";
+  transition: transform 250ms ease;
+}
+
+.scenario-card:hover {
+  z-index: 1;
+  transform: translateY(-5px);
+  box-shadow: 0 20px 45px rgba(23, 33, 29, 0.13);
+}
+
+.scenario-card:hover::after {
+  transform: scale(1.15);
+}
+
+.card-coral { background: #ef856f; }
+.card-gold { background: #eabf54; }
+.card-blue { background: #79a9cf; }
+.card-mint { background: #8cbf9f; }
+
+.card-topline {
+  display: flex;
+  justify-content: space-between;
+  font: 500 0.72rem/1.2 "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h2 {
+  max-width: 700px;
+  margin: 3.5rem 0 1rem;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.scenario-card p {
+  max-width: 38rem;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.card-metric {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-top: auto;
+  padding-top: 3rem;
+}
+
+.card-metric strong {
+  font: 500 1.6rem/1 "DM Mono", monospace;
+}
+
+.card-metric span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.launch {
+  margin-top: 1.25rem;
+  font: 500 0.75rem/1 "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.launch::after {
+  margin-left: 0.5rem;
+  content: "->";
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 1rem 2rem 3rem;
+  font: 500 0.72rem/1.2 "DM Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+footer a {
+  color: inherit;
+}
+
+@media (max-width: 760px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding-top: 4rem;
+  }
+
+  .eyebrow {
+    grid-column: auto;
+    margin-bottom: 0;
+  }
+
+  .scenario-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-card {
+    min-height: 390px;
+  }
+}

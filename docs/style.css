@@ -211,6 +211,10 @@ kbd {
   background: rgba(17, 23, 34, 0.7);
 }
 
+.hidden {
+  display: none !important;
+}
+
 #dataPacketMetricsSummary {
   margin-top: 6px;
   line-height: 1.35;

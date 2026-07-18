@@ -9,6 +9,19 @@ const showInstructionsBtn = document.getElementById('showInstructions');
 const showRunMetricsBtn = document.getElementById('showRunMetrics');
 const showNetworkViewBtn = document.getElementById('showNetworkView');
 const showChipViewBtn = document.getElementById('showChipView');
+const chipZoomOutBtn = document.getElementById('chipZoomOut');
+const chipZoomInBtn = document.getElementById('chipZoomIn');
+const timelineSpanOutBtn = document.getElementById('timelineSpanOut');
+const timelineSpanInBtn = document.getElementById('timelineSpanIn');
+const timelineSpanStatusEl = document.getElementById('timelineSpanStatus');
+const laneOrderControlsEl = document.getElementById('laneOrderControls');
+const laneOrderStatusEl = document.getElementById('laneOrderStatus');
+const laneNorthUpBtn = document.getElementById('laneNorthUp');
+const laneNorthDownBtn = document.getElementById('laneNorthDown');
+const laneWestUpBtn = document.getElementById('laneWestUp');
+const laneWestDownBtn = document.getElementById('laneWestDown');
+const laneEastUpBtn = document.getElementById('laneEastUp');
+const laneEastDownBtn = document.getElementById('laneEastDown');
 const speedInput = document.getElementById('speed');
 const scrubber = document.getElementById('scrubber');
 const fileInput = document.getElementById('fileInput');
@@ -38,11 +51,13 @@ const filterSharedFifoEl = document.getElementById('filterSharedFifo');
 const filterPacketLabelsEl = document.getElementById('filterPacketLabels');
 const filterPersistentInjectionEl = document.getElementById('filterPersistentInjection');
 
-const EDGE_TO_BIT = { north: 0, east: 1, south: 2, west: 3 };
+const PISO_EDGE_TO_BIT = { north: 3, east: 2, south: 1, west: 0 };
+const POSI_EDGE_TO_BIT = { north: 0, east: 3, south: 2, west: 1 };
 
 let playback = null;
 let playbackSourceUrl = null;
 let chipDebugData = null;
+let chipDebugAuxData = null;
 let currentView = 'network';
 let isPlaying = false;
 let currentTickIndex = 0;
@@ -50,6 +65,9 @@ let selectedTarget = null;
 let lastFrameMs = 0;
 let accumulator = 0;
 let hudResizeState = null;
+let chipViewZoom = 1;
+let chipTimelineSpanScale = 1;
+let chipLaneTimelineOrder = ['north', 'west', 'east'];
 
 const HUD_MIN_WIDTH = 260;
 const HUD_MAX_WIDTH = 640;
@@ -103,16 +121,13 @@ function stopHudResize() {
 
 function buildSharedFifoIndex(obj) {
   const byChip = new Map();
-  let maxObserved = Math.max(0, Number(obj.shared_fifo_capacity || obj.shared_fifo_max || 0));
   for (const update of obj.shared_fifo_updates || []) {
     const key = `${update.x},${update.y}`;
     const list = byChip.get(key) || [];
     list.push(update);
     byChip.set(key, list);
-    maxObserved = Math.max(maxObserved, Number(update.shared_fifo_occupancy || 0));
   }
   obj._sharedFifoByChip = byChip;
-  obj._sharedFifoScaleMax = Math.max(1, maxObserved);
 }
 
 function sharedFifoUpdatesForChip(x, y) {
@@ -169,12 +184,61 @@ function chipHasPersistentInjectionAt(x, y, tick) {
   return start !== undefined && tick >= start;
 }
 
+function chipViewCanvasHeight() {
+  return Math.max(window.innerHeight, 1580);
+}
+
+function chipViewCanvasWidth() {
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  return Math.max(window.innerWidth, Math.ceil(hudWidth + 1560));
+}
+
+function updateTimelineSpanStatus() {
+  if (!timelineSpanStatusEl) return;
+  timelineSpanStatusEl.textContent = `Timeline span: ${chipTimelineSpanScale.toFixed(1)}x`;
+}
+
+function updateChipViewHudControls() {
+  if (!laneOrderControlsEl) return;
+  laneOrderControlsEl.hidden = currentView !== 'chip'
+    || chipDebugData?.kind === 'chip1_south_tx_only'
+    || chipDebugData?.kind === 'chip1_south_tx_chip0_north_rx_focus'
+    || chipDebugData?.kind === 'chip0_north_tx_chip1_south_rx_focus';
+}
+
+function updateLaneOrderStatus() {
+  if (!laneOrderStatusEl) return;
+  laneOrderStatusEl.textContent = `Top to bottom: ${chipLaneTimelineOrder.join(', ')}`;
+}
+
+function moveLaneTimeline(lane, delta) {
+  const currentIndex = chipLaneTimelineOrder.indexOf(lane);
+  if (currentIndex < 0) return;
+  const nextIndex = Math.max(0, Math.min(chipLaneTimelineOrder.length - 1, currentIndex + delta));
+  if (nextIndex === currentIndex) return;
+  chipLaneTimelineOrder.splice(currentIndex, 1);
+  chipLaneTimelineOrder.splice(nextIndex, 0, lane);
+  updateLaneOrderStatus();
+  draw();
+}
+
+function applyViewScrollMode() {
+  const chipMode = currentView === 'chip';
+  document.documentElement.style.overflowY = chipMode ? 'auto' : 'hidden';
+  document.body.style.overflowY = chipMode ? 'auto' : 'hidden';
+  document.documentElement.style.overflowX = chipMode ? 'auto' : 'hidden';
+  document.body.style.overflowX = chipMode ? 'auto' : 'hidden';
+}
+
 function resize() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  canvas.width = Math.floor(window.innerWidth * dpr);
-  canvas.height = Math.floor(window.innerHeight * dpr);
-  canvas.style.width = `${window.innerWidth}px`;
-  canvas.style.height = `${window.innerHeight}px`;
+  const cssWidth = currentView === 'chip' ? chipViewCanvasWidth() : window.innerWidth;
+  const cssHeight = currentView === 'chip' ? chipViewCanvasHeight() : window.innerHeight;
+  canvas.width = Math.floor(cssWidth * dpr);
+  canvas.height = Math.floor(cssHeight * dpr);
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${cssHeight}px`;
+  applyViewScrollMode();
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   draw();
 }
@@ -264,6 +328,12 @@ function formatDeliveryPercent(received, generated) {
   return `${received}/${generated} = ${(100 * received / generated).toFixed(1)}%`;
 }
 
+function playbackUsesFullMsgOp(obj = playback) {
+  const rtl = String(obj?.rtl_version || obj?.run_summary?.rtl_version || '').toLowerCase();
+  if (rtl.includes('v3n1')) return true;
+  return false;
+}
+
 function inferRtlVersion(playbackObj, sourceUrl) {
   const explicit = playbackObj?.rtl_version || playbackObj?.run_summary?.rtl_version;
   if (typeof explicit === 'string' && explicit.trim()) return explicit.trim();
@@ -275,6 +345,7 @@ function inferRtlVersion(playbackObj, sourceUrl) {
     .filter((value) => typeof value === 'string' && value.length > 0)
     .map((value) => value.toLowerCase());
   for (const text of haystacks) {
+    if (text.includes('v3n1')) return 'v3n1';
     if (text.includes('v3c')) return 'v3c';
     if (text.includes('v3b2') || text.includes('chip_larpix_v2') || text.includes('_v2') || text.includes('v2 alternate rtl')) return 'v3b2';
   }
@@ -336,10 +407,12 @@ function renderRunMetricsPopup(summary) {
 }
 
 function fpgaFrameBit(event, tick) {
+  if (!event) return null;
   const offset = tick - Number(event?.start_tick || 0);
-  if (offset < 0 || offset >= 66) return null;
+  const frameLength = Math.max(0, Number(event?.end_tick || 0) - Number(event?.start_tick || 0));
+  if (offset < 0 || offset >= frameLength) return null;
   if (offset === 0) return 0;
-  if (offset === 65) return 1;
+  if (offset === frameLength - 1) return 1;
   const packetWord = BigInt(event.packet_word);
   const bitIndex = BigInt(offset - 1);
   return Number((packetWord >> bitIndex) & 1n);
@@ -381,7 +454,7 @@ function renderFpgaPopup(fpgaTxEvents, fpgaRxEvents) {
           <div class="fpga-meta">bit on this tick: ${bit === null ? 'n/a' : bit} | frame ticks ${event.start_tick}..${Math.max(event.start_tick, (event.end_tick || 0) - 1)} | complete @ ${event.complete_tick}</div>
           <div class="fpga-label">${escapeHtml(event.label || '')}</div>
           <div class="fpga-word">word: ${escapeHtml(event.packet_word || '')}</div>
-          <pre class="fpga-json">${escapeHtml(JSON.stringify(decoded, null, 2))}</pre>
+          <pre class="fpga-json">${escapeHtml(formatPacketDecode(decoded, event.packet_type || '', playback))}</pre>
         </div>`);
     }
   }
@@ -405,24 +478,63 @@ function updateHud() {
   renderRunMetricsPopup(playback.run_summary);
   updateViewButtons();
   const { state, chipEvents, chargeEvents, fpgaTxEvents, fpgaRxEvents } = tickData();
-  const parts = [`Tick: ${currentTickIndex} / ${Math.max(0, playback.total_ticks || 0)}`, `View: ${currentView === 'chip' ? 'Chip 0 internals' : 'Network'}`];
+  const parts = [`Tick: ${currentTickIndex} / ${Math.max(0, playback.total_ticks || 0)}`, `View: ${currentView === 'chip' ? chipDebugLabel() : 'Network'}`];
   if (chipEvents.length > 0) parts.push(`chip updates: ${chipEvents.length}`);
   if (chargeEvents.length > 0) parts.push(`charge injections: ${chargeEvents.length}`);
   statusEl.textContent = parts.join(' | ');
   if (currentView === 'chip') {
     renderFpgaPopup([], []);
+    if (chipDebugData?.kind === 'chip1_south_tx_only') {
+      const row = chipDebugRowAtTickFrom(chipDebugData, currentTickIndex);
+      if (!row) {
+        selectionEl.textContent = `Selection: ${chipDebugLabel()} | no debug sample for this tick`;
+        return;
+      }
+      selectionEl.textContent =
+        `Selection: chip ${chipDebugData.monitorChipId} south TX`
+        + ` | hydra ${Number(row.south_select_hydra ?? 0)}`
+        + ` | nifty ${Number(row.south_select_nifty ?? 0)}`
+        + ` | final_ld ${Number(row.south_final_ld_tx ?? 0)}`
+        + ` | raw_busy ${Number(row.south_raw_tx_busy ?? 0)}`
+        + ` | override ${Number(row.south_msg_override ?? 0)}`;
+      return;
+    }
+    if (chipDebugData?.kind === 'chip1_south_tx_chip0_north_rx_focus') {
+      const chip1Row = chipDebugRowAtTickFrom(chipDebugData, currentTickIndex);
+      const chip0Row = chipDebugRowAtTickFrom(chipDebugAuxData, currentTickIndex);
+      if (!chip1Row || !chip0Row) {
+        selectionEl.textContent = `Selection: ${chipDebugLabel()} | no debug sample for this tick`;
+        return;
+      }
+      selectionEl.textContent =
+        `Selection: chip ${chipDebugData.monitorChipId} south TX bit ${Number(chip1Row.south_tx_bit ?? 1)} valid ${Number(chip1Row.south_tx_bit_valid ?? 0)}`
+        + ` | chip ${chipDebugAuxData?.monitorChipId ?? 0} north RX bit ${Number(chip0Row.north_rx_in_bit ?? 1)} sync ${Number(chip0Row.north_rx_sync ?? 1)} busy ${Number(chip0Row.north_busy ?? 0)}`;
+      return;
+    }
+    if (chipDebugData?.kind === 'chip0_north_tx_chip1_south_rx_focus') {
+      const chip0Row = chipDebugRowAtTickFrom(chipDebugData, currentTickIndex);
+      const chip1Row = chipDebugRowAtTickFrom(chipDebugAuxData, currentTickIndex);
+      if (!chip0Row || !chip1Row) {
+        selectionEl.textContent = `Selection: ${chipDebugLabel()} | no debug sample for this tick`;
+        return;
+      }
+      selectionEl.textContent =
+        `Selection: chip ${chipDebugData.monitorChipId} north TX bit ${Number(chip0Row.north_tx_bit ?? 1)} valid ${Number(chip0Row.north_tx_bit_valid ?? 0)}`
+        + ` | chip ${chipDebugAuxData?.monitorChipId ?? 0} south RX bit ${Number(chip1Row.south_rx_in_bit ?? 1)} sync ${Number(chip1Row.south_rx_sync ?? 1)} busy ${Number(chip1Row.south_busy ?? 0)}`;
+      return;
+    }
     const row = chipDebugRowAtTick(currentTickIndex);
     if (!chipDebugData) {
-      selectionEl.textContent = 'Selection: chip 0 internals unavailable for this playback';
+      selectionEl.textContent = 'Selection: chip internals unavailable for this playback';
       return;
     }
     if (!row) {
-      selectionEl.textContent = 'Selection: chip 0 internals | no debug sample for this tick';
+      selectionEl.textContent = `Selection: ${chipDebugLabel()} | no debug sample for this tick`;
       return;
     }
-    const sel = laneNamesFromMask(row.hydra_sel_onehot).join(',') || 'none';
-    const unload = laneNamesFromMask(row.hydra_uld_rx_data_uart).join(',') || 'none';
-    selectionEl.textContent = `Selection: chip 0 internals | Hydra ${hydraStateName(row.hydra_state)} -> ${hydraStateName(row.hydra_next_state)} | select ${sel} | unload ${unload} | rx_data ${abbreviateWord(row.hydra_rx_data_word)}`;
+    const sel = laneNamesFromMask(row.hydra_sel_onehot, POSI_EDGE_TO_BIT).join(',') || 'none';
+    const unload = laneNamesFromMask(row.hydra_uld_rx_data_uart, POSI_EDGE_TO_BIT).join(',') || 'none';
+    selectionEl.textContent = `Selection: ${chipDebugLabel()} | Hydra ${hydraStateName(row.hydra_state)} -> ${hydraStateName(row.hydra_next_state)} | select ${sel} | unload ${unload} | rx_data ${abbreviateWord(row.hydra_rx_data_word)}`;
     return;
   }
   if (selectedTarget?.type === 'fpga') {
@@ -439,7 +551,7 @@ function updateHud() {
       const activeUpdate = chipEvents.find((update) => update.x === selectedTarget.x && update.y === selectedTarget.y);
       const activeCharge = chargeEvents.find((event) => event.x === selectedTarget.x && event.y === selectedTarget.y);
       let line = `Selection: chip ${chip.chip_id} at (${chip.x},${chip.y}) U${(chip.up_mask || 0).toString(2).padStart(4, '0')} D${(chip.down_mask || 0).toString(2).padStart(4, '0')}`;
-      line += ` | FIFO ${sharedFifoOccupancyAt(selectedTarget.x, selectedTarget.y, currentTickIndex)}/${playback._sharedFifoScaleMax || 1}`;
+      line += ` | FIFO ${sharedFifoOccupancyAt(selectedTarget.x, selectedTarget.y, currentTickIndex)}`;
       if (activeUpdate) {
         line += ` | applied reg ${activeUpdate.register_addr} = 0x${Number(activeUpdate.register_data || 0).toString(16).toUpperCase().padStart(2, '0')}`;
       }
@@ -464,7 +576,7 @@ function updateHud() {
 }
 
 function laneEnabled(mask, edge) {
-  return ((mask >> EDGE_TO_BIT[edge]) & 1) === 1;
+  return ((mask >> PISO_EDGE_TO_BIT[edge]) & 1) === 1;
 }
 
 function drawLane(cx, cy, cell, edge, color, active = false) {
@@ -537,6 +649,14 @@ const HYDRA_STATE_NAMES = {
   3: 'TX_UPSTREAM',
   4: 'TX_GET_FIFO',
   5: 'TX_SEND',
+  6: 'TX_WAIT_FIFO',
+};
+
+const COMMS_STATE_NAMES = {
+  0: 'IDLE',
+  1: 'WRITE_CFG',
+  2: 'READ_REQ',
+  3: 'LOAD_FIFO',
 };
 
 function parseChipDebugValue(raw) {
@@ -554,17 +674,39 @@ function parseChipDebugCsv(text) {
   const ticks = [];
   for (const line of lines.slice(1)) {
     const parts = line.split(',');
-    if (parts.length !== headers.length) continue;
+    if (parts.length < 1) continue;
+    while (parts.length < headers.length) parts.push('');
+    if (parts.length > headers.length) parts.length = headers.length;
     const row = {};
+    const raw = {};
     for (let i = 0; i < headers.length; i += 1) {
+      raw[headers[i]] = parts[i];
       row[headers[i]] = parseChipDebugValue(parts[i]);
     }
+    row.__raw = raw;
     rows.push(row);
     const tick = Number(row.tick || 0);
     rowsByTick.set(tick, row);
     ticks.push(tick);
   }
   return { headers, rows, rowsByTick, ticks };
+}
+
+function parseChipDebugSidecar(obj) {
+  if (!obj || !Array.isArray(obj.rows)) return null;
+  const rowsByTick = new Map();
+  const ticks = [];
+  for (const row of obj.rows) {
+    const tick = Number(row.tick || 0);
+    rowsByTick.set(tick, row);
+    ticks.push(tick);
+  }
+  return {
+    ...obj,
+    rowsByTick,
+    ticks,
+    mode: obj.kind || 'sidecar',
+  };
 }
 
 function parseMaskValue(value) {
@@ -577,9 +719,9 @@ function maskHasLane(mask, lane) {
   return ((parseMaskValue(mask) >> lane) & 1) === 1;
 }
 
-function laneNamesFromMask(mask) {
+function laneNamesFromMask(mask, edgeToBit = POSI_EDGE_TO_BIT) {
   const names = [];
-  for (const [name, bit] of Object.entries(EDGE_TO_BIT)) {
+  for (const [name, bit] of Object.entries(edgeToBit)) {
     if (maskHasLane(mask, bit)) names.push(name);
   }
   return names;
@@ -587,6 +729,59 @@ function laneNamesFromMask(mask) {
 
 function hydraStateName(value) {
   return HYDRA_STATE_NAMES[Number(value)] || `STATE_${value}`;
+}
+
+function chipDebugLabel() {
+  return chipDebugData?.label || `Chip ${chipDebugData?.monitorChipId ?? 0} View`;
+}
+
+function chipDebugSignalSpecs(data) {
+  if (!data) return null;
+  const specs = Array.isArray(data.signalSpecs) ? data.signalSpecs : Array.isArray(data.signal_specs) ? data.signal_specs : null;
+  if (!specs) return null;
+  return specs.map((spec) => ({
+    key: String(spec.key || ''),
+    label: String(spec.label || spec.key || ''),
+    kind: String(spec.kind || 'binary'),
+    color: String(spec.color || '#ffffff'),
+    maxValue: Number(spec.maxValue ?? spec.max_value ?? 1),
+    value: (row) => {
+      const raw = row?.[spec.key];
+      if (raw === undefined || raw === null || raw === '') return 0;
+      return raw;
+    },
+  }));
+}
+
+function chipDebugRowAtTickFrom(data, tick) {
+  if (!data) return null;
+  const target = Number(tick || 0);
+  const direct = data.rowsByTick?.get(target);
+  if (direct) return direct;
+  const ticks = data.ticks || [];
+  const rows = data.rows || [];
+  let lo = 0;
+  let hi = ticks.length - 1;
+  let best = -1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (ticks[mid] <= target) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  if (best >= 0) {
+    const byTick = data.rowsByTick?.get(ticks[best]);
+    if (byTick) return byTick;
+    if (rows[best]) return rows[best];
+  }
+  return rows.length ? rows[0] : null;
+}
+
+function commsStateName(value) {
+  return COMMS_STATE_NAMES[Number(value)] || `STATE_${value}`;
 }
 
 function packetOpcode(value) {
@@ -598,11 +793,25 @@ function packetOpcode(value) {
 
 function packetTypeNameFromWord(value) {
   const opcode = packetOpcode(value);
-  if (opcode === 0) return 'MSG_OP';
+  if (opcode === 0) return playbackUsesFullMsgOp() ? 'MSG_OP_64' : 'MSG_OP';
   if (opcode === 1) return 'DATA_OP';
   if (opcode === 2) return 'CONFIG_WRITE_OP';
   if (opcode === 3) return 'CONFIG_READ_OP';
   return `OP_${opcode}`;
+}
+
+function formatPacketDecode(decoded = {}, packetType = '', obj = playback) {
+  if (packetType === 'msg_packet' && playbackUsesFullMsgOp(obj)) {
+    const payload = decoded.msg_payload_62;
+    if (payload === undefined || payload === null) return JSON.stringify(decoded, null, 2);
+    const payloadHex = `0x${BigInt(payload).toString(16).padStart(16, '0')}`;
+    return JSON.stringify({
+      packet_type: decoded.packet_type,
+      on_wire_bits: decoded.on_wire_bits,
+      msg_payload_62: payloadHex,
+    }, null, 2);
+  }
+  return JSON.stringify(decoded, null, 2);
 }
 
 function formatHexWord(value) {
@@ -618,59 +827,69 @@ function abbreviateWord(value) {
 }
 
 function chipDebugRowAtTick(tick) {
-  if (!chipDebugData) return null;
-  const target = Number(tick || 0);
-  const direct = chipDebugData.rowsByTick?.get(target);
-  if (direct) return direct;
-  const ticks = chipDebugData.ticks || [];
-  let lo = 0;
-  let hi = ticks.length - 1;
-  let best = -1;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    if (ticks[mid] <= target) {
-      best = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return best >= 0 ? chipDebugData.rowsByTick.get(ticks[best]) || null : null;
+  return chipDebugRowAtTickFrom(chipDebugData, tick);
 }
 
-async function tryLoadChipDebugForPlayback(obj, sourceUrl) {
-  chipDebugData = null;
-  const params = new URLSearchParams(window.location.search);
+async function loadChipDebugDataset(meta, sourceUrl, fallbackCandidates = []) {
+  if (!meta && fallbackCandidates.length === 0) return null;
   const candidates = [];
-  const explicit = params.get('chip_debug');
-  if (explicit) candidates.push(explicit);
-  if (obj?.chip_internal_debug?.csv_url) candidates.push(obj.chip_internal_debug.csv_url);
-  if (typeof sourceUrl === 'string' && sourceUrl.length > 0) {
-    candidates.push(sourceUrl.replace(/[^/]+$/, 'chip0_rx_debug.csv'));
-  }
+  if (meta?.sidecar_url) candidates.push(meta.sidecar_url);
+  if (meta?.csv_url) candidates.push(meta.csv_url);
+  candidates.push(...fallbackCandidates);
   const seen = new Set();
   for (const candidate of candidates) {
     if (!candidate || seen.has(candidate)) continue;
     seen.add(candidate);
     try {
-      const response = await fetch(candidate, { cache: 'no-store' });
+      const resolved = new URL(candidate, sourceUrl || window.location.href);
+      resolved.searchParams.set('cb', String(Date.now()));
+      const response = await fetch(resolved.toString(), { cache: 'no-store' });
       if (!response.ok) continue;
-      const parsed = parseChipDebugCsv(await response.text());
+      const text = await response.text();
+      let parsed = null;
+      const trimmed = text.trim();
+      if (trimmed.startsWith('{')) {
+        parsed = parseChipDebugSidecar(JSON.parse(trimmed));
+      } else {
+        parsed = parseChipDebugCsv(text);
+      }
       if (!parsed) continue;
-      chipDebugData = {
+      return {
         ...parsed,
-        sourceUrl: candidate,
-        monitorChipId: 0,
+        sourceUrl: resolved.toString(),
+        monitorChipId: Number(meta?.monitor_chip_id ?? parsed.monitorChipId ?? 0),
+        monitorRuntimeId: Number(meta?.monitor_runtime_id ?? parsed.monitorRuntimeId ?? 0),
+        label: String(meta?.label || parsed.label || ''),
+        kind: String(meta?.kind || parsed.kind || 'sidecar'),
+        signalSpecs: Array.isArray(meta?.signal_specs) ? meta.signal_specs : parsed.signalSpecs,
       };
-      return;
     } catch (_) {}
   }
+  return null;
+}
+
+async function tryLoadChipDebugForPlayback(obj, sourceUrl) {
+  chipDebugData = null;
+  chipDebugAuxData = null;
+  const params = new URLSearchParams(window.location.search);
+  const primaryFallbacks = [];
+  const explicitSidecar = params.get('sidecar');
+  const explicit = params.get('chip_debug');
+  if (explicitSidecar) primaryFallbacks.push(explicitSidecar);
+  if (explicit) primaryFallbacks.push(explicit);
+  if (typeof sourceUrl === 'string' && sourceUrl.length > 0) {
+    primaryFallbacks.push(sourceUrl.replace(/[^/]+$/, 'chip0_debug_sidecar.json'));
+    primaryFallbacks.push(sourceUrl.replace(/[^/]+$/, 'chip0_rx_debug.csv'));
+  }
+  chipDebugData = await loadChipDebugDataset(obj?.chip_internal_debug, sourceUrl, primaryFallbacks);
+  chipDebugAuxData = await loadChipDebugDataset(obj?.chip_internal_debug_aux, sourceUrl, []);
 }
 
 function updateViewButtons() {
   const hasChipDebug = Boolean(chipDebugData);
   showNetworkViewBtn?.classList.toggle('active', currentView === 'network');
   if (showChipViewBtn) showChipViewBtn.hidden = !hasChipDebug;
+  if (showChipViewBtn && hasChipDebug) showChipViewBtn.textContent = chipDebugLabel();
   showChipViewBtn?.classList.toggle('active', currentView === 'chip');
 }
 
@@ -679,17 +898,17 @@ function setCurrentView(view) {
   currentView = view;
   selectedTarget = null;
   updateViewButtons();
-  draw();
+  updateChipViewHudControls();
+  resize();
 }
 
 
-function drawSharedFifoBar(left, top, cell, occupancy, scaleMax) {
+function drawSharedFifoCounter(left, top, cell, occupancy) {
   const barInset = Math.max(6, cell * 0.08);
   const barWidth = Math.max(12, cell * 0.84 - barInset * 2);
   const barHeight = Math.max(8, cell * 0.1);
   const barLeft = left + barInset;
   const barTop = top + cell * 0.84 - barInset - barHeight;
-  const fill = scaleMax > 0 ? Math.max(0, Math.min(1, occupancy / scaleMax)) : 0;
 
   ctx.fillStyle = '#0e141d';
   ctx.strokeStyle = 'rgba(97, 226, 148, 0.45)';
@@ -698,14 +917,6 @@ function drawSharedFifoBar(left, top, cell, occupancy, scaleMax) {
   ctx.roundRect(barLeft, barTop, barWidth, barHeight, 5);
   ctx.fill();
   ctx.stroke();
-
-  if (fill > 0) {
-    const fillWidth = Math.max(0, (barWidth - 2) * fill);
-    ctx.fillStyle = '#61e294';
-    ctx.beginPath();
-    ctx.roundRect(barLeft + 1, barTop + 1, fillWidth, Math.max(0, barHeight - 2), 4);
-    ctx.fill();
-  }
 
   if (cell >= 72) {
     ctx.fillStyle = occupancy > 0 ? SHARED_FIFO_TEXT_COLOR : '#b996dc';
@@ -834,12 +1045,773 @@ function drawComponentBox(rect, title, lines, options = {}) {
   ctx.textBaseline = 'alphabetic';
 }
 
-function drawChipInternalView(width, height) {
+function debugWindowRows(centerTick, before = 14, after = 22) {
+  return debugWindowRowsFrom(chipDebugData, centerTick, before, after);
+}
+
+function debugWindowRowsFrom(data, centerTick, before = 14, after = 22) {
+  const scaledBefore = Math.max(1, Math.round(before * chipTimelineSpanScale));
+  const scaledAfter = Math.max(1, Math.round(after * chipTimelineSpanScale));
+  const start = Math.max(0, Number(centerTick || 0) - scaledBefore);
+  const end = Number(centerTick || 0) + scaledAfter;
+  return (data?.rows || []).filter((row) => Number(row.tick || 0) >= start && Number(row.tick || 0) <= end);
+}
+
+function drawSignalTimeline(rect, rows, specs, currentTick) {
+  ctx.fillStyle = 'rgba(12, 18, 28, 0.92)';
+  ctx.strokeStyle = 'rgba(118, 132, 167, 0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(rect.left, rect.top, rect.width, rect.height, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  if (!rows.length) return;
+  const startTick = Number(rows[0].tick || 0);
+  const endTick = Number(rows[rows.length - 1].tick || 0);
+  const plotLeft = rect.left + 152;
+  const plotRight = rect.left + rect.width - 14;
+  const plotTop = rect.top + 16;
+  const rowGap = 10;
+  const rowHeight = (rect.height - 28 - Math.max(0, specs.length - 1) * rowGap) / specs.length;
+  const tickSpan = Math.max(1, endTick - startTick);
+  const xAt = (tick) => plotLeft + ((tick - startTick) / tickSpan) * (plotRight - plotLeft);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  for (let tick = startTick; tick <= endTick; tick += 1) {
+    const x = xAt(tick);
+    ctx.beginPath();
+    ctx.moveTo(x, plotTop - 4);
+    ctx.lineTo(x, rect.top + rect.height - 12);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  for (let i = 0; i < specs.length; i += 1) {
+    const spec = specs[i];
+    const baseY = plotTop + i * (rowHeight + rowGap);
+    const yLow = baseY + rowHeight * 0.72;
+    const yHigh = baseY + rowHeight * 0.18;
+    ctx.font = '11px ui-monospace, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#c3cce0';
+    ctx.fillText(spec.label, rect.left + 10, baseY + rowHeight * 0.45);
+    ctx.strokeStyle = 'rgba(90, 103, 128, 0.32)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(plotLeft, yLow);
+    ctx.lineTo(plotRight, yLow);
+    ctx.stroke();
+    ctx.strokeStyle = spec.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let lastValue = null;
+    const labels = [];
+    for (let idx = 0; idx < rows.length; idx += 1) {
+      const row = rows[idx];
+      const rawValue = spec.value(row);
+      const value = spec.kind === 'word'
+        ? 0
+        : Number(rawValue || 0);
+      const x = xAt(Number(row.tick || 0));
+      const y = spec.kind === 'binary'
+        ? (value ? yHigh : yLow)
+        : spec.kind === 'counter'
+          ? yLow
+          : spec.kind === 'word'
+            ? ((String(rawValue || '0x0') === '0x0' || String(rawValue || '0x0') === '0x0000000000000000') ? yLow : yHigh)
+          : (() => {
+            const maxValue = Math.max(1, Number(spec.maxValue || 1));
+            return yLow - Math.min(1, value / maxValue) * (yLow - yHigh);
+          })();
+      if (idx === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+      const nextTick = idx + 1 < rows.length ? Number(rows[idx + 1].tick || 0) : Number(row.tick || 0);
+      const nextX = xAt(nextTick);
+      const labelX = (x + nextX) * 0.5;
+      ctx.lineTo(nextX, y);
+      if (spec.kind === 'counter') {
+        if (nextX > x && (lastValue === null || value !== lastValue)) {
+          labels.push({ text: String(value), x: labelX, y: y - 6, fontSize: 10 });
+          lastValue = value;
+        }
+      } else if (spec.kind === 'word') {
+        const text = String(rawValue || '0x0000000000000000');
+        if (nextX > x && (lastValue === null || text !== lastValue) && text !== '0x0000000000000000') {
+          labels.push({ text: abbreviateWord(text), x: labelX, y: y - 6, fontSize: 10 });
+          lastValue = text;
+        }
+      }
+      if (nextX > x && spec.tickLabel) {
+        const text = String(spec.tickLabel(rawValue, row) || '');
+        if (text) {
+          labels.push({
+            text,
+            x: labelX,
+            y: y - 5,
+            fontSize: Number(spec.tickLabelFontSize || 7),
+          });
+        }
+      }
+    }
+    ctx.stroke();
+    ctx.fillStyle = spec.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (const label of labels) {
+      ctx.font = `${label.fontSize}px ui-monospace, monospace`;
+      ctx.fillText(label.text, label.x, label.y);
+    }
+  }
+
+  ctx.strokeStyle = '#f0e6ff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(xAt(currentTick), rect.top + 8);
+  ctx.lineTo(xAt(currentTick), rect.top + rect.height - 8);
+  ctx.stroke();
+
+  ctx.fillStyle = '#e6ecf8';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  for (let tick = Math.ceil(startTick / 10) * 10; tick <= endTick; tick += 10) {
+    const x = xAt(tick);
+    ctx.fillText(String(tick), x, rect.top + rect.height - 4);
+  }
+}
+
+function laneSignalSpecs(lane) {
+  const colors = {
+    bit: '#6fd3ff',
+    empty: '#b9c6d8',
+    sync: '#ff9f43',
+    cnt: '#61e294',
+    lock: '#f2d06b',
+    pass: '#7ee0a1',
+    fail: '#ff8f8f',
+  };
+  return [
+    { key: `${lane}_rx_in_bit`, label: `${lane}_rx_in_bit`, kind: 'binary', color: colors.bit, value: (r) => Number(r[`${lane}_rx_in_bit`] ?? 1) ? 1 : 0 },
+    { key: `${lane}_rx_sync`, label: `${lane}_rx_sync`, kind: 'binary', color: '#ffffff', value: (r) => Number(r[`${lane}_rx_sync`] ?? 1) ? 1 : 0 },
+    { key: `${lane}_sync_armed`, label: `${lane}_sync_armed`, kind: 'binary', color: colors.sync, value: (r) => Number(r[`${lane}_sync_armed`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_busy`, label: `${lane}_busy`, kind: 'binary', color: '#8fd0ff', value: (r) => Number(r[`${lane}_busy`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_packet_ready`, label: `${lane}_packet_ready`, kind: 'binary', color: '#ff7a7a', value: (r) => Number(r[`${lane}_packet_ready`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_bit_cnt`, label: `${lane}_bit_cnt`, kind: 'counter', color: colors.cnt, value: (r) => Number(r[`${lane}_bit_cnt`] ?? 0), maxValue: 64 },
+    { key: `${lane}_sync_lock`, label: `${lane}_sync_lock`, kind: 'binary', color: colors.lock, value: (r) => Number(r[`${lane}_sync_lock`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_sync_pass`, label: `${lane}_sync_pass`, kind: 'counter', color: colors.pass, value: (r) => Number(r[`${lane}_sync_pass`] ?? 0), maxValue: 7 },
+    { key: `${lane}_sync_fail`, label: `${lane}_sync_fail`, kind: 'counter', color: colors.fail, value: (r) => Number(r[`${lane}_sync_fail`] ?? 0), maxValue: 7 },
+  ];
+}
+
+function txMaskBit(mask, edge) {
+  return ((Number(mask || 0) >> PISO_EDGE_TO_BIT[edge]) & 1) ? 1 : 0;
+}
+
+function txSignalSpecs(lane) {
+  return [
+    { key: 'chip_fifo_occupancy', label: 'chip_fifo_occupancy', kind: 'counter', color: '#61e294', value: (r) => Number(r.chip_fifo_occupancy ?? 0), maxValue: 16 },
+    { key: `${lane}_hydra_pending_valid`, label: `${lane}_hydra_pending_valid`, kind: 'binary', color: '#ffb04d', value: (r) => Number(r[`${lane}_hydra_pending_valid`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_hydra_tx_busy`, label: `${lane}_hydra_tx_busy`, kind: 'binary', color: '#8fd0ff', value: (r) => txMaskBit(r.hydra_tx_busy, lane) },
+    { key: `${lane}_raw_tx_busy`, label: `${lane}_raw_tx_busy`, kind: 'binary', color: '#9fb6ff', value: (r) => Number(r[`${lane}_raw_tx_busy`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_hydra_ld_tx`, label: `${lane}_hydra_ld_tx`, kind: 'binary', color: '#f2d06b', value: (r) => txMaskBit(r.hydra_ld_tx_data_uart, lane) },
+    { key: `${lane}_final_ld_tx`, label: `${lane}_final_ld_tx`, kind: 'binary', color: '#ff7a7a', value: (r) => txMaskBit(r.final_ld_tx_data_uart, lane) },
+    { key: `${lane}_select_hydra`, label: `${lane}_select_hydra`, kind: 'binary', color: '#4db0ff', value: (r) => txMaskBit(r.arb_select_hydra, lane) },
+    { key: `${lane}_select_nifty`, label: `${lane}_select_nifty`, kind: 'binary', color: '#d784ff', value: (r) => txMaskBit(r.arb_select_nifty, lane) },
+    { key: `${lane}_tx_bit_valid`, label: `${lane}_tx_bit_valid`, kind: 'binary', color: '#ffffff', value: (r) => Number(r[`${lane}_tx_bit_valid`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_tx_bit`, label: `${lane}_tx_bit`, kind: 'binary', color: '#6fd3ff', value: (r) => Number(r[`${lane}_tx_bit`] ?? 1) ? 1 : 0 },
+  ];
+}
+
+function v3cRxSignalSpecs(lane) {
+  return [
+    { key: `${lane}_rx_in_bit`, label: `${lane}_rx_in_bit`, kind: 'binary', color: '#6fd3ff', value: (r) => Number(r[`${lane}_rx_in_bit`] ?? 1) ? 1 : 0 },
+    { key: `${lane}_rx_sync`, label: `${lane}_rx_sync`, kind: 'binary', color: '#ffffff', value: (r) => Number(r[`${lane}_rx_sync`] ?? 1) ? 1 : 0 },
+    { key: `${lane}_busy`, label: `${lane}_busy`, kind: 'binary', color: '#8fd0ff', value: (r) => Number(r[`${lane}_busy`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_packet_ready`, label: `${lane}_packet_ready`, kind: 'binary', color: '#ff7a7a', value: (r) => Number(r[`${lane}_packet_ready`] ?? 0) ? 1 : 0 },
+    { key: `${lane}_bit_cnt`, label: `${lane}_bit_cnt`, kind: 'counter', color: '#61e294', value: (r) => Number(r[`${lane}_bit_cnt`] ?? 0), maxValue: 63 },
+    { key: `${lane}_rx_empty`, label: `${lane}_rx_empty`, kind: 'binary', color: '#b9c6d8', value: (r) => Number(r[`${lane}_rx_empty`] ?? 1) ? 1 : 0 },
+    { key: `${lane}_hold_valid`, label: `${lane}_hold_valid`, kind: 'binary', color: '#ffb04d', value: (r) => Number(r[`${lane}_hold_valid`] ?? 0) ? 1 : 0 },
+  ];
+}
+
+function maskDirections(mask, edgeToBit) {
+  const value = Number(mask || 0);
+  return [
+    ['N', edgeToBit.north],
+    ['E', edgeToBit.east],
+    ['S', edgeToBit.south],
+    ['W', edgeToBit.west],
+  ]
+    .filter(([, bit]) => ((value >> bit) & 1) !== 0)
+    .map(([direction]) => direction)
+    .join('');
+}
+
+const posiMaskDirections = (mask) => maskDirections(mask, POSI_EDGE_TO_BIT);
+const pisoMaskDirections = (mask) => maskDirections(mask, PISO_EDGE_TO_BIT);
+
+function hydraStateAbbreviation(state) {
+  return ['', 'RC', 'RP', 'TU', 'TG', 'TS', 'TW'][Number(state || 0)] || '';
+}
+
+function v3cHydraSignalSpecs() {
+  return [
+    {
+      key: 'hydra_state',
+      label: 'hydra_state',
+      kind: 'value',
+      color: '#9fb6ff',
+      value: (r) => Number(r.hydra_state ?? 0),
+      maxValue: 6,
+      tickLabel: hydraStateAbbreviation,
+      tickLabelFontSize: 7,
+    },
+    {
+      key: 'hydra_uart_has_data',
+      label: 'uart_has_data mask',
+      kind: 'value',
+      color: '#6fd3ff',
+      value: (r) => Number(r.hydra_uart_has_data ?? 0),
+      maxValue: 15,
+      tickLabel: posiMaskDirections,
+      tickLabelFontSize: 7,
+    },
+    {
+      key: 'hydra_sel_onehot',
+      label: 'selected RX mask',
+      kind: 'value',
+      color: '#f2d06b',
+      value: (r) => Number(r.hydra_sel_onehot ?? 0),
+      maxValue: 15,
+      tickLabel: posiMaskDirections,
+      tickLabelFontSize: 7,
+    },
+    {
+      key: 'hydra_uld_rx_data_uart',
+      label: 'RX unload mask',
+      kind: 'value',
+      color: '#ffb04d',
+      value: (r) => Number(r.hydra_uld_rx_data_uart ?? 0),
+      maxValue: 15,
+      tickLabel: posiMaskDirections,
+      tickLabelFontSize: 7,
+    },
+    { key: 'hydra_rx_data_flag', label: 'rx_data_flag', kind: 'binary', color: '#7ee0a1', value: (r) => Number(r.hydra_rx_data_flag ?? 0) ? 1 : 0 },
+    { key: 'hydra_pkt_valid', label: 'pkt_valid', kind: 'binary', color: '#61e294', value: (r) => Number(r.hydra_pkt_valid ?? 0) ? 1 : 0 },
+    { key: 'hydra_fifo_write_n', label: 'fifo_write_n', kind: 'binary', color: '#ff8f8f', value: (r) => Number(r.hydra_fifo_write_n ?? 1) ? 1 : 0 },
+    { key: 'chip_fifo_occupancy', label: 'FIFO occupancy', kind: 'counter', color: '#61e294', value: (r) => Number(r.chip_fifo_occupancy ?? 0), maxValue: 128 },
+    { key: 'hydra_fifo_read_n', label: 'fifo_read_n', kind: 'binary', color: '#d784ff', value: (r) => Number(r.hydra_fifo_read_n ?? 1) ? 1 : 0 },
+    {
+      key: 'final_ld_tx_data_uart',
+      label: 'TX load mask',
+      kind: 'value',
+      color: '#f2d06b',
+      value: (r) => Number(r.final_ld_tx_data_uart ?? 0),
+      maxValue: 15,
+      tickLabel: pisoMaskDirections,
+      tickLabelFontSize: 7,
+    },
+    { key: 'south_raw_tx_busy', label: 'south TX busy', kind: 'binary', color: '#9fb6ff', value: (r) => Number(r.south_raw_tx_busy ?? 0) ? 1 : 0 },
+    { key: 'south_tx_bit', label: 'south TX bit', kind: 'binary', color: '#ffffff', value: (r) => Number(r.south_tx_bit ?? 1) ? 1 : 0 },
+  ];
+}
+
+function drawV3cPacketLossChip0View(width, height) {
   ctx.fillStyle = '#0a0d12';
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
-  const marginLeft = hudWidth + 40;
+  const marginLeft = hudWidth + 1;
+  const margin = 26;
+  const availableW = Math.max(260, width - marginLeft - margin);
+  const availableH = Math.max(260, height - margin * 2);
+  if (!chipDebugData || !chipDebugRowAtTick(currentTickIndex)) {
+    updateHud();
+    return;
+  }
+
+  const baseScale = Math.max(0.58, Math.min(1.0, Math.min(availableW / 1260, availableH / 1080)));
+  const scale = baseScale * chipViewZoom;
+  const ox = marginLeft + Math.max(8, (availableW - 1230 * scale) * 0.5);
+  const oy = margin + 8;
+  const sx = (value) => ox + value * scale;
+  const sy = (value) => oy + value * scale;
+  const sw = (value) => value * scale;
+  const rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 24, 36);
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(chipDebugLabel(), sx(0), sy(24));
+  ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+  ctx.fillStyle = '#aeb8ca';
+  ctx.fillText('v3c path: north/east UART RX → Hydra arbitration/FIFO → south UART TX', sx(0), sy(48));
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.textAlign = 'left';
+  ctx.fillText('North RX from chip 2', sx(0), sy(78));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(90), width: sw(1230), height: sw(250) },
+    rows,
+    v3cRxSignalSpecs('north'),
+    currentTickIndex,
+  );
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.textAlign = 'left';
+  ctx.fillText('East RX from chip 1', sx(0), sy(370));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(382), width: sw(1230), height: sw(250) },
+    rows,
+    v3cRxSignalSpecs('east'),
+    currentTickIndex,
+  );
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.textAlign = 'left';
+  ctx.fillText('Hydra arbitration, shared FIFO, and south TX', sx(0), sy(662));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(674), width: sw(1230), height: sw(390) },
+    rows,
+    v3cHydraSignalSpecs(),
+    currentTickIndex,
+  );
+  updateHud();
+}
+
+function drawV3cConvergentPacketLossChip4View(width, height) {
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, width, height);
+
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  const marginLeft = hudWidth + 1;
+  const margin = 26;
+  const availableW = Math.max(260, width - marginLeft - margin);
+  const availableH = Math.max(260, height - margin * 2);
+  if (!chipDebugData || !chipDebugRowAtTick(currentTickIndex)) {
+    updateHud();
+    return;
+  }
+
+  const baseScale = Math.max(0.58, Math.min(1.0, Math.min(availableW / 1260, availableH / 1370)));
+  const scale = baseScale * chipViewZoom;
+  const ox = marginLeft + Math.max(8, (availableW - 1230 * scale) * 0.5);
+  const oy = margin + 8;
+  const sx = (value) => ox + value * scale;
+  const sy = (value) => oy + value * scale;
+  const sw = (value) => value * scale;
+  const rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 24, 36);
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(chipDebugLabel(), sx(0), sy(24));
+  ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+  ctx.fillStyle = '#aeb8ca';
+  ctx.fillText('v3c path: north/east/west UART RX → Hydra arbitration/FIFO → south UART TX', sx(0), sy(48));
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.textAlign = 'left';
+  ctx.fillText('Hydra arbitration, shared FIFO, and south TX', sx(0), sy(78));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(90), width: sw(1230), height: sw(390) },
+    rows,
+    v3cHydraSignalSpecs(),
+    currentTickIndex,
+  );
+
+  const rxSections = [
+    { lane: 'north', title: 'North RX from chip 7', titleY: 510, timelineY: 522 },
+    { lane: 'east', title: 'East RX from chip 5', titleY: 802, timelineY: 814 },
+    { lane: 'west', title: 'West RX from chip 3', titleY: 1094, timelineY: 1106 },
+  ];
+  for (const section of rxSections) {
+    ctx.fillStyle = '#eef4ff';
+    ctx.textAlign = 'left';
+    ctx.fillText(section.title, sx(0), sy(section.titleY));
+    drawSignalTimeline(
+      { left: sx(0), top: sy(section.timelineY), width: sw(1230), height: sw(250) },
+      rows,
+      v3cRxSignalSpecs(section.lane),
+      currentTickIndex,
+    );
+  }
+  updateHud();
+}
+
+function drawSingleChipTimelineView(width, height) {
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, width, height);
+
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  const marginLeft = hudWidth + 1;
+  const margin = 26;
+  const availableW = Math.max(260, width - marginLeft - margin);
+  const availableH = Math.max(260, height - margin * 2);
+
+  if (!chipDebugData) {
+    updateHud();
+    return;
+  }
+
+  const row = chipDebugRowAtTickFrom(chipDebugData, currentTickIndex);
+  const baseScale = Math.max(0.72, Math.min(1.0, Math.min(availableW / 1260, availableH / 980)));
+  const scale = baseScale * chipViewZoom;
+  const contentWidth = 1210 * scale;
+  const ox = marginLeft + Math.max(8, (availableW - contentWidth) * 0.5);
+  const oy = margin + 8;
+  const sx = (value) => ox + value * scale;
+  const sy = (value) => oy + value * scale;
+  const sw = (value) => value * scale;
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(chipDebugLabel(), sx(0), sy(24));
+  ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+  ctx.fillStyle = '#aeb8ca';
+  ctx.fillText(`source ${chipDebugData.sourceUrl.split('/').pop()}`, sx(0), sy(48));
+
+  if (!row) {
+    ctx.fillStyle = '#e6ecf8';
+    ctx.font = '16px ui-monospace, monospace';
+    ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
+    updateHud();
+    return;
+  }
+
+  const rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 24, 36);
+  const specs = chipDebugSignalSpecs(chipDebugData) || txSignalSpecs('south');
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`Chip ${chipDebugData.monitorChipId} timeline: south-lane TX`, sx(0), sy(84));
+  drawSignalTimeline(
+    { left: sx(-34), top: sy(98), width: sw(1268), height: Math.max(sw(420), specs.length * sw(30)) },
+    rows,
+    specs,
+    currentTickIndex,
+  );
+
+  updateHud();
+}
+
+function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, width, height);
+
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  const marginLeft = hudWidth + 1;
+  const margin = 26;
+  const availableW = Math.max(260, width - marginLeft - margin);
+  const availableH = Math.max(260, height - margin * 2);
+
+  if (!chipDebugData || !chipDebugAuxData) {
+    updateHud();
+    return;
+  }
+
+  const chip1Row = chipDebugRowAtTickFrom(chipDebugData, currentTickIndex);
+  const chip0Row = chipDebugRowAtTickFrom(chipDebugAuxData, currentTickIndex);
+  const baseScale = Math.max(0.72, Math.min(1.0, Math.min(availableW / 1260, availableH / 980)));
+  const scale = baseScale * chipViewZoom;
+  const ox = marginLeft + Math.max(10, (availableW - 1120 * scale) * 0.5);
+  const oy = margin + 8;
+  const sx = (value) => ox + value * scale;
+  const sy = (value) => oy + value * scale;
+  const sw = (value) => value * scale;
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(chipDebugLabel(), sx(0), sy(24));
+  ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+  ctx.fillStyle = '#aeb8ca';
+  ctx.fillText(
+    `top ${chipDebugData.sourceUrl.split('/').pop()} | bottom ${chipDebugAuxData.sourceUrl.split('/').pop()}`,
+    sx(0),
+    sy(48),
+  );
+
+  if (!chip1Row || !chip0Row) {
+    ctx.fillStyle = '#e6ecf8';
+    ctx.font = '16px ui-monospace, monospace';
+    ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
+    updateHud();
+    return;
+  }
+
+  const chip1Rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 20, 28);
+  const chip0Rows = debugWindowRowsFrom(chipDebugAuxData, currentTickIndex, 20, 28);
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`Chip ${chipDebugData.monitorChipId} timeline: south-lane TX`, sx(0), sy(84));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(98), width: sw(1230), height: sw(260) },
+    chip1Rows,
+    txSignalSpecs('south'),
+    currentTickIndex,
+  );
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`Chip ${chipDebugAuxData.monitorChipId} timeline: north-lane RX`, sx(0), sy(390));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(404), width: sw(1230), height: sw(320) },
+    chip0Rows,
+    laneSignalSpecs('north'),
+    currentTickIndex,
+  );
+
+  updateHud();
+}
+
+function drawChip0NorthTxChip1SouthRxFocusView(width, height) {
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, width, height);
+
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  const marginLeft = hudWidth + 1;
+  const margin = 26;
+  const availableW = Math.max(260, width - marginLeft - margin);
+  const availableH = Math.max(260, height - margin * 2);
+
+  if (!chipDebugData || !chipDebugAuxData) {
+    updateHud();
+    return;
+  }
+
+  const chip0Row = chipDebugRowAtTickFrom(chipDebugData, currentTickIndex);
+  const chip1Row = chipDebugRowAtTickFrom(chipDebugAuxData, currentTickIndex);
+  const baseScale = Math.max(0.72, Math.min(1.0, Math.min(availableW / 1260, availableH / 980)));
+  const scale = baseScale * chipViewZoom;
+  const ox = marginLeft + Math.max(10, (availableW - 1120 * scale) * 0.5);
+  const oy = margin + 8;
+  const sx = (value) => ox + value * scale;
+  const sy = (value) => oy + value * scale;
+  const sw = (value) => value * scale;
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(chipDebugLabel(), sx(0), sy(24));
+  ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+  ctx.fillStyle = '#aeb8ca';
+  ctx.fillText(
+    `top ${chipDebugData.sourceUrl.split('/').pop()} | bottom ${chipDebugAuxData.sourceUrl.split('/').pop()}`,
+    sx(0),
+    sy(48),
+  );
+
+  if (!chip0Row || !chip1Row) {
+    ctx.fillStyle = '#e6ecf8';
+    ctx.font = '16px ui-monospace, monospace';
+    ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
+    updateHud();
+    return;
+  }
+
+  const chip0Rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 20, 28);
+  const chip1Rows = debugWindowRowsFrom(chipDebugAuxData, currentTickIndex, 20, 28);
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`Chip ${chipDebugData.monitorChipId} timeline: north-lane TX / arbiter`, sx(0), sy(84));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(98), width: sw(1230), height: sw(260) },
+    chip0Rows,
+    txSignalSpecs('north'),
+    currentTickIndex,
+  );
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText(`Chip ${chipDebugAuxData.monitorChipId} timeline: south-lane RX`, sx(0), sy(390));
+  drawSignalTimeline(
+    { left: sx(0), top: sy(404), width: sw(1230), height: sw(320) },
+    chip1Rows,
+    laneSignalSpecs('south'),
+    currentTickIndex,
+  );
+
+  updateHud();
+}
+
+function txPathSignalSpecs() {
+  return [
+    { key: 'chip_fifo_occupancy', label: 'chip_fifo_occupancy', kind: 'counter', color: '#61e294', value: (r) => Number(r.chip_fifo_occupancy ?? 0), maxValue: 16 },
+    { key: 'south_hydra_pending_valid', label: 'south_hydra_pending_valid', kind: 'binary', color: '#ffb04d', value: (r) => Number(r.south_hydra_pending_valid ?? 0) ? 1 : 0 },
+  ];
+}
+
+function drawNiftyReg125ProofView(width, height) {
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, width, height);
+
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  const marginLeft = Math.max(0, Math.round((hudWidth + 8) * 0.25));
+  const margin = 26;
+  const availableW = Math.max(300, width - marginLeft - margin);
+  const availableH = Math.max(300, height - margin * 2);
+  const scale = Math.max(0.74, Math.min(1.0, Math.min(availableW / 1260, availableH / 820)));
+  const ox = marginLeft + Math.max(10, (availableW - 1120 * scale) * 0.5);
+  const oy = margin + Math.max(10, (availableH - 760 * scale) * 0.5);
+  const sx = (value) => ox + value * scale;
+  const sy = (value) => oy + value * scale;
+  const sw = (value) => value * scale;
+
+  let row = chipDebugRowAtTick(currentTickIndex);
+  if (!row && Array.isArray(chipDebugData?.rows) && chipDebugData.rows.length > 0) {
+    row = chipDebugData.rows[0];
+  }
+  if (!row) {
+    ctx.fillStyle = '#eef4ff';
+    ctx.font = '18px ui-monospace, monospace';
+    ctx.fillText('No debug sidecar sample is available for the current tick.', sx(0), sy(60));
+    updateHud();
+    return;
+  }
+
+  ctx.fillStyle = '#eef4ff';
+  ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
+  ctx.textAlign = 'left';
+  ctx.fillText('Chip 0 Sidecar View: Nifty Register 125 Proof', sx(0), sy(24));
+  ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+  ctx.fillStyle = '#aeb8ca';
+  const replyPacket = chipDebugData?.summary?.reply_packet || 'n/a';
+  ctx.fillText(`debug source ${chipDebugData.sourceUrl.split('/').pop()} | reply ${replyPacket}`, sx(0), sy(48));
+
+  const niftyCtrlRect = { left: sx(0), top: sy(92), width: sw(245), height: sw(128) };
+  const niftyCfgRect = { left: sx(290), top: sy(92), width: sw(235), height: sw(128) };
+  const arbiterRect = { left: sx(570), top: sy(92), width: sw(220), height: sw(128) };
+  const commsRect = { left: sx(840), top: sy(92), width: sw(245), height: sw(128) };
+  const regfileRect = { left: sx(570), top: sy(280), width: sw(220), height: sw(116) };
+  const timelineRect = { left: sx(0), top: sy(450), width: sw(1085), height: sw(255) };
+
+  drawComponentBox(
+    niftyCtrlRect,
+    'nifty_ctrl',
+    [
+      `cfg_cmd_valid: ${row.nifty_cfg_cmd_valid}`,
+      `cfg_cmd_write: ${row.nifty_cfg_cmd_write}`,
+      `stored readback: 0x${Number(row.nifty_local_reg125_read_data || 0).toString(16).toUpperCase().padStart(2, '0')}`,
+      `target reg: 125`,
+    ],
+    { active: Number(row.nifty_cfg_cmd_valid || 0) === 1 || Number(row.nifty_local_reg125_read_data || 0) !== 0, accent: '#7cff7c' },
+  );
+  drawComponentBox(
+    niftyCfgRect,
+    'nifty_config_ctrl',
+    [
+      `write_regmap: ${row.nifty_write_regmap}`,
+      `read_regmap: ${row.nifty_read_regmap}`,
+      `nifty_read_valid: ${row.nifty_regmap_read_data_valid}`,
+      `cmd data: 0x${Number(row.regmap_write_data || 0).toString(16).toUpperCase().padStart(2, '0')}`,
+    ],
+    { active: Number(row.nifty_write_regmap || 0) === 1 || Number(row.nifty_read_regmap || 0) === 1 || Number(row.nifty_regmap_read_data_valid || 0) === 1, accent: '#4db0ff' },
+  );
+  drawComponentBox(
+    arbiterRect,
+    'external_interface arbiter',
+    [
+      `write_regmap: ${row.write_regmap}`,
+      `read_regmap: ${row.read_regmap}`,
+      `owner: ${Number(row.regmap_read_owner || 0) === 1 ? 'NIFTY' : 'COMMS'}`,
+      `comms_read_regmap: ${row.comms_read_regmap}`,
+    ],
+    { active: Number(row.write_regmap || 0) === 1 || Number(row.read_regmap || 0) === 1 || Number(row.comms_read_regmap || 0) === 1, accent: '#ffcf4d' },
+  );
+  drawComponentBox(
+    commsRect,
+    'comms_ctrl',
+    [
+      `state: ${commsStateName(row.comms_state)}`,
+      `next: ${commsStateName(row.comms_next_state)}`,
+      `external read pulse: ${row.comms_read_regmap}`,
+      `external write pulse: ${row.comms_write_regmap}`,
+      `regmap addr: ${row.comms_regmap_address}`
+    ],
+    { active: Number(row.comms_read_regmap || 0) === 1 || Number(row.comms_write_regmap || 0) === 1 || Number(row.comms_state || 0) !== 0, accent: '#b46cff' },
+  );
+  drawComponentBox(
+    regfileRect,
+    'config_regfile',
+    [
+      `addr: ${row.regmap_address}`,
+      `write_data: 0x${Number(row.regmap_write_data || 0).toString(16).toUpperCase().padStart(2, '0')}`,
+      `read_data: 0x${Number(row.regmap_read_data || 0).toString(16).toUpperCase().padStart(2, '0')}`,
+      `reg125: 0x${Number(row.reg125_config || 0).toString(16).toUpperCase().padStart(2, '0')}`,
+    ],
+    { active: Number(row.write_regmap || 0) === 1 || Number(row.read_regmap || 0) === 1 || Number(row.reg125_config || 0) !== 0, accent: '#61e294' },
+  );
+
+  drawFlowArrow(niftyCtrlRect.left + niftyCtrlRect.width, niftyCtrlRect.top + niftyCtrlRect.height * 0.5, niftyCfgRect.left, niftyCfgRect.top + niftyCfgRect.height * 0.5, '#7cff7c', Number(row.nifty_cfg_cmd_valid || 0) === 1, Number(row.nifty_cfg_cmd_write || 0) === 1 ? 'write cmd' : Number(row.nifty_cfg_cmd_valid || 0) === 1 ? 'read cmd' : '');
+  drawFlowArrow(niftyCfgRect.left + niftyCfgRect.width, niftyCfgRect.top + niftyCfgRect.height * 0.38, arbiterRect.left, arbiterRect.top + arbiterRect.height * 0.38, '#4db0ff', Number(row.nifty_write_regmap || 0) === 1 || Number(row.nifty_read_regmap || 0) === 1, Number(row.nifty_write_regmap || 0) === 1 ? 'local write' : Number(row.nifty_read_regmap || 0) === 1 ? 'local read' : '');
+  drawFlowArrow(commsRect.left, commsRect.top + commsRect.height * 0.5, arbiterRect.left + arbiterRect.width, arbiterRect.top + arbiterRect.height * 0.62, '#b46cff', Number(row.comms_read_regmap || 0) === 1, Number(row.comms_read_regmap || 0) === 1 ? 'priority read' : '');
+  drawFlowArrow(arbiterRect.left + arbiterRect.width * 0.5, arbiterRect.top + arbiterRect.height, regfileRect.left + regfileRect.width * 0.5, regfileRect.top, '#61e294', Number(row.write_regmap || 0) === 1 || Number(row.read_regmap || 0) === 1, Number(row.write_regmap || 0) === 1 ? 'commit write' : Number(row.read_regmap || 0) === 1 ? 'issue read' : '');
+  drawFlowArrow(regfileRect.left, regfileRect.top + regfileRect.height * 0.6, niftyCfgRect.left + niftyCfgRect.width * 0.5, niftyCfgRect.top + niftyCfgRect.height, '#61e294', Number(row.nifty_regmap_read_data_valid || 0) === 1, Number(row.nifty_regmap_read_data_valid || 0) === 1 ? 'owner=NIFTY' : '');
+  drawFlowArrow(regfileRect.left + regfileRect.width, regfileRect.top + regfileRect.height * 0.38, commsRect.left + commsRect.width * 0.5, commsRect.top + commsRect.height, '#b46cff', false, '');
+
+  const windowRows = debugWindowRows(currentTickIndex, 16, 30);
+  drawSignalTimeline(
+    timelineRect,
+    windowRows,
+    [
+      { key: 'nifty_cfg_cmd_valid', label: 'nifty_cfg_cmd_valid', kind: 'binary', color: '#7cff7c', value: (r) => r.nifty_cfg_cmd_valid },
+      { key: 'nifty_write_regmap', label: 'nifty_write_regmap', kind: 'binary', color: '#4db0ff', value: (r) => r.nifty_write_regmap },
+      { key: 'nifty_read_regmap', label: 'nifty_read_regmap', kind: 'binary', color: '#ffb04d', value: (r) => r.nifty_read_regmap },
+      { key: 'comms_read_regmap', label: 'comms_read_regmap', kind: 'binary', color: '#b46cff', value: (r) => r.comms_read_regmap },
+      { key: 'comms_write_regmap', label: 'comms_write_regmap', kind: 'binary', color: '#d784ff', value: (r) => r.comms_write_regmap },
+      { key: 'comms_state', label: 'comms_state', kind: 'value', color: '#cdb4ff', value: (r) => r.comms_state, maxValue: 3 },
+      { key: 'owner', label: 'regmap_read_owner', kind: 'binary', color: '#f0e6ff', value: (r) => r.regmap_read_owner },
+      { key: 'reg125', label: 'reg125_config', kind: 'value', color: '#61e294', value: (r) => r.reg125_config, maxValue: 4 },
+      { key: 'nifty_local', label: 'nifty_local_reg125_read', kind: 'value', color: '#ff8fb0', value: (r) => r.nifty_local_reg125_read_data, maxValue: 4 },
+    ],
+    currentTickIndex,
+  );
+
+  updateHud();
+}
+
+function drawChipInternalView(width, height) {
+  if (chipDebugData?.kind === 'v3c_2x2_packet_loss_chip0') {
+    drawV3cPacketLossChip0View(width, height);
+    return;
+  }
+  if (chipDebugData?.kind === 'v3c_3x3_convergent_packet_loss_chip4') {
+    drawV3cConvergentPacketLossChip4View(width, height);
+    return;
+  }
+  if (chipDebugData?.kind === 'nifty_reg125_proof') {
+    drawNiftyReg125ProofView(width, height);
+    return;
+  }
+  if (chipDebugData?.kind === 'chip1_south_tx_only') {
+    drawSingleChipTimelineView(width, height);
+    return;
+  }
+  if (chipDebugData?.kind === 'chip1_south_tx_chip0_north_rx_focus') {
+    drawChip1SouthTxChip0NorthRxFocusView(width, height);
+    return;
+  }
+  if (chipDebugData?.kind === 'chip0_north_tx_chip1_south_rx_focus') {
+    drawChip0NorthTxChip1SouthRxFocusView(width, height);
+    return;
+  }
+  ctx.fillStyle = '#0a0d12';
+  ctx.fillRect(0, 0, width, height);
+
+  const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
+  const marginLeft = hudWidth + 1;
   const margin = 26;
   const availableW = Math.max(260, width - marginLeft - margin);
   const availableH = Math.max(260, height - margin * 2);
@@ -848,10 +1820,10 @@ function drawChipInternalView(width, height) {
     ctx.fillStyle = '#e6ecf8';
     ctx.font = '18px ui-monospace, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Chip 0 internal view is unavailable for this playback.', marginLeft + availableW * 0.5, margin + 80);
+    ctx.fillText('Chip internal view is unavailable for this playback.', marginLeft + availableW * 0.5, margin + 80);
     ctx.font = '13px ui-monospace, monospace';
     ctx.fillStyle = '#aeb8ca';
-    ctx.fillText('Expected a chip0_rx_debug.csv sidecar next to the playback JSON.', marginLeft + availableW * 0.5, margin + 108);
+    ctx.fillText('Expected a chip debug sidecar next to the playback JSON.', marginLeft + availableW * 0.5, margin + 108);
     ctx.textAlign = 'left';
     updateHud();
     return;
@@ -872,9 +1844,10 @@ function drawChipInternalView(width, height) {
     monitorChip = state?.get(`${playback.source.x},${playback.source.y}`) || null;
   }
 
-  const scale = Math.max(0.68, Math.min(1.0, Math.min(availableW / 1260, availableH / 720)));
+  const baseScale = Math.max(0.68, Math.min(1.0, Math.min(availableW / 1260, availableH / 720)));
+  const scale = baseScale * chipViewZoom;
   const ox = marginLeft + Math.max(10, (availableW - 1120 * scale) * 0.5);
-  const oy = margin + Math.max(10, (availableH - 610 * scale) * 0.5);
+  const oy = margin + 8;
   const sx = (value) => ox + value * scale;
   const sy = (value) => oy + value * scale;
   const sw = (value) => value * scale;
@@ -882,172 +1855,43 @@ function drawChipInternalView(width, height) {
   ctx.fillStyle = '#eef4ff';
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
-  ctx.fillText('Chip 0 Internal View', sx(0), sy(24));
+  ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
   ctx.fillStyle = '#aeb8ca';
-  const chipMeta = monitorChip ? `monitoring chip_id ${monitorChip.chip_id} at (${monitorChip.x},${monitorChip.y})` : 'monitoring chip_id 0';
+  const chipMeta = monitorChip ? `monitoring chip_id ${monitorChip.chip_id} at (${monitorChip.x},${monitorChip.y})` : `monitoring chip_id ${chipDebugData.monitorChipId ?? 0}`;
   ctx.fillText(`${chipMeta} | debug source ${chipDebugData.sourceUrl.split('/').pop()}`, sx(0), sy(48));
 
   if (!row) {
     ctx.fillStyle = '#e6ecf8';
     ctx.font = '16px ui-monospace, monospace';
     ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
+    ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
+    ctx.fillStyle = '#ffcf4d';
+    ctx.fillText(`debug rows: ${Array.isArray(chipDebugData?.rows) ? chipDebugData.rows.length : 'n/a'}`, sx(0), sy(118));
+    ctx.fillText(`debug ticks: ${Array.isArray(chipDebugData?.ticks) ? chipDebugData.ticks.length : 'n/a'}`, sx(0), sy(138));
+    ctx.fillText(`currentTickIndex: ${String(currentTickIndex)}`, sx(0), sy(158));
     updateHud();
     return;
   }
 
-  const laneRects = {
-    north: { left: sx(0), top: sy(96), width: sw(250), height: sw(104) },
-    east: { left: sx(0), top: sy(224), width: sw(250), height: sw(104) },
-    south: { left: sx(0), top: sy(352), width: sw(250), height: sw(104) },
-    west: { left: sx(0), top: sy(480), width: sw(250), height: sw(104) },
-  };
-  const hydraRect = { left: sx(335), top: sy(170), width: sw(300), height: sw(210) };
-  const commsRect = { left: sx(715), top: sy(96), width: sw(260), height: sw(150) };
-  const msgLogicRect = { left: sx(1020), top: sy(82), width: sw(220), height: sw(150) };
-  const msgFifoRect = { left: sx(1020), top: sy(282), width: sw(220), height: sw(150) };
-  const fifoRect = { left: sx(715), top: sy(322), width: sw(260), height: sw(150) };
-  const txRect = { left: sx(430), top: sy(530), width: sw(145), height: sw(108) };
+  const windowRows = debugWindowRows(currentTickIndex, 20, 28);
+  const laneTopOffsets = [70, 335, 600];
+  const laneRects = chipLaneTimelineOrder.map((lane, index) => ({
+    lane,
+    rect: { left: sx(0), top: sy(laneTopOffsets[index]), width: sw(1230), height: sw(235) },
+  }));
+  for (const { lane, rect } of laneRects) {
+    drawSignalTimeline(rect, windowRows, laneSignalSpecs(lane), currentTickIndex);
+  }
 
-  const laneWord = (lane) => formatHexWord(row[`${lane}_rx_data`]);
-  const holdWord = (lane) => formatHexWord(row[`${lane}_hold_reg`]);
-  const laneActive = (lane) => Number(row[`${lane}_rx_empty`] || 0) === 0 || Number(row[`${lane}_hold_valid`] || 0) === 1 || maskHasLane(row.hydra_sel_onehot, EDGE_TO_BIT[lane]) || maskHasLane(row.hydra_uld_rx_data_uart, EDGE_TO_BIT[lane]);
-  const commsPacketWord = formatHexWord(row.hydra_comms_rcvd_pkt);
-  const commsPacketType = packetTypeNameFromWord(row.hydra_comms_rcvd_pkt);
-  const commsRoutesToMsg = Number(row.msg_valid || 0) === 1;
-  const commsRoutesToShared = Number(row.hydra_pkt_valid || 0) === 1 || Number(row.hydra_fifo_write_n || 0) === 0;
-  const msgGenerated = Number(row.msg_generated_valid || 0) === 1;
-  const msgFifoOccupancy = Number(row.msg_fifo_counter_debug || 0);
-  const msgFifoActive = msgGenerated || commsRoutesToMsg || msgFifoOccupancy > 0 || Number(row.msg_fifo_read_n || 1) === 0;
-  const msgSourceLabel = commsRoutesToMsg ? 'from comms_ctrl' : (msgGenerated ? 'local generator' : 'idle');
-
-  for (const lane of ['north', 'east', 'south', 'west']) {
-    drawComponentBox(
-      laneRects[lane],
-      `UART RX ${lane.toUpperCase()}`,
-      [
-        `empty: ${row[`${lane}_rx_empty`]}`,
-        `hold_valid: ${row[`${lane}_hold_valid`]}`,
-        `rx_data: ${abbreviateWord(laneWord(lane))}`,
-        `hold_reg: ${abbreviateWord(holdWord(lane))}`,
-      ],
-      { active: laneActive(lane), accent: lane === 'north' ? '#4db0ff' : lane === 'east' ? '#ffb04d' : '#8192ad' },
+  if (row && ('chip_fifo_occupancy' in row || 'south_hydra_pending_valid' in row)) {
+    drawSignalTimeline(
+      { left: sx(0), top: sy(865), width: sw(1230), height: sw(180) },
+      windowRows,
+      txPathSignalSpecs(),
+      currentTickIndex,
     );
   }
-
-  drawComponentBox(
-    hydraRect,
-    'Hydra Ctrl',
-    [
-      `state: ${hydraStateName(row.hydra_state)}`,
-      `next: ${hydraStateName(row.hydra_next_state)}`,
-      `sel_onehot: ${laneNamesFromMask(row.hydra_sel_onehot).join(',') || 'none'}`,
-      `uld_rx: ${laneNamesFromMask(row.hydra_uld_rx_data_uart).join(',') || 'none'}`,
-      `rx_data_flag: ${row.hydra_rx_data_flag}`,
-      `rx_data: ${abbreviateWord(formatHexWord(row.hydra_rx_data_word))}`,
-      `fifo_write_n: ${row.hydra_fifo_write_n}`,
-      `tx side active: ${([3, 4, 5].includes(Number(row.hydra_state)) || [3, 4, 5].includes(Number(row.hydra_next_state))) ? 'yes' : 'no'}`,
-    ],
-    { active: true, accent: '#6fd3ff' },
-  );
-
-  drawComponentBox(
-    commsRect,
-    'Comms Ctrl',
-    [
-      `busy: ${row.hydra_comms_busy}`,
-      `type: ${commsPacketWord === '—' ? '—' : commsPacketType}`,
-      `shared pkt_valid: ${row.hydra_pkt_valid}`,
-      `msg_valid: ${row.msg_valid ?? '—'}`,
-      `route: ${commsRoutesToMsg ? 'msg_logic' : commsRoutesToShared ? 'shared fifo' : 'idle'}`,
-      `rcvd_pkt: ${abbreviateWord(commsPacketWord)}`,
-      `read_pkt: ${abbreviateWord(formatHexWord(row.hydra_comms_read_pkt))}`,
-    ],
-    { active: Number(row.hydra_rx_data_flag || 0) === 1 || formatHexWord(row.hydra_comms_rcvd_pkt) !== '—', accent: '#7cff7c' },
-  );
-
-  drawComponentBox(
-    msgLogicRect,
-    'Msg Logic',
-    [
-      `ready_for_msg: ${row.ready_for_msg ?? '—'}`,
-      `msg_valid_in: ${row.msg_valid ?? '—'}`,
-      `generated: ${row.msg_generated_valid ?? '—'}`,
-      `fifo_write_n: ${row.msg_fifo_write_n ?? '—'}`,
-      `source: ${msgSourceLabel}`,
-      `msg_in: ${abbreviateWord(formatHexWord(row.msg_pkt_data))}`,
-      `fifo_data_in: ${abbreviateWord(formatHexWord(row.msg_fifo_data_in))}`,
-    ],
-    { active: msgGenerated || commsRoutesToMsg || Number(row.msg_fifo_write_n || 1) === 0, accent: '#ffcf4d' },
-  );
-
-  const txActive = [3, 4, 5].includes(Number(row.hydra_state)) || [3, 4, 5].includes(Number(row.hydra_next_state));
-  const currentTick = tickData();
-  const outboundPacket = (currentTick.packetEvents || []).find((event) => Array.isArray(event.src) && monitorChip && event.src[0] === monitorChip.x && event.src[1] === monitorChip.y)
-    || (monitorChip && playback?.source && monitorChip.x === playback.source.x && monitorChip.y === playback.source.y
-      ? (currentTick.fpgaRxEvents || [])[0]
-      : null);
-
-  drawComponentBox(
-    fifoRect,
-    'Shared FIFO',
-    [
-      `occupancy: ${sharedFifoOccupancyAt(monitorChip?.x || 0, monitorChip?.y || 0, currentTickIndex)}/${playback?._sharedFifoScaleMax || 1}`,
-      `fifo_ctr: ${row.hydra_fifo_counter_debug ?? '—'}`,
-      `wr_ptr: ${row.hydra_fifo_write_pointer ?? '—'} | rd_ptr: ${row.hydra_fifo_read_pointer ?? '—'}`,
-      `fifo_read_n: ${row.hydra_fifo_read_n ?? '—'} | fifo_write_n(int): ${row.hydra_fifo_write_n_internal ?? '—'}`,
-      `fifo_write_n: ${row.hydra_fifo_write_n}`,
-      `write active: ${Number(row.hydra_fifo_write_n || 0) === 0 ? 'yes' : 'no'}`,
-      `queued read_pkt: ${abbreviateWord(formatHexWord(row.hydra_comms_read_pkt))}`,
-      `fifo_rd_data: ${abbreviateWord(formatHexWord(row.hydra_fifo_rd_data))}`,
-      `fifo_mem0: ${abbreviateWord(formatHexWord(row.hydra_fifo_mem0))}`,
-      `fifo_mem1: ${abbreviateWord(formatHexWord(row.hydra_fifo_mem1))}`,
-    ],
-    { active: Number(row.hydra_fifo_write_n || 0) === 0 || sharedFifoOccupancyAt(monitorChip?.x || 0, monitorChip?.y || 0, currentTickIndex) > 0, accent: '#61e294' },
-  );
-
-  drawComponentBox(
-    msgFifoRect,
-    'Msg FIFO',
-    [
-      `occupancy: ${msgFifoOccupancy}/4`,
-      `empty: ${row.msg_fifo_empty ?? '—'}`,
-      `read_n: ${row.msg_fifo_read_n ?? '—'}`,
-      `data_out: ${abbreviateWord(formatHexWord(row.msg_fifo_data_out))}`,
-      `mem0: ${abbreviateWord(formatHexWord(row.msg_fifo_mem0))}`,
-      `mem1: ${abbreviateWord(formatHexWord(row.msg_fifo_mem1))}`,
-    ],
-    { active: msgFifoActive, accent: '#ffcf4d' },
-  );
-
-  drawComponentBox(
-    txRect,
-    'UART TX',
-    [
-      `outbound: ${outboundPacket ? outboundPacket.packet_type : 'idle'}`,
-      `shared data: ${abbreviateWord(formatHexWord(row.hydra_fifo_rd_data))}`,
-      `msg data: ${abbreviateWord(formatHexWord(row.msg_fifo_data_out))}`,
-      `packet event: ${abbreviateWord(outboundPacket?.packet_word || '—')}`,
-      `source: ${Number(row.msg_fifo_read_n || 1) === 0 ? 'msg_fifo via Hydra' : 'Hydra Ctrl'}`,
-    ],
-    { active: txActive || Boolean(outboundPacket), accent: '#d7a6ff' },
-  );
-
-  for (const lane of ['north', 'east', 'south', 'west']) {
-    const laneRect = laneRects[lane];
-    const color = lane === 'north' ? '#4db0ff' : lane === 'east' ? '#ffb04d' : '#8192ad';
-    const selected = maskHasLane(row.hydra_sel_onehot, EDGE_TO_BIT[lane]);
-    const populated = Number(row[`${lane}_rx_empty`] || 0) === 0;
-    drawFlowArrow(laneRect.left + laneRect.width, laneRect.top + laneRect.height * 0.5, hydraRect.left, hydraRect.top + hydraRect.height * 0.5, color, selected || populated, selected ? 'selected' : populated ? 'ready' : 'idle');
-  }
-
-  drawFlowArrow(hydraRect.left + hydraRect.width, hydraRect.top + hydraRect.height * 0.34, commsRect.left, commsRect.top + commsRect.height * 0.38, '#7cff7c', Number(row.hydra_rx_data_flag || 0) === 1 || formatHexWord(row.hydra_comms_rcvd_pkt) !== '—', Number(row.hydra_rx_data_flag || 0) === 1 ? 'rx_data_flag' : 'stale/current');
-  drawFlowArrow(commsRect.left + commsRect.width, commsRect.top + commsRect.height * 0.4, msgLogicRect.left, msgLogicRect.top + msgLogicRect.height * 0.4, '#ffcf4d', commsRoutesToMsg, commsRoutesToMsg ? 'MSG_OP -> msg_logic' : 'MSG path');
-  drawFlowArrow(commsRect.left + commsRect.width * 0.45, commsRect.top + commsRect.height, fifoRect.left + fifoRect.width * 0.5, fifoRect.top, '#61e294', commsRoutesToShared, commsRoutesToShared ? 'non-MSG -> shared' : 'shared path');
-  drawFlowArrow(msgLogicRect.left + msgLogicRect.width * 0.5, msgLogicRect.top + msgLogicRect.height, msgFifoRect.left + msgFifoRect.width * 0.5, msgFifoRect.top, '#ffcf4d', Number(row.msg_fifo_write_n || 1) === 0, Number(row.msg_fifo_write_n || 1) === 0 ? 'enqueue' : 'idle');
-  drawFlowArrow(msgFifoRect.left, msgFifoRect.top + msgFifoRect.height * 0.62, hydraRect.left + hydraRect.width * 0.84, hydraRect.top + hydraRect.height, '#ffcf4d', Number(row.msg_fifo_read_n || 1) === 0 || msgFifoOccupancy > 0, Number(row.msg_fifo_read_n || 1) === 0 ? 'msg read' : 'queued');
-  drawFlowArrow(fifoRect.left, fifoRect.top + fifoRect.height * 0.5, hydraRect.left + hydraRect.width * 0.72, hydraRect.top + hydraRect.height, '#61e294', txActive || Boolean(outboundPacket), txActive ? 'shared read' : 'idle');
-  drawFlowArrow(hydraRect.left + hydraRect.width * 0.5, hydraRect.top + hydraRect.height, txRect.left + txRect.width * 0.5, txRect.top, '#d7a6ff', txActive || Boolean(outboundPacket), txActive ? 'TX_SEND' : 'idle');
 
   updateHud();
 }
@@ -1145,7 +1989,7 @@ function drawNetworkView(width, height) {
       ctx.textBaseline = 'alphabetic';
 
       if (sharedFifoVisible()) {
-        drawSharedFifoBar(left, top, cell, sharedFifoOccupancyAt(gx, gy, currentTickIndex), playback._sharedFifoScaleMax || 1);
+        drawSharedFifoCounter(left, top, cell, sharedFifoOccupancyAt(gx, gy, currentTickIndex));
       }
     }
   }
@@ -1169,8 +2013,8 @@ function drawNetworkView(width, height) {
 }
 
 function draw() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+  const width = canvas.clientWidth || window.innerWidth;
+  const height = canvas.clientHeight || window.innerHeight;
   if (currentView === 'chip') {
     drawChipInternalView(width, height);
     return;
@@ -1251,14 +2095,15 @@ async function loadPlaybackFromObject(obj, options = {}) {
   selectedTarget = null;
   scrubber.max = String(Math.max(0, playback.total_ticks || 0));
   scrubber.value = '0';
-  draw();
+  resize();
 }
 
 async function loadPlaybackFromUrl(url) {
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`failed to load ${url}`);
   const obj = await response.json();
-  await loadPlaybackFromObject(obj, { sourceUrl: url });
+  const resolvedUrl = new URL(url, window.location.href).toString();
+  await loadPlaybackFromObject(obj, { sourceUrl: resolvedUrl });
 }
 
 playPauseBtn.addEventListener('click', togglePlay);
@@ -1301,6 +2146,30 @@ showRunMetricsBtn?.addEventListener('click', () => {
 
 showNetworkViewBtn?.addEventListener('click', () => setCurrentView('network'));
 showChipViewBtn?.addEventListener('click', () => setCurrentView('chip'));
+chipZoomOutBtn?.addEventListener('click', () => {
+  chipViewZoom = Math.max(0.7, Math.round((chipViewZoom - 0.1) * 10) / 10);
+  resize();
+});
+chipZoomInBtn?.addEventListener('click', () => {
+  chipViewZoom = Math.min(1.8, Math.round((chipViewZoom + 0.1) * 10) / 10);
+  resize();
+});
+timelineSpanOutBtn?.addEventListener('click', () => {
+  chipTimelineSpanScale = Math.max(0.5, Math.round((chipTimelineSpanScale - 0.25) * 100) / 100);
+  updateTimelineSpanStatus();
+  draw();
+});
+timelineSpanInBtn?.addEventListener('click', () => {
+  chipTimelineSpanScale = Math.min(4.0, Math.round((chipTimelineSpanScale + 0.25) * 100) / 100);
+  updateTimelineSpanStatus();
+  draw();
+});
+laneNorthUpBtn?.addEventListener('click', () => moveLaneTimeline('north', -1));
+laneNorthDownBtn?.addEventListener('click', () => moveLaneTimeline('north', 1));
+laneWestUpBtn?.addEventListener('click', () => moveLaneTimeline('west', -1));
+laneWestDownBtn?.addEventListener('click', () => moveLaneTimeline('west', 1));
+laneEastUpBtn?.addEventListener('click', () => moveLaneTimeline('east', -1));
+laneEastDownBtn?.addEventListener('click', () => moveLaneTimeline('east', 1));
 
 runMetricsPopupCloseEl?.addEventListener('click', () => {
   runMetricsPopupEl?.classList.add('hidden');
@@ -1347,8 +2216,12 @@ function animate(ts) {
 }
 
 applyHudWidth(loadHudWidth());
+updateTimelineSpanStatus();
+updateChipViewHudControls();
+updateLaneOrderStatus();
 resize();
-const playbackUrl = new URLSearchParams(window.location.search).get('playback') || '../../../build/larpix_2x2_msg_probe/live_event_2x2_msg_probe.json';
+const playbackUrl = new URLSearchParams(window.location.search).get('playback')
+  || 'playback/v3c_2x2_packet_loss_probe/live_event_2x2_packet_loss_probe.json';
 loadPlaybackFromUrl(playbackUrl).catch((error) => {
   scenarioEl.textContent = 'Scenario: failed to load sample';
   selectionEl.textContent = error.message;

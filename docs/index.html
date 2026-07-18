@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LArPix Event Playback Visualizer</title>
-  <link rel="stylesheet" href="style.css?v=chip-view-6">
+  <link rel="stylesheet" href="style.css?v=chip-view-31">
 </head>
 <body>
   <aside id="hud">
@@ -24,6 +24,32 @@
     <div class="view-tabs">
       <button id="showNetworkView" class="view-tab active">Network View</button>
       <button id="showChipView" class="view-tab">Chip 0 View</button>
+    </div>
+    <div class="controls">
+      <button id="chipZoomOut" type="button">-</button>
+      <button id="chipZoomIn" type="button">+</button>
+    </div>
+    <div class="controls">
+      <button id="timelineSpanOut" type="button">Ticks -</button>
+      <button id="timelineSpanIn" type="button">Ticks +</button>
+    </div>
+    <div id="timelineSpanStatus" class="small">Timeline span: 1.0x</div>
+    <div id="laneOrderControls" hidden>
+      <div class="sep"></div>
+      <div class="small caps">Lane Order</div>
+      <div id="laneOrderStatus" class="small">Top to bottom: north, west, east</div>
+      <div class="controls">
+        <button id="laneNorthUp" type="button">North Up</button>
+        <button id="laneNorthDown" type="button">North Down</button>
+      </div>
+      <div class="controls">
+        <button id="laneWestUp" type="button">West Up</button>
+        <button id="laneWestDown" type="button">West Down</button>
+      </div>
+      <div class="controls">
+        <button id="laneEastUp" type="button">East Up</button>
+        <button id="laneEastDown" type="button">East Down</button>
+      </div>
     </div>
     <label class="row">
       <span>Speed</span>
@@ -137,6 +163,6 @@
     <div id="runMetricsPopupBody" class="floating-panel-body"></div>
   </div>
   <canvas id="board"></canvas>
-  <script type="module" src="main.js?v=chip-view-6"></script>
+  <script type="module" src="main.js?v=chip-view-39"></script>
 </body>
 </html>

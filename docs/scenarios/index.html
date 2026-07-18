@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Accepted LArPix v3c network verification scenario playbacks.">
+  <title>LArPix v3c Verification Scenarios</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow">RTLSwarm verification archive</p>
+    <h1>LArPix v3c<br>scenario playbacks</h1>
+    <p class="lede">
+      Tick-accurate records of the accepted network startup, packet routing,
+      contention, and event-deposition investigations.
+    </p>
+  </header>
+
+  <main>
+    <section class="scenario-grid" aria-label="Verification scenarios">
+      <a class="scenario-card card-coral" href="v3c-2x2-packet-loss-probe/">
+        <div class="card-topline"><span>01</span><span>2 x 2 network</span></div>
+        <h2>Packet-loss probe</h2>
+        <p>Two 64-packet streams converge through chip 0 with chip-internal UART and Hydra timelines.</p>
+        <div class="card-metric"><strong>128</strong><span>packets delivered</span></div>
+        <span class="launch">Open playback</span>
+      </a>
+
+      <a class="scenario-card card-gold" href="v3c-3x3-convergent-packet-loss-read-contention/">
+        <div class="card-topline"><span>02</span><span>3 x 3 network</span></div>
+        <h2>Convergent traffic and read contention</h2>
+        <p>Three event streams converge on chip 4 while configuration reads travel upstream.</p>
+        <div class="card-metric"><strong>192 + 4</strong><span>data packets + read replies</span></div>
+        <span class="launch">Open playback</span>
+      </a>
+
+      <a class="scenario-card card-blue" href="v3c-10x10-unconfigured-network-startup/">
+        <div class="card-topline"><span>03</span><span>10 x 10 network</span></div>
+        <h2>Unconfigured-network startup</h2>
+        <p>One hundred reset-state chips receive IDs and routing configuration through the live network.</p>
+        <div class="card-metric"><strong>445</strong><span>configuration writes</span></div>
+        <span class="launch">Open playback</span>
+      </a>
+
+      <a class="scenario-card card-mint" href="v3c-15x15-two-track-charge-deposition/">
+        <div class="card-topline"><span>04</span><span>15 x 15 network</span></div>
+        <h2>Two-track charge deposition</h2>
+        <p>Two staggered tracks generate convergent event traffic across a preconfigured network.</p>
+        <div class="card-metric"><strong>208</strong><span>packets delivered</span></div>
+        <span class="launch">Open playback</span>
+      </a>
+    </section>
+  </main>
+
+  <footer>
+    <span>LArPix RTL variant v3c</span>
+    <a href="../">Open visualizer</a>
+  </footer>
+</body>
+</html>
