@@ -1,0 +1,31 @@
+{
+  "scenario": "2x2 RTL-Preconfigured Packet Loss Probe",
+  "source_runtime_id": 0,
+  "injected_runtime_ids": [
+    1,
+    2
+  ],
+  "injection_tick": 1000,
+  "channels_per_injected_chip": 64,
+  "chip0_rx_packet_counts_by_edge": {
+    "north": 63,
+    "east": 63,
+    "south": 0,
+    "west": 0
+  },
+  "chip0_rx_distinct_source_chip_ids_by_edge": {
+    "north": [
+      2
+    ],
+    "east": [
+      1
+    ]
+  },
+  "chip0_tx_packet_count": 64,
+  "fpga_unique_packet_counts_by_chip_id": {
+    "2": 32
+  },
+  "fpga_arrival_counts_by_chip_id": {
+    "2": 64
+  }
+}

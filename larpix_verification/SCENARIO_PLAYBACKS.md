@@ -130,3 +130,65 @@ packet arrived at tick 16252.
   [15x15 Two-Track Charge Deposition](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3c-15x15-two-track-charge-deposition/)
 
 The playback and FIFO occupancy plot have no required chip-debug sidecars.
+
+## Comparison with v3b RTL
+
+These runs repeat the accepted v3c scenarios with the v3b RTL. They are
+comparison artifacts, not accepted verification baselines. In particular, the
+packet-transport scenarios expose packet construction, loss, and duplicate
+arrival behavior that is not present in the corresponding v3c runs.
+
+### v3b 2x2 Packet-Loss Probe
+
+The two injected chips constructed 126 packets rather than 128 because channel
+63 was omitted. The FPGA received 32 unique packets and 64 total arrivals; all
+received packets identified chip 2 as their source.
+
+- Playback JSON:
+  [`live_event_2x2_packet_loss_probe.json`](verification_scenarios/v3b_2x2_packet_loss_probe/live_event_2x2_packet_loss_probe.json)
+- Packet-loss summary:
+  [`packet_loss_summary.json`](verification_scenarios/v3b_2x2_packet_loss_probe/packet_loss_summary.json)
+- Stable visualizer page:
+  [v3b 2x2 Packet-Loss Probe](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3b-2x2-packet-loss-probe/)
+
+### v3b 3x3 Convergent Packet-Loss and Read-Contention Probe
+
+The three injected chips constructed 189 packets rather than 192. The FPGA
+received 21 unique packets and 63 total arrivals, and no chip-7 configuration
+read replies reached the FPGA.
+
+- Playback JSON:
+  [`live_event_3x3_convergent_packet_loss_probe.json`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/live_event_3x3_convergent_packet_loss_probe.json)
+- Required chip-4 debug sidecar:
+  [`chip4_rx_debug.csv`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/chip4_rx_debug.csv)
+- Required chip-0 debug sidecar:
+  [`chip0_rx_debug.csv`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/chip0_rx_debug.csv)
+- Packet-loss and routing summary:
+  [`packet_loss_summary.json`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/packet_loss_summary.json)
+- Stable visualizer page:
+  [v3b 3x3 Convergent Traffic and Read Contention](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3b-3x3-convergent-packet-loss-read-contention/)
+
+### v3b 10x10 Unconfigured-Network Startup
+
+The v3b network completed the same 445-write startup schedule and assigned chip
+IDs 0 through 99.
+
+- Playback JSON:
+  [`live_bootstrap_10x10.json`](verification_scenarios/v3b_10x10_unconfigured_network_startup/live_bootstrap_10x10.json)
+- Bootstrap summary:
+  [`bootstrap_summary.json`](verification_scenarios/v3b_10x10_unconfigured_network_startup/bootstrap_summary.json)
+- Stable visualizer page:
+  [v3b 10x10 Unconfigured-Network Startup](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3b-10x10-unconfigured-network-startup/)
+
+### v3b 15x15 Two-Track Charge Deposition
+
+All 208 event packets were constructed. The FPGA received 73 unique packets
+and 85 total arrivals, for a unique delivery ratio of 35.1 percent. No matching
+packets arrived from chip IDs 113, 129, 169, 183, or 184.
+
+- Playback JSON:
+  [`live_event_15x15_staggered_multichip.json`](verification_scenarios/v3b_15x15_two_track_charge_deposition/live_event_15x15_staggered_multichip.json)
+- Selected-chip FIFO occupancy plot:
+  [`selected_chip_fifo_occupancy_ticks_1000_18000.png`](verification_scenarios/v3b_15x15_two_track_charge_deposition/selected_chip_fifo_occupancy_ticks_1000_18000.png)
+- Stable visualizer page:
+  [v3b 15x15 Two-Track Charge Deposition](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3b-15x15-two-track-charge-deposition/)
