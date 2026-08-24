@@ -54,6 +54,64 @@ const filterPersistentInjectionEl = document.getElementById('filterPersistentInj
 const PISO_EDGE_TO_BIT = { north: 3, east: 2, south: 1, west: 0 };
 const POSI_EDGE_TO_BIT = { north: 0, east: 3, south: 2, west: 1 };
 
+const THEME = Object.freeze({
+  canvas: '#f4f7fb',
+  surface: '#ffffff',
+  surfaceMuted: '#f7f9fc',
+  text: '#182235',
+  mutedText: '#5f6b7a',
+  subtleText: '#6b7280',
+  border: '#9aa8ba',
+  grid: 'rgba(100, 116, 139, 0.22)',
+  gridStrong: 'rgba(100, 116, 139, 0.36)',
+  inactive: 'rgba(100, 116, 139, 0.55)',
+  selected: '#1261a6',
+});
+
+const LIGHT_SIGNAL_COLORS = Object.freeze({
+  '#ffffff': '#1f2937',
+  '#f0f5ff': '#182235',
+  '#f0e6ff': '#51306f',
+  '#eef4ff': '#182235',
+  '#edf3ff': '#182235',
+  '#e8edf8': '#243044',
+  '#e6ecf8': '#243044',
+  '#d9dde7': '#344054',
+  '#d7a6ff': '#7b3fb2',
+  '#cdb4ff': '#7650a2',
+  '#c9d2e3': '#4b5563',
+  '#c3cce0': '#344054',
+  '#b9c6d8': '#596579',
+  '#b8c1d4': '#536174',
+  '#b7c0d3': '#5b6474',
+  '#b46cff': '#7b3fb2',
+  '#aeb8ca': '#5f6b7a',
+  '#a8b2c6': '#657184',
+  '#9fb6ff': '#355ea8',
+  '#9eabc2': '#64748b',
+  '#8fd0ff': '#176b9c',
+  '#7ee0a1': '#237a45',
+  '#7cff7c': '#16803c',
+  '#6fd3ff': '#0077a8',
+  '#61e294': '#16805a',
+  '#4db0ff': '#1677b8',
+  '#ffcf4d': '#9a6a00',
+  '#f2d06b': '#927000',
+  '#ffb04d': '#c56a00',
+  '#ff9f43': '#b85d00',
+  '#d7f06a': '#708000',
+  '#d784ff': '#8a3dac',
+  '#ff8fb0': '#b8326a',
+  '#ff8f8f': '#b83a48',
+  '#ff7a7a': '#c73545',
+  '#ff5e87': '#c8325c',
+});
+
+function themeColor(color) {
+  if (typeof color !== 'string') return color;
+  return LIGHT_SIGNAL_COLORS[color.toLowerCase()] || color;
+}
+
 let playback = null;
 let playbackSourceUrl = null;
 let chipDebugData = null;
@@ -300,12 +358,12 @@ function packetCategory(packetType) {
 function packetColor(packetType) {
   const category = packetCategory(packetType);
   return {
-    config_write: '#7cff7c',
-    config_read: '#4db0ff',
-    event_data: '#ff5e87',
-    msg_packet: '#ffcf4d',
-    other: '#d7f06a',
-  }[category] || '#d7f06a';
+    config_write: '#16803c',
+    config_read: '#1677b8',
+    event_data: '#c8325c',
+    msg_packet: '#9a6a00',
+    other: '#708000',
+  }[category] || '#708000';
 }
 
 function packetCategoryVisible(packetType) {
@@ -633,15 +691,15 @@ function drawPacket(event, layout) {
   ctx.arc(x, y, Math.max(5, layout.cell * 0.1), 0, Math.PI * 2);
   ctx.fill();
   if (packetLabelsVisible() && event.label) {
-    ctx.fillStyle = '#e8edf8';
+    ctx.fillStyle = THEME.text;
     ctx.font = '11px ui-monospace, monospace';
     ctx.fillText(event.label, x + 10, y - 10);
   }
 }
 
-const SOURCE_FPGA_LANE_COLOR = '#b46cff';
-const SOURCE_FPGA_LANE_INACTIVE_COLOR = '#6a4a94';
-const SHARED_FIFO_TEXT_COLOR = '#d7a6ff';
+const SOURCE_FPGA_LANE_COLOR = '#7b3fb2';
+const SOURCE_FPGA_LANE_INACTIVE_COLOR = '#9f86b7';
+const SHARED_FIFO_TEXT_COLOR = '#7b3fb2';
 const HYDRA_STATE_NAMES = {
   0: 'IDLE',
   1: 'RX_CAPTURE',
@@ -910,8 +968,8 @@ function drawSharedFifoCounter(left, top, cell, occupancy) {
   const barLeft = left + barInset;
   const barTop = top + cell * 0.84 - barInset - barHeight;
 
-  ctx.fillStyle = '#0e141d';
-  ctx.strokeStyle = 'rgba(97, 226, 148, 0.45)';
+  ctx.fillStyle = THEME.surfaceMuted;
+  ctx.strokeStyle = 'rgba(22, 128, 90, 0.48)';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.roundRect(barLeft, barTop, barWidth, barHeight, 5);
@@ -919,7 +977,7 @@ function drawSharedFifoCounter(left, top, cell, occupancy) {
   ctx.stroke();
 
   if (cell >= 72) {
-    ctx.fillStyle = occupancy > 0 ? SHARED_FIFO_TEXT_COLOR : '#b996dc';
+    ctx.fillStyle = occupancy > 0 ? SHARED_FIFO_TEXT_COLOR : '#7c6a8f';
     ctx.font = `${Math.max(9, cell * 0.11)}px ui-monospace, monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -962,28 +1020,29 @@ function drawFpga(layout, fpgaTxEvents, fpgaRxEvents) {
   ctx.lineTo(rect.centerX, rect.top);
   ctx.stroke();
 
-  ctx.fillStyle = active ? '#221431' : '#141925';
-  ctx.strokeStyle = isSelected ? '#f0e6ff' : connectorColor;
+  ctx.fillStyle = active ? '#f0e7f8' : THEME.surface;
+  ctx.strokeStyle = isSelected ? THEME.selected : connectorColor;
   ctx.lineWidth = isSelected ? 3 : 2;
   ctx.beginPath();
   ctx.roundRect(rect.left, rect.top, rect.width, rect.height, 8);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = '#f0e6ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(9, layout.cell * 0.09)}px ui-monospace, monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('FPGA', rect.centerX, rect.centerY - 4);
   ctx.font = `${Math.max(8, layout.cell * 0.08)}px ui-monospace, monospace`;
-  ctx.fillStyle = active ? '#d7a6ff' : '#9eabc2';
+  ctx.fillStyle = active ? SOURCE_FPGA_LANE_COLOR : THEME.subtleText;
   ctx.fillText(`T${fpgaTxEvents.length}/R${fpgaRxEvents.length}`, rect.centerX, rect.centerY + 8);
   ctx.textBaseline = 'alphabetic';
   return rect;
 }
 
 function drawFlowArrow(x1, y1, x2, y2, color, active, label = '') {
-  ctx.strokeStyle = active ? color : 'rgba(92, 108, 135, 0.45)';
+  const displayColor = themeColor(color);
+  ctx.strokeStyle = active ? displayColor : THEME.inactive;
   ctx.lineWidth = active ? 4 : 2;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
@@ -1002,7 +1061,7 @@ function drawFlowArrow(x1, y1, x2, y2, color, active, label = '') {
   const hx = x2 - ux * headLen;
   const hy = y2 - uy * headLen;
 
-  ctx.fillStyle = active ? color : 'rgba(92, 108, 135, 0.45)';
+  ctx.fillStyle = active ? displayColor : THEME.inactive;
   ctx.beginPath();
   ctx.moveTo(x2, y2);
   ctx.lineTo(hx + px * headWidth, hy + py * headWidth);
@@ -1011,7 +1070,7 @@ function drawFlowArrow(x1, y1, x2, y2, color, active, label = '') {
   ctx.fill();
 
   if (label) {
-    ctx.fillStyle = active ? '#edf3ff' : '#a8b2c6';
+    ctx.fillStyle = active ? THEME.text : THEME.subtleText;
     ctx.font = '11px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(label, (x1 + x2) * 0.5, (y1 + y2) * 0.5 - 8);
@@ -1020,22 +1079,22 @@ function drawFlowArrow(x1, y1, x2, y2, color, active, label = '') {
 
 function drawComponentBox(rect, title, lines, options = {}) {
   const active = Boolean(options.active);
-  const accent = options.accent || '#4db0ff';
-  ctx.fillStyle = active ? 'rgba(28, 39, 59, 0.95)' : 'rgba(17, 23, 34, 0.9)';
-  ctx.strokeStyle = active ? accent : 'rgba(92, 108, 135, 0.45)';
+  const accent = themeColor(options.accent || '#4db0ff');
+  ctx.fillStyle = active ? '#eef4fb' : THEME.surface;
+  ctx.strokeStyle = active ? accent : THEME.inactive;
   ctx.lineWidth = active ? 2.5 : 1.5;
   ctx.beginPath();
   ctx.roundRect(rect.left, rect.top, rect.width, rect.height, 12);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = active ? '#f0f5ff' : '#d9dde7';
+  ctx.fillStyle = THEME.text;
   ctx.font = '12px ui-monospace, monospace';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(title, rect.left + 10, rect.top + 8);
 
-  ctx.fillStyle = '#b8c1d4';
+  ctx.fillStyle = THEME.mutedText;
   ctx.font = '11px ui-monospace, monospace';
   let y = rect.top + 28;
   for (const line of lines) {
@@ -1058,8 +1117,8 @@ function debugWindowRowsFrom(data, centerTick, before = 14, after = 22) {
 }
 
 function drawSignalTimeline(rect, rows, specs, currentTick) {
-  ctx.fillStyle = 'rgba(12, 18, 28, 0.92)';
-  ctx.strokeStyle = 'rgba(118, 132, 167, 0.35)';
+  ctx.fillStyle = THEME.surface;
+  ctx.strokeStyle = THEME.gridStrong;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.roundRect(rect.left, rect.top, rect.width, rect.height, 12);
@@ -1078,7 +1137,7 @@ function drawSignalTimeline(rect, rows, specs, currentTick) {
   const xAt = (tick) => plotLeft + ((tick - startTick) / tickSpan) * (plotRight - plotLeft);
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  ctx.strokeStyle = THEME.grid;
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   for (let tick = startTick; tick <= endTick; tick += 1) {
@@ -1102,15 +1161,16 @@ function drawSignalTimeline(rect, rows, specs, currentTick) {
     ctx.font = '11px ui-monospace, monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#c3cce0';
+    ctx.fillStyle = THEME.text;
     ctx.fillText(spec.label, rect.left + 10, baseY + rowHeight * 0.45);
-    ctx.strokeStyle = 'rgba(90, 103, 128, 0.32)';
+    ctx.strokeStyle = THEME.gridStrong;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(plotLeft, yLow);
     ctx.lineTo(plotRight, yLow);
     ctx.stroke();
-    ctx.strokeStyle = spec.color;
+    const displayColor = themeColor(spec.color);
+    ctx.strokeStyle = displayColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
     let lastValue = null;
@@ -1163,7 +1223,7 @@ function drawSignalTimeline(rect, rows, specs, currentTick) {
       }
     }
     ctx.stroke();
-    ctx.fillStyle = spec.color;
+    ctx.fillStyle = displayColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     for (const label of labels) {
@@ -1172,14 +1232,14 @@ function drawSignalTimeline(rect, rows, specs, currentTick) {
     }
   }
 
-  ctx.strokeStyle = '#f0e6ff';
+  ctx.strokeStyle = THEME.selected;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(xAt(currentTick), rect.top + 8);
   ctx.lineTo(xAt(currentTick), rect.top + rect.height - 8);
   ctx.stroke();
 
-  ctx.fillStyle = '#e6ecf8';
+  ctx.fillStyle = THEME.mutedText;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   for (let tick = Math.ceil(startTick / 10) * 10; tick <= endTick; tick += 10) {
@@ -1325,7 +1385,7 @@ function v3cHydraSignalSpecs() {
 }
 
 function drawV3cPacketLossChip0View(width, height) {
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1347,15 +1407,15 @@ function drawV3cPacketLossChip0View(width, height) {
   const sw = (value) => value * scale;
   const rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 24, 36);
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   ctx.fillText('v3c path: north/east UART RX → Hydra arbitration/FIFO → south UART TX', sx(0), sy(48));
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.textAlign = 'left';
   ctx.fillText('North RX from chip 2', sx(0), sy(78));
   drawSignalTimeline(
@@ -1365,7 +1425,7 @@ function drawV3cPacketLossChip0View(width, height) {
     currentTickIndex,
   );
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.textAlign = 'left';
   ctx.fillText('East RX from chip 1', sx(0), sy(370));
   drawSignalTimeline(
@@ -1375,7 +1435,7 @@ function drawV3cPacketLossChip0View(width, height) {
     currentTickIndex,
   );
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.textAlign = 'left';
   ctx.fillText('Hydra arbitration, shared FIFO, and south TX', sx(0), sy(662));
   drawSignalTimeline(
@@ -1388,7 +1448,7 @@ function drawV3cPacketLossChip0View(width, height) {
 }
 
 function drawV3cConvergentPacketLossChip4View(width, height) {
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1410,15 +1470,15 @@ function drawV3cConvergentPacketLossChip4View(width, height) {
   const sw = (value) => value * scale;
   const rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 24, 36);
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   ctx.fillText('v3c path: north/east/west UART RX → Hydra arbitration/FIFO → south UART TX', sx(0), sy(48));
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.textAlign = 'left';
   ctx.fillText('Hydra arbitration, shared FIFO, and south TX', sx(0), sy(78));
   drawSignalTimeline(
@@ -1434,7 +1494,7 @@ function drawV3cConvergentPacketLossChip4View(width, height) {
     { lane: 'west', title: 'West RX from chip 3', titleY: 1094, timelineY: 1106 },
   ];
   for (const section of rxSections) {
-    ctx.fillStyle = '#eef4ff';
+    ctx.fillStyle = THEME.text;
     ctx.textAlign = 'left';
     ctx.fillText(section.title, sx(0), sy(section.titleY));
     drawSignalTimeline(
@@ -1448,7 +1508,7 @@ function drawV3cConvergentPacketLossChip4View(width, height) {
 }
 
 function drawSingleChipTimelineView(width, height) {
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1472,16 +1532,16 @@ function drawSingleChipTimelineView(width, height) {
   const sy = (value) => oy + value * scale;
   const sw = (value) => value * scale;
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   ctx.fillText(`source ${chipDebugData.sourceUrl.split('/').pop()}`, sx(0), sy(48));
 
   if (!row) {
-    ctx.fillStyle = '#e6ecf8';
+    ctx.fillStyle = THEME.text;
     ctx.font = '16px ui-monospace, monospace';
     ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
     updateHud();
@@ -1490,7 +1550,7 @@ function drawSingleChipTimelineView(width, height) {
 
   const rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 24, 36);
   const specs = chipDebugSignalSpecs(chipDebugData) || txSignalSpecs('south');
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(`Chip ${chipDebugData.monitorChipId} timeline: south-lane TX`, sx(0), sy(84));
@@ -1505,7 +1565,7 @@ function drawSingleChipTimelineView(width, height) {
 }
 
 function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1529,12 +1589,12 @@ function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
   const sy = (value) => oy + value * scale;
   const sw = (value) => value * scale;
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   ctx.fillText(
     `top ${chipDebugData.sourceUrl.split('/').pop()} | bottom ${chipDebugAuxData.sourceUrl.split('/').pop()}`,
     sx(0),
@@ -1542,7 +1602,7 @@ function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
   );
 
   if (!chip1Row || !chip0Row) {
-    ctx.fillStyle = '#e6ecf8';
+    ctx.fillStyle = THEME.text;
     ctx.font = '16px ui-monospace, monospace';
     ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
     updateHud();
@@ -1551,7 +1611,7 @@ function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
 
   const chip1Rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 20, 28);
   const chip0Rows = debugWindowRowsFrom(chipDebugAuxData, currentTickIndex, 20, 28);
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(`Chip ${chipDebugData.monitorChipId} timeline: south-lane TX`, sx(0), sy(84));
@@ -1561,7 +1621,7 @@ function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
     txSignalSpecs('south'),
     currentTickIndex,
   );
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(`Chip ${chipDebugAuxData.monitorChipId} timeline: north-lane RX`, sx(0), sy(390));
@@ -1576,7 +1636,7 @@ function drawChip1SouthTxChip0NorthRxFocusView(width, height) {
 }
 
 function drawChip0NorthTxChip1SouthRxFocusView(width, height) {
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1600,12 +1660,12 @@ function drawChip0NorthTxChip1SouthRxFocusView(width, height) {
   const sy = (value) => oy + value * scale;
   const sw = (value) => value * scale;
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   ctx.fillText(
     `top ${chipDebugData.sourceUrl.split('/').pop()} | bottom ${chipDebugAuxData.sourceUrl.split('/').pop()}`,
     sx(0),
@@ -1613,7 +1673,7 @@ function drawChip0NorthTxChip1SouthRxFocusView(width, height) {
   );
 
   if (!chip0Row || !chip1Row) {
-    ctx.fillStyle = '#e6ecf8';
+    ctx.fillStyle = THEME.text;
     ctx.font = '16px ui-monospace, monospace';
     ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
     updateHud();
@@ -1622,7 +1682,7 @@ function drawChip0NorthTxChip1SouthRxFocusView(width, height) {
 
   const chip0Rows = debugWindowRowsFrom(chipDebugData, currentTickIndex, 20, 28);
   const chip1Rows = debugWindowRowsFrom(chipDebugAuxData, currentTickIndex, 20, 28);
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(`Chip ${chipDebugData.monitorChipId} timeline: north-lane TX / arbiter`, sx(0), sy(84));
@@ -1632,7 +1692,7 @@ function drawChip0NorthTxChip1SouthRxFocusView(width, height) {
     txSignalSpecs('north'),
     currentTickIndex,
   );
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(12, 13 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(`Chip ${chipDebugAuxData.monitorChipId} timeline: south-lane RX`, sx(0), sy(390));
@@ -1654,7 +1714,7 @@ function txPathSignalSpecs() {
 }
 
 function drawNiftyReg125ProofView(width, height) {
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1674,19 +1734,19 @@ function drawNiftyReg125ProofView(width, height) {
     row = chipDebugData.rows[0];
   }
   if (!row) {
-    ctx.fillStyle = '#eef4ff';
+    ctx.fillStyle = THEME.text;
     ctx.font = '18px ui-monospace, monospace';
     ctx.fillText('No debug sidecar sample is available for the current tick.', sx(0), sy(60));
     updateHud();
     return;
   }
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText('Chip 0 Sidecar View: Nifty Register 125 Proof', sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   const replyPacket = chipDebugData?.summary?.reply_packet || 'n/a';
   ctx.fillText(`debug source ${chipDebugData.sourceUrl.split('/').pop()} | reply ${replyPacket}`, sx(0), sy(48));
 
@@ -1807,7 +1867,7 @@ function drawChipInternalView(width, height) {
     drawChip0NorthTxChip1SouthRxFocusView(width, height);
     return;
   }
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   const hudWidth = hudEl?.getBoundingClientRect().width || loadHudWidth();
@@ -1817,12 +1877,12 @@ function drawChipInternalView(width, height) {
   const availableH = Math.max(260, height - margin * 2);
 
   if (!chipDebugData) {
-    ctx.fillStyle = '#e6ecf8';
+    ctx.fillStyle = THEME.text;
     ctx.font = '18px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.fillText('Chip internal view is unavailable for this playback.', marginLeft + availableW * 0.5, margin + 80);
     ctx.font = '13px ui-monospace, monospace';
-    ctx.fillStyle = '#aeb8ca';
+    ctx.fillStyle = THEME.mutedText;
     ctx.fillText('Expected a chip debug sidecar next to the playback JSON.', marginLeft + availableW * 0.5, margin + 108);
     ctx.textAlign = 'left';
     updateHud();
@@ -1852,21 +1912,21 @@ function drawChipInternalView(width, height) {
   const sy = (value) => oy + value * scale;
   const sw = (value) => value * scale;
 
-  ctx.fillStyle = '#eef4ff';
+  ctx.fillStyle = THEME.text;
   ctx.font = `${Math.max(16, 18 * scale)}px ui-monospace, monospace`;
   ctx.textAlign = 'left';
   ctx.fillText(chipDebugLabel(), sx(0), sy(24));
   ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-  ctx.fillStyle = '#aeb8ca';
+  ctx.fillStyle = THEME.mutedText;
   const chipMeta = monitorChip ? `monitoring chip_id ${monitorChip.chip_id} at (${monitorChip.x},${monitorChip.y})` : `monitoring chip_id ${chipDebugData.monitorChipId ?? 0}`;
   ctx.fillText(`${chipMeta} | debug source ${chipDebugData.sourceUrl.split('/').pop()}`, sx(0), sy(48));
 
   if (!row) {
-    ctx.fillStyle = '#e6ecf8';
+    ctx.fillStyle = THEME.text;
     ctx.font = '16px ui-monospace, monospace';
     ctx.fillText('No debug sample is available for the current tick.', sx(0), sy(92));
     ctx.font = `${Math.max(11, 12 * scale)}px ui-monospace, monospace`;
-    ctx.fillStyle = '#ffcf4d';
+    ctx.fillStyle = '#9a6a00';
     ctx.fillText(`debug rows: ${Array.isArray(chipDebugData?.rows) ? chipDebugData.rows.length : 'n/a'}`, sx(0), sy(118));
     ctx.fillText(`debug ticks: ${Array.isArray(chipDebugData?.ticks) ? chipDebugData.ticks.length : 'n/a'}`, sx(0), sy(138));
     ctx.fillText(`currentTickIndex: ${String(currentTickIndex)}`, sx(0), sy(158));
@@ -1898,7 +1958,7 @@ function drawChipInternalView(width, height) {
 
 function drawNetworkView(width, height) {
   ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = '#0a0d12';
+  ctx.fillStyle = THEME.canvas;
   ctx.fillRect(0, 0, width, height);
 
   if (!playback) {
@@ -1957,8 +2017,8 @@ function drawNetworkView(width, height) {
         ctx.roundRect(left - 7, top - 7, cell * 0.84 + 14, cell * 0.84 + 14, 16);
         ctx.stroke();
       }
-      ctx.fillStyle = activeUpdate ? '#1c2f25' : (isSelected ? '#172131' : (activeCharge ? '#281521' : (persistCharge ? '#21131b' : '#111722')));
-      ctx.strokeStyle = activeUpdate ? '#7cff7c' : (isSelected ? '#d8f3ff' : (activeCharge ? '#ff5e87' : (persistCharge ? '#ff8fb0' : '#2c3748')));
+      ctx.fillStyle = activeUpdate ? '#e7f6ec' : (isSelected ? '#e8f2ff' : (activeCharge ? '#fdebf0' : (persistCharge ? '#fff0f5' : THEME.surface)));
+      ctx.strokeStyle = activeUpdate ? '#16803c' : (isSelected ? THEME.selected : (activeCharge ? '#c8325c' : (persistCharge ? '#b8326a' : THEME.border)));
       ctx.lineWidth = isSelected ? 2.5 : 1.5;
       ctx.beginPath();
       ctx.roundRect(left, top, cell * 0.84, cell * 0.84, 10);
@@ -1966,23 +2026,23 @@ function drawNetworkView(width, height) {
       ctx.stroke();
 
       for (const edge of ['north', 'east', 'south', 'west']) {
-        drawLane(cx, cy, cell, edge, '#394455', false);
+        drawLane(cx, cy, cell, edge, '#a7b2c1', false);
       }
       for (const edge of ['north', 'east', 'south', 'west']) {
-        if (laneEnabled(chip.up_mask || 0, edge)) drawLane(cx, cy, cell, edge, '#4db0ff', false);
+        if (laneEnabled(chip.up_mask || 0, edge)) drawLane(cx, cy, cell, edge, '#1677b8', false);
         if (laneEnabled(chip.down_mask || 0, edge)) {
-          const downColor = isSourceChip && edge === 'south' ? SOURCE_FPGA_LANE_COLOR : '#ffb04d';
+          const downColor = isSourceChip && edge === 'south' ? SOURCE_FPGA_LANE_COLOR : '#c56a00';
           drawLane(cx, cy, cell, edge, downColor, false);
         }
       }
 
-      ctx.fillStyle = '#eef4ff';
+      ctx.fillStyle = THEME.text;
       ctx.font = `${Math.max(13, cell * 0.16)}px ui-monospace, monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(String(chip.chip_id), left + 8, top + 6);
       if (isSourceChip) {
-        ctx.fillStyle = '#4db0ff';
+        ctx.fillStyle = '#1677b8';
         ctx.font = `${Math.max(9, cell * 0.1)}px ui-monospace, monospace`;
         ctx.fillText('SRC', left + 8, top + 24);
       }
@@ -2000,7 +2060,7 @@ function drawNetworkView(width, height) {
     drawPacket(event, layout);
     const src = layout.cellCenter(event.src[0], event.src[1]);
     const dst = layout.cellCenter(event.dst[0], event.dst[1]);
-    ctx.strokeStyle = 'rgba(124,255,124,0.20)';
+    ctx.strokeStyle = 'rgba(22, 128, 60, 0.24)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(src.x, src.y);

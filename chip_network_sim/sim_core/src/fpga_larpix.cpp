@@ -203,27 +203,32 @@ parse_args(int argc, char **argv, fpga_options_t *opts)
 }
 
 static int
-send_done(nng_socket control_rep, const fpga_options_t *opts, uint64_t seq, const fpga_metrics_t *metrics)
+send_done_message(nng_socket control_rep, const fpga_options_t *opts,
+    const chipsim_done_msg_t *done)
 {
-    chipsim_done_msg_t done;
-    int rv;
-
-    memset(&done, 0, sizeof(done));
-    done.type = CHIPSIM_MSG_DONE;
-    done.chip_id = (uint32_t)opts->id;
-    done.seq = seq;
-    done.tx_count = metrics->tx_count;
-    done.rx_count = metrics->rx_count;
-    done.local_gen_count = metrics->frame_tx_count;
-    done.drop_count = 0;
-    done.fifo_occupancy = 0;
-
-    rv = nng_send(control_rep, &done, sizeof(done), 0);
+    int rv = nng_send(control_rep, done, sizeof(*done), 0);
     if (rv != 0) {
         fprintf(stderr, "fpga_larpix[%d] failed to send DONE: %s\n", opts->id, ERRSTR(rv));
         return -1;
     }
     return 0;
+}
+
+static int
+send_done(nng_socket control_rep, const fpga_options_t *opts, uint64_t seq,
+    const fpga_metrics_t *metrics, chipsim_done_msg_t *done)
+{
+    memset(done, 0, sizeof(*done));
+    done->type = CHIPSIM_MSG_DONE;
+    done->chip_id = (uint32_t)opts->id;
+    done->seq = seq;
+    done->tx_count = metrics->tx_count;
+    done->rx_count = metrics->rx_count;
+    done->local_gen_count = metrics->frame_tx_count;
+    done->drop_count = 0;
+    done->fifo_occupancy = 0;
+
+    return send_done_message(control_rep, opts, done);
 }
 
 static int
@@ -890,6 +895,10 @@ main(int argc, char **argv)
     int rv;
     int exit_code = 1;
     nng_err init_err;
+    chipsim_done_msg_t cached_done = {};
+    bool have_cached_done = false;
+    uint8_t cached_control_type = 0;
+    uint64_t expected_control_seq = 0;
 
     memset(&metrics, 0, sizeof(metrics));
     uart_decoder_reset(&decoder);
@@ -914,9 +923,9 @@ main(int argc, char **argv)
         fprintf(stderr, "fpga_larpix[%d] open(control) failed: %s\n", opts.id, ERRSTR(rv));
         goto cleanup;
     }
-    rv = nng_listen(control_rep, opts.clock_url, NULL, 0);
+    rv = nng_dial(control_rep, opts.clock_url, NULL, 0);
     if (rv != 0) {
-        fprintf(stderr, "fpga_larpix[%d] listen(control) failed at %s: %s\n", opts.id, opts.clock_url, ERRSTR(rv));
+        fprintf(stderr, "fpga_larpix[%d] dial(control) failed at %s: %s\n", opts.id, opts.clock_url, ERRSTR(rv));
         goto cleanup;
     }
 
@@ -992,13 +1001,30 @@ main(int argc, char **argv)
             fprintf(stderr, "fpga_larpix[%d] malformed control message\n", opts.id);
             goto cleanup;
         }
+        if (have_cached_done && tick.type == cached_control_type &&
+                tick.seq == cached_done.seq) {
+            if (send_done_message(control_rep, &opts, &cached_done) != 0) {
+                goto cleanup;
+            }
+            continue;
+        }
+        if ((tick.type != CHIPSIM_MSG_TICK && tick.type != CHIPSIM_MSG_STOP) ||
+                tick.seq != expected_control_seq) {
+            fprintf(stderr,
+                "fpga_larpix[%d] unexpected control message type=%u seq=%" PRIu64
+                " expected_seq=%" PRIu64 "\n",
+                opts.id, (unsigned)tick.type, tick.seq, expected_control_seq);
+            goto cleanup;
+        }
         metrics.last_seq = tick.seq;
 
         if (tick.type == CHIPSIM_MSG_STOP) {
             bit_server_publish(&north_state, tick.seq, 0u, 0u);
-            if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
+            if (send_done(control_rep, &opts, tick.seq, &metrics, &cached_done) != 0) {
                 goto cleanup;
             }
+            cached_control_type = tick.type;
+            have_cached_done = true;
             /* Mirror chip_larpix shutdown behavior so the terminal DONE is
              * visible to the orchestrator before this process closes sockets. */
             nng_msleep(10);
@@ -1102,9 +1128,12 @@ main(int argc, char **argv)
             }
         }
 
-        if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
+        if (send_done(control_rep, &opts, tick.seq, &metrics, &cached_done) != 0) {
             goto cleanup;
         }
+        cached_control_type = tick.type;
+        have_cached_done = true;
+        expected_control_seq++;
     }
 
     if (send_metric(metric_push, &opts, &metrics) != 0) {

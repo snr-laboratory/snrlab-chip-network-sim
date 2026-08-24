@@ -7,6 +7,17 @@ The active branch is organized around:
 - `rtl/`: supported LArPix-like RTL trees
 - `doc/`: architecture notes and workflow documentation
 
+## Runtime Model
+
+- The orchestrator uses one asynchronous NNG request/reply transaction per
+  process to distribute each control message and gather all `DONE` responses.
+- Unanswered control requests are retried. Each process validates the control
+  sequence and caches its most recent `DONE` response so a retry cannot
+  evaluate the RTL twice.
+- Each chip issues requests on all connected neighbor edges before gathering
+  their replies, allowing independent link transactions to progress
+  concurrently.
+
 ## Build
 ```bash
 cmake -S . -B build

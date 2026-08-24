@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """Helpers for LArPix packet encoding/decoding and UART framing.
 
-Packet width is mixed:
-- MSG_OP packets are 7 bits total:
-  - bits [5:0]: payload
-  - bit  [6]: odd parity over payload bits [5:0]
-- all other packets are 64 bits total:
-  - bits [62:0]: payload
-  - bit  [63]: odd parity over payload bits [62:0]
+Active message-packet mode is full-width:
+- MSG_OP packets are handled as 64-bit words when ``full_msg_op=True``
+- all other packets are also 64-bit words
 
-UART framing is:
+UART framing in the active mode is:
 - 1 start bit = 0
-- 7 packet bits for MSG_OP, 64 packet bits otherwise, LSB first
+- 64 packet bits, LSB first
 - 1 stop bit = 1
+
+Legacy short MSG_OP handling remains in this helper only for compatibility
+with older artifacts. New testbench and simulation flows should use
+``full_msg_op=True``.
 """
 
 from __future__ import annotations
@@ -157,9 +157,9 @@ def build_config_read_packet(*, chip_id: int, register_addr: int, stats_nibble: 
     return attach_parity(payload)
 
 
-def packet_to_uart_bits(word: int) -> UartFrame:
+def packet_to_uart_bits(word: int, *, full_msg_op: bool = False) -> UartFrame:
     packet_type = word & 0x3
-    width = MSG_WIDTH if packet_type == MSG_OP else WIDTH
+    width = WIDTH if (packet_type == MSG_OP and full_msg_op) else (MSG_WIDTH if packet_type == MSG_OP else WIDTH)
     word &= mask(width)
     bits = [0]
     bits.extend((word >> i) & 1 for i in range(width))
@@ -198,7 +198,7 @@ def parse_bits_arg(raw: str) -> List[int]:
     return bits
 
 
-def decode_packet(word: int) -> PacketFields:
+def decode_packet(word: int, *, full_msg_op: bool = False) -> PacketFields:
     word &= mask(WIDTH)
     payload = word & mask(PAYLOAD_WIDTH)
     parity = (word >> 63) & 1
@@ -214,15 +214,22 @@ def decode_packet(word: int) -> PacketFields:
 
     if packet_type == MSG_OP:
         kind = "msg"
-        msg_word = word & mask(MSG_WIDTH)
-        msg_payload = msg_word & mask(MSG_PAYLOAD_WIDTH)
-        decoded = {
-            "packet_type": packet_type,
-            "fifo_state": (msg_payload >> 2) & 0x3,
-            "tx_tag": (msg_payload >> 4) & 0x3,
-            "odd_parity_ok": check_msg_odd_parity(msg_word),
-            "on_wire_bits": MSG_WIDTH,
-        }
+        if full_msg_op:
+            decoded = {
+                "packet_type": packet_type,
+                "msg_payload_62": (word >> 2) & mask(62),
+                "on_wire_bits": WIDTH,
+            }
+        else:
+            msg_word = word & mask(MSG_WIDTH)
+            msg_payload = msg_word & mask(MSG_PAYLOAD_WIDTH)
+            decoded = {
+                "packet_type": packet_type,
+                "fifo_state": (msg_payload >> 2) & 0x3,
+                "tx_tag": (msg_payload >> 4) & 0x3,
+                "odd_parity_ok": check_msg_odd_parity(msg_word),
+                "on_wire_bits": MSG_WIDTH,
+            }
     elif packet_type == DATA_OP:
         kind = "data"
         decoded = {
@@ -261,7 +268,7 @@ def decode_packet(word: int) -> PacketFields:
     return PacketFields(
         word=word,
         payload=payload,
-        parity=((word >> 6) & 1) if packet_type == MSG_OP else parity,
+        parity=((word >> 63) & 1) if (packet_type == MSG_OP and full_msg_op) else (((word >> 6) & 1) if packet_type == MSG_OP else parity),
         packet_type=packet_type,
         chip_id=chip_id,
         channel_or_addr=channel_or_addr,
@@ -270,7 +277,7 @@ def decode_packet(word: int) -> PacketFields:
         trigger_type=trigger_type,
         status_nibble=status_nibble,
         downstream=downstream,
-        odd_parity_ok=check_msg_odd_parity(word & mask(MSG_WIDTH)) if packet_type == MSG_OP else odd_ok,
+        odd_parity_ok=(odd_ok if full_msg_op else check_msg_odd_parity(word & mask(MSG_WIDTH))) if packet_type == MSG_OP else odd_ok,
         kind=kind,
         decoded=decoded,
     )

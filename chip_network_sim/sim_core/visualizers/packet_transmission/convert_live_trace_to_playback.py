@@ -19,10 +19,11 @@ if str(TOOLS_DIR) not in sys.path:
 from larpix_uart import decode_packet
 
 FULL_FRAME_BITS = 66
-MSG_FRAME_BITS = 9
+SHORT_MSG_FRAME_BITS = 9
 CHIP_ID_REG = 122
 ENABLE_PISO_UP_REG = 124
 ENABLE_PISO_DOWN_REG = 125
+FULL_MSG_OP = False
 
 EDGE_TO_DELTA = {
     "north": (0, 1),
@@ -66,6 +67,12 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--out", required=True)
     ap.add_argument("--name", default=None)
     ap.add_argument("--rtl-version", default=None)
+    ap.add_argument("--full-msg-op", action="store_true")
+    ap.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="Generate playback while warning about unobserved config applications or readbacks",
+    )
     return ap.parse_args()
 
 
@@ -145,7 +152,7 @@ def parse_run_log(path: Path) -> Tuple[List[dict], List[dict]]:
 
 
 def packet_type_name(word_hex: str) -> str:
-    fields = decode_packet(int(word_hex, 16))
+    fields = decode_packet(int(word_hex, 16), full_msg_op=FULL_MSG_OP)
     if fields.kind == "msg":
         return "msg_packet"
     if fields.kind == "config_write":
@@ -158,9 +165,9 @@ def packet_type_name(word_hex: str) -> str:
 
 
 def frame_bits_for_word(word_hex: str) -> int:
-    fields = decode_packet(int(word_hex, 16))
+    fields = decode_packet(int(word_hex, 16), full_msg_op=FULL_MSG_OP)
     if fields.kind == "msg":
-        return MSG_FRAME_BITS
+        return FULL_FRAME_BITS if FULL_MSG_OP else SHORT_MSG_FRAME_BITS
     return FULL_FRAME_BITS
 
 
@@ -170,12 +177,14 @@ def mask_direction_name(mask: int) -> str | None:
 
 
 def packet_label(word_hex: str) -> str:
-    fields = decode_packet(int(word_hex, 16))
+    fields = decode_packet(int(word_hex, 16), full_msg_op=FULL_MSG_OP)
     decoded = fields.decoded
     chip_id = decoded.get('chip_id')
     reg = decoded.get('register_addr')
     data = int(decoded.get('register_data', 0))
     if fields.kind == "msg":
+        if FULL_MSG_OP:
+            return f"full-width msg payload=0x{int(decoded.get('msg_payload_62', 0)):016x}"
         tx_tag = int(decoded.get('tx_tag', 0))
         fifo_state = int(decoded.get('fifo_state', 0))
         return f"tag[{MSG_TAG_NAMES.get(tx_tag, '?')}] state[{fifo_state:02b}]"
@@ -199,7 +208,7 @@ def packet_label(word_hex: str) -> str:
 
 
 def decoded_packet_summary(word_hex: str) -> dict:
-    fields = decode_packet(int(word_hex, 16))
+    fields = decode_packet(int(word_hex, 16), full_msg_op=FULL_MSG_OP)
     return {
         "kind": fields.kind,
         "decoded": fields.decoded,
@@ -430,7 +439,7 @@ def build_data_packet_metrics(trace_events: List[dict], rx_log: List[dict], char
         packet_word = event.get("packet_word")
         if not isinstance(packet_word, str):
             continue
-        fields = decode_packet(int(packet_word, 16))
+        fields = decode_packet(int(packet_word, 16), full_msg_op=FULL_MSG_OP)
         if fields.kind != "data":
             continue
         origin_chip_id = int(fields.decoded.get("chip_id", -1))
@@ -442,7 +451,7 @@ def build_data_packet_metrics(trace_events: List[dict], rx_log: List[dict], char
         packet_word = rx_entry.get("packet_word")
         if not isinstance(packet_word, str):
             continue
-        fields = decode_packet(int(packet_word, 16))
+        fields = decode_packet(int(packet_word, 16), full_msg_op=FULL_MSG_OP)
         if fields.kind != "data":
             continue
         origin_chip_id = int(fields.decoded.get("chip_id", -1))
@@ -552,6 +561,7 @@ def build_chip_updates_and_fpga_spans(
     tx_log: List[dict],
     rx_log: List[dict],
     trace_events: List[dict],
+    allow_incomplete: bool = False,
 ) -> Tuple[List[dict], List[dict]]:
     if len(tx_log) != len(startup_frames):
         raise SystemExit(f"transmitted frame count mismatch: startup has {len(startup_frames)}, log has {len(tx_log)}")
@@ -565,10 +575,9 @@ def build_chip_updates_and_fpga_spans(
         tick_start = int(frame["tick_start"])
         tx_end = int(tx_entry["seq"])
         frame_bits = frame_bits_for_word(tx_entry["packet_word"])
-        fields = decode_packet(int(tx_entry["packet_word"], 16))
+        fields = decode_packet(int(tx_entry["packet_word"], 16), full_msg_op=FULL_MSG_OP)
         decoded = fields.decoded
         dest_id = int(decoded.get("chip_id", 1))
-        target = unique_reachable_destination(grid, rows, cols, source, dest_id)
 
         fpga_spans.append({
             "start_tick": tick_start,
@@ -581,9 +590,17 @@ def build_chip_updates_and_fpga_spans(
         reg = decoded.get("register_addr")
         data = decoded.get("register_data")
         if fields.kind == "config_write" and reg is not None and data is not None:
+            target = unique_reachable_destination(grid, rows, cols, source, dest_id)
             target_runtime_id = target[1] * cols + target[0]
             rx_queue = rx_event_queues.get((target_runtime_id, tx_entry["packet_word"]))
             if not rx_queue:
+                if allow_incomplete:
+                    print(
+                        f"warning: skipping unobserved config write word "
+                        f"{tx_entry['packet_word']} at runtime {target_runtime_id}",
+                        file=sys.stderr,
+                    )
+                    continue
                 raise SystemExit(f"missing destination rx_packet for config write word {tx_entry['packet_word']} at runtime {target_runtime_id}")
             arrival_tick = int(rx_queue.popleft()["seq"])
             c = chip(grid, target)
@@ -609,6 +626,12 @@ def build_chip_updates_and_fpga_spans(
 
         if fields.kind == "config_read":
             if rx_index >= len(rx_log):
+                if allow_incomplete:
+                    print(
+                        f"warning: skipping missing readback for word {tx_entry['packet_word']}",
+                        file=sys.stderr,
+                    )
+                    continue
                 raise SystemExit("missing readback packets in run log")
             rx_index += 1
 
@@ -616,7 +639,9 @@ def build_chip_updates_and_fpga_spans(
 
 
 def main() -> int:
+    global FULL_MSG_OP
     args = parse_args()
+    FULL_MSG_OP = bool(args.full_msg_op)
     source = (args.source_x, args.source_y)
     startup_frames = []
     if args.startup_json is not None:
@@ -635,7 +660,15 @@ def main() -> int:
     fpga_events = build_fpga_events(startup_frames, tx_log, rx_log)
     if startup_frames:
         chip_updates, fpga_spans = build_chip_updates_and_fpga_spans(
-            chip_state_grid, args.rows, args.cols, source, startup_frames, tx_log, rx_log, trace_events
+            chip_state_grid,
+            args.rows,
+            args.cols,
+            source,
+            startup_frames,
+            tx_log,
+            rx_log,
+            trace_events,
+            allow_incomplete=args.allow_incomplete,
         )
     chip_updates.extend(build_runtime_lane_updates(trace_events, args.cols))
     chip_updates.sort(key=lambda item: (item["tick"], item["x"], item["y"], item.get("event", "")))

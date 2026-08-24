@@ -614,27 +614,32 @@ load_stimulus_events(const chip_options_t *opts, std::vector<stimulus_event_t> *
 }
 
 static int
-send_done(nng_socket control_rep, const chip_options_t *opts, uint64_t seq, const chip_metrics_t *metrics)
+send_done_message(nng_socket control_rep, const chip_options_t *opts,
+    const chipsim_done_msg_t *done)
 {
-    chipsim_done_msg_t done;
-    int                rv;
-
-    memset(&done, 0, sizeof(done));
-    done.type            = CHIPSIM_MSG_DONE;
-    done.chip_id         = (uint32_t)opts->id;
-    done.seq             = seq;
-    done.tx_count        = metrics->tx_count;
-    done.rx_count        = metrics->rx_count;
-    done.local_gen_count = metrics->local_event_count;
-    done.drop_count      = metrics->drop_count;
-    done.fifo_occupancy  = 0;
-
-    rv = nng_send(control_rep, &done, sizeof(done), 0);
+    int rv = nng_send(control_rep, done, sizeof(*done), 0);
     if (rv != 0) {
         fprintf(stderr, "chip_larpix[%d] failed to send DONE: %s\n", opts->id, ERRSTR(rv));
         return -1;
     }
     return 0;
+}
+
+static int
+send_done(nng_socket control_rep, const chip_options_t *opts, uint64_t seq,
+    const chip_metrics_t *metrics, chipsim_done_msg_t *done)
+{
+    memset(done, 0, sizeof(*done));
+    done->type            = CHIPSIM_MSG_DONE;
+    done->chip_id         = (uint32_t)opts->id;
+    done->seq             = seq;
+    done->tx_count        = metrics->tx_count;
+    done->rx_count        = metrics->rx_count;
+    done->local_gen_count = metrics->local_event_count;
+    done->drop_count      = metrics->drop_count;
+    done->fifo_occupancy  = 0;
+
+    return send_done_message(control_rep, opts, done);
 }
 
 static int
@@ -755,12 +760,9 @@ bit_server_thread_main(void *arg)
 }
 
 static int
-pull_bit_from_edge(nng_socket data_req, const chip_options_t *opts, int edge,
-    uint64_t seq, uint8_t *have_bit, uint8_t *bit_value)
+send_bit_pull(nng_socket data_req, const chip_options_t *opts, int edge, uint64_t seq)
 {
     larpixsim_bit_pull_msg_t  req;
-    larpixsim_bit_reply_msg_t rep;
-    size_t                    rep_sz;
     int                       rv;
 
     memset(&req, 0, sizeof(req));
@@ -775,6 +777,16 @@ pull_bit_from_edge(nng_socket data_req, const chip_options_t *opts, int edge,
             opts->id, edge_name(edge), ERRSTR(rv));
         return -1;
     }
+    return 0;
+}
+
+static int
+recv_bit_reply(nng_socket data_req, const chip_options_t *opts, int edge,
+    uint64_t seq, uint8_t *have_bit, uint8_t *bit_value)
+{
+    larpixsim_bit_reply_msg_t rep;
+    size_t                    rep_sz;
+    int                       rv;
 
     rep_sz = sizeof(rep);
     rv     = nng_recv(data_req, &rep, &rep_sz, 0);
@@ -962,6 +974,10 @@ main(int argc, char **argv)
     int                    rv;
     int                    exit_code = 1;
     nng_err                init_err;
+    chipsim_done_msg_t     cached_done = {};
+    bool                   have_cached_done = false;
+    uint8_t                cached_control_type = 0;
+    uint64_t               expected_control_seq = 0;
 
     memset(&metrics, 0, sizeof(metrics));
     memset(&backend, 0, sizeof(backend));
@@ -1063,9 +1079,9 @@ main(int argc, char **argv)
         fprintf(stderr, "chip_larpix[%d] nng_rep0_open(control) failed: %s\n", opts.id, ERRSTR(rv));
         goto cleanup;
     }
-    rv = nng_listen(control_rep, opts.clock_url, NULL, 0);
+    rv = nng_dial(control_rep, opts.clock_url, NULL, 0);
     if (rv != 0) {
-        fprintf(stderr, "chip_larpix[%d] listen(control) failed at %s: %s\n",
+        fprintf(stderr, "chip_larpix[%d] dial(control) failed at %s: %s\n",
             opts.id, opts.clock_url, ERRSTR(rv));
         goto cleanup;
     }
@@ -1165,6 +1181,23 @@ main(int argc, char **argv)
             fprintf(stderr, "chip_larpix[%d] malformed control message\n", opts.id);
             goto cleanup;
         }
+        /* A retried REQ may repeat a control message if its DONE response was
+         * lost. Re-send the cached response without evaluating the RTL twice. */
+        if (have_cached_done && tick.type == cached_control_type &&
+                tick.seq == cached_done.seq) {
+            if (send_done_message(control_rep, &opts, &cached_done) != 0) {
+                goto cleanup;
+            }
+            continue;
+        }
+        if ((tick.type != CHIPSIM_MSG_TICK && tick.type != CHIPSIM_MSG_STOP) ||
+                tick.seq != expected_control_seq) {
+            fprintf(stderr,
+                "chip_larpix[%d] unexpected control message type=%u seq=%" PRIu64
+                " expected_seq=%" PRIu64 "\n",
+                opts.id, (unsigned)tick.type, tick.seq, expected_control_seq);
+            goto cleanup;
+        }
         metrics.last_seq = tick.seq;
 
         if (tick.type == CHIPSIM_MSG_STOP) {
@@ -1173,9 +1206,11 @@ main(int argc, char **argv)
                     bit_server_publish(&bit_state[edge], tick.seq, 0u, 0u);
                 }
             }
-            if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
+            if (send_done(control_rep, &opts, tick.seq, &metrics, &cached_done) != 0) {
                 goto cleanup;
             }
+            cached_control_type = tick.type;
+            have_cached_done = true;
             /* Give the REQ peer a chance to receive the terminal DONE before
              * this process runs metric/trace shutdown and closes the socket. */
             nng_msleep(10);
@@ -1209,9 +1244,17 @@ main(int argc, char **argv)
         in.seq = tick.seq;
         in.reset_n = 1u;
 
+        /* Issue all connected-edge requests before waiting for any reply so
+         * the independent neighbor transactions can progress concurrently. */
+        for (edge = 0; edge < LARPIXSIM_EDGE_COUNT; edge++) {
+            if (has_input[edge] &&
+                    send_bit_pull(data_req[edge], &opts, edge, tick.seq) != 0) {
+                goto cleanup;
+            }
+        }
         for (edge = 0; edge < LARPIXSIM_EDGE_COUNT; edge++) {
             if (has_input[edge]) {
-                if (pull_bit_from_edge(data_req[edge], &opts, edge, tick.seq,
+                if (recv_bit_reply(data_req[edge], &opts, edge, tick.seq,
                         &in.rx_bit_valid[edge], &in.rx_bit_value[edge]) != 0) {
                     goto cleanup;
                 }
@@ -1361,9 +1404,12 @@ main(int argc, char **argv)
                 out.rx_lane_hold[LARPIX_EDGE_WEST]);
         }
 
-        if (send_done(control_rep, &opts, tick.seq, &metrics) != 0) {
+        if (send_done(control_rep, &opts, tick.seq, &metrics, &cached_done) != 0) {
             goto cleanup;
         }
+        cached_control_type = tick.type;
+        have_cached_done = true;
+        expected_control_seq++;
     }
 
     if (send_metric(metric_push, &opts, &metrics) != 0) {

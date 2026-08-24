@@ -14,6 +14,7 @@
 #include <nng/nng.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,11 +54,18 @@ typedef struct {
 } larpix_route_t;
 
 typedef struct {
+    nng_socket  req;
+    nng_aio    *aio;
+    _Atomic int connected;
+} control_peer_t;
+
+typedef struct {
     int         rows;
     int         cols;
     uint64_t    ticks;
     int         startup_ms;
     int         ack_timeout_ms;
+    int         control_resend_ms;
     uint32_t    seed;
     const char *chip_bin;
     const char *fpga_bin;
@@ -93,6 +101,7 @@ usage(const char *prog)
         "Options:\n"
         "  -startup_ms <N>         wait before first tick (default 350)\n"
         "  -ack_timeout_ms <N>     timeout waiting for DONE/METRIC (default 5000)\n"
+        "  -control_resend_ms <N>  resend unanswered control requests (default 100)\n"
         "  -seed <N>               base seed (default 1)\n"
         "  -chip_bin <path>        chip executable (default ./larpix_chip)\n"
         "  -fpga_bin <path>        FPGA/controller executable (default ./fpga_larpix)\n"
@@ -169,6 +178,7 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
     memset(opts, 0, sizeof(*opts));
     opts->startup_ms = 350;
     opts->ack_timeout_ms = 5000;
+    opts->control_resend_ms = 100;
     opts->seed = 1u;
     opts->chip_bin = default_peer_binary_path(argv[0], "chip_larpix", default_chip_bin, sizeof(default_chip_bin));
     opts->fpga_bin = default_peer_binary_path(argv[0], "fpga_larpix", default_fpga_bin, sizeof(default_fpga_bin));
@@ -206,6 +216,11 @@ parse_args(int argc, char **argv, orchestrator_larpix_options_t *opts)
             }
         } else if (strcmp(argv[i], "-ack_timeout_ms") == 0 && i + 1 < argc) {
             if (parse_int(argv[++i], &opts->ack_timeout_ms) != 0 || opts->ack_timeout_ms <= 0) {
+                return -1;
+            }
+        } else if (strcmp(argv[i], "-control_resend_ms") == 0 && i + 1 < argc) {
+            if (parse_int(argv[++i], &opts->control_resend_ms) != 0 ||
+                    opts->control_resend_ms <= 0) {
                 return -1;
             }
         } else if (strcmp(argv[i], "-seed") == 0 && i + 1 < argc) {
@@ -617,57 +632,170 @@ terminate_children(pid_t *pids, int count)
     }
 }
 
-static int
-recv_done_response(nng_socket control_req, int expected_runtime_id, pid_t expected_pid, uint64_t expected_seq)
+static void
+control_pipe_event(nng_pipe pipe, nng_pipe_ev event, void *arg)
 {
-    chipsim_done_msg_t msg;
-    size_t msg_sz = sizeof(msg);
-    int rv;
+    control_peer_t *peer = (control_peer_t *)arg;
+    (void)pipe;
 
-    rv = nng_recv(control_req, &msg, &msg_sz, 0);
-    if (rv != 0) {
-        fprintf(stderr,
-            "orchestrator_larpix recv(DONE) failed for runtime=%d pid=%ld seq=%" PRIu64 ": %s\n",
-            expected_runtime_id,
-            (long)expected_pid,
-            expected_seq,
-            nng_strerror(rv));
-        if (expected_pid > 0) {
-            int status = 0;
-            pid_t wait_rv = waitpid(expected_pid, &status, 0);
-            if (wait_rv == expected_pid) {
-                if (WIFEXITED(status)) {
-                    fprintf(stderr,
-                        "orchestrator_larpix runtime=%d pid=%ld exited with status=%d\n",
-                        expected_runtime_id,
-                        (long)expected_pid,
-                        WEXITSTATUS(status));
-                } else if (WIFSIGNALED(status)) {
-                    fprintf(stderr,
-                        "orchestrator_larpix runtime=%d pid=%ld terminated by signal=%d\n",
-                        expected_runtime_id,
-                        (long)expected_pid,
-                        WTERMSIG(status));
-                }
+    if (event == NNG_PIPE_EV_ADD_POST) {
+        atomic_fetch_add_explicit(&peer->connected, 1, memory_order_relaxed);
+    } else if (event == NNG_PIPE_EV_REM_POST) {
+        atomic_fetch_sub_explicit(&peer->connected, 1, memory_order_relaxed);
+    }
+}
+
+static void
+report_child_status(int runtime_id, pid_t pid)
+{
+    int status = 0;
+    pid_t wait_rv;
+
+    if (pid <= 0) {
+        return;
+    }
+    wait_rv = waitpid(pid, &status, WNOHANG);
+    if (wait_rv != pid) {
+        return;
+    }
+    if (WIFEXITED(status)) {
+        fprintf(stderr, "orchestrator_larpix runtime=%d pid=%ld exited with status=%d\n",
+            runtime_id, (long)pid, WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        fprintf(stderr, "orchestrator_larpix runtime=%d pid=%ld terminated by signal=%d\n",
+            runtime_id, (long)pid, WTERMSIG(status));
+    }
+}
+
+static int
+wait_for_control_peers(control_peer_t *peers, int runtime_count,
+    int timeout_ms, const pid_t *child_pids)
+{
+    const double deadline = mono_now_sec() + (double)timeout_ms / 1000.0;
+
+    for (;;) {
+        int connected = 0;
+        int i;
+
+        for (i = 0; i < runtime_count; ++i) {
+            if (atomic_load_explicit(&peers[i].connected, memory_order_relaxed) > 0) {
+                connected++;
             }
         }
+        if (connected == runtime_count) {
+            return 0;
+        }
+        if (mono_now_sec() >= deadline) {
+            fprintf(stderr, "orchestrator_larpix timed out waiting for control peers: connected=%d expected=%d\n",
+                connected, runtime_count);
+            for (i = 0; i < runtime_count; ++i) {
+                if (atomic_load_explicit(&peers[i].connected, memory_order_relaxed) <= 0) {
+                    fprintf(stderr, "orchestrator_larpix missing control peer runtime=%d pid=%ld\n",
+                        i, (long)child_pids[i]);
+                }
+                report_child_status(i, child_pids[i]);
+            }
+            return -1;
+        }
+        nng_msleep(1);
+    }
+}
+
+static int
+send_control_and_gather(control_peer_t *peers,
+    const chipsim_tick_msg_t *control_msg,
+    int runtime_count,
+    int timeout_ms,
+    const pid_t *child_pids)
+{
+    int failed = 0;
+    int send_posted = 0;
+    int i;
+
+    /* Queue every request before waiting on any runtime. Each AIO belongs to
+     * a dedicated REQ socket, so all control transactions can progress
+     * concurrently without requests reaching the wrong process. */
+    for (i = 0; i < runtime_count; ++i) {
+        nng_msg *msg = NULL;
+        int rv = nng_msg_alloc(&msg, sizeof(*control_msg));
+        if (rv != 0) {
+            fprintf(stderr, "orchestrator_larpix allocate control request for runtime=%d failed: %s\n",
+                i, nng_strerror(rv));
+            failed = 1;
+            break;
+        }
+        memcpy(nng_msg_body(msg), control_msg, sizeof(*control_msg));
+        nng_aio_set_timeout(peers[i].aio, timeout_ms);
+        nng_aio_set_msg(peers[i].aio, msg);
+        nng_socket_send(peers[i].req, peers[i].aio);
+        send_posted++;
+    }
+
+    for (i = 0; i < send_posted; ++i) {
+        int rv;
+        nng_msg *msg;
+
+        nng_aio_wait(peers[i].aio);
+        rv = nng_aio_result(peers[i].aio);
+        if (rv != 0) {
+            fprintf(stderr, "orchestrator_larpix send(%s) failed for runtime=%d seq=%" PRIu64 ": %s\n",
+                control_msg->type == CHIPSIM_MSG_STOP ? "STOP" : "TICK",
+                i, control_msg->seq, nng_strerror(rv));
+            msg = nng_aio_get_msg(peers[i].aio);
+            if (msg != NULL) {
+                nng_aio_set_msg(peers[i].aio, NULL);
+                nng_msg_free(msg);
+            }
+            report_child_status(i, child_pids[i]);
+            failed = 1;
+        }
+    }
+    if (failed || send_posted != runtime_count) {
         return -1;
     }
-    if (msg_sz != sizeof(msg) || msg.type != CHIPSIM_MSG_DONE) {
-        fprintf(stderr, "orchestrator_larpix received malformed DONE response\n");
-        return -1;
+
+    for (i = 0; i < runtime_count; ++i) {
+        nng_aio_set_timeout(peers[i].aio, timeout_ms);
+        nng_socket_recv(peers[i].req, peers[i].aio);
     }
-    if (msg.seq != expected_seq) {
-        fprintf(stderr, "orchestrator_larpix received DONE seq=%" PRIu64 " expected=%" PRIu64 "\n",
-            msg.seq, expected_seq);
-        return -1;
+
+    for (i = 0; i < runtime_count; ++i) {
+        chipsim_done_msg_t done;
+        nng_msg *msg;
+        int rv;
+
+        nng_aio_wait(peers[i].aio);
+        rv = nng_aio_result(peers[i].aio);
+        if (rv != 0) {
+            fprintf(stderr, "orchestrator_larpix recv(DONE) failed for runtime=%d seq=%" PRIu64 ": %s\n",
+                i, control_msg->seq, nng_strerror(rv));
+            report_child_status(i, child_pids[i]);
+            failed = 1;
+            continue;
+        }
+        msg = nng_aio_get_msg(peers[i].aio);
+        if (msg == NULL || nng_msg_len(msg) != sizeof(done)) {
+            fprintf(stderr, "orchestrator_larpix received malformed DONE from runtime=%d\n", i);
+            if (msg != NULL) {
+                nng_aio_set_msg(peers[i].aio, NULL);
+                nng_msg_free(msg);
+            }
+            failed = 1;
+            continue;
+        }
+        memcpy(&done, nng_msg_body(msg), sizeof(done));
+        nng_aio_set_msg(peers[i].aio, NULL);
+        nng_msg_free(msg);
+
+        if (done.type != CHIPSIM_MSG_DONE || done.chip_id != (uint32_t)i ||
+                done.seq != control_msg->seq) {
+            fprintf(stderr, "orchestrator_larpix DONE mismatch on runtime=%d: type=%u chip_id=%u seq=%" PRIu64
+                " expected_seq=%" PRIu64 "\n",
+                i, (unsigned)done.type, done.chip_id, done.seq, control_msg->seq);
+            failed = 1;
+        }
     }
-    if (msg.chip_id != (uint32_t)expected_runtime_id) {
-        fprintf(stderr, "orchestrator_larpix received DONE chip_id=%u expected=%d\n",
-            msg.chip_id, expected_runtime_id);
-        return -1;
-    }
-    return 0;
+    return failed ? -1 : 0;
 }
 
 int
@@ -681,9 +809,10 @@ main(int argc, char **argv)
     bool use_fpga;
     larpix_route_t *routes = NULL;
     pid_t *child_pids = NULL;
-    nng_socket *control_reqs = NULL;
+    control_peer_t *control_peers = NULL;
     nng_socket metric_pull = NNG_SOCKET_INITIALIZER;
     char control_prefix[256];
+    char control_url[256];
     char metric_url[256];
     char trace_url[256];
     char edge_prefix[256];
@@ -718,10 +847,13 @@ main(int argc, char **argv)
 
     routes = calloc((size_t)chip_count, sizeof(*routes));
     child_pids = calloc((size_t)runtime_count, sizeof(*child_pids));
-    control_reqs = calloc((size_t)runtime_count, sizeof(*control_reqs));
-    if (routes == NULL || child_pids == NULL || control_reqs == NULL) {
+    control_peers = calloc((size_t)runtime_count, sizeof(*control_peers));
+    if (routes == NULL || child_pids == NULL || control_peers == NULL) {
         fprintf(stderr, "allocation failure\n");
         goto fail;
+    }
+    for (i = 0; i < runtime_count; ++i) {
+        atomic_init(&control_peers[i].connected, 0);
     }
 
     build_default_routes(&opts, routes);
@@ -765,8 +897,60 @@ main(int argc, char **argv)
         goto fail;
     }
 
+    for (i = 0; i < runtime_count; ++i) {
+        int resend_tick_ms = opts.control_resend_ms < 10
+            ? opts.control_resend_ms : 10;
+
+        if (build_endpoint_url(control_url, sizeof(control_url), control_prefix,
+                control_port_base + i) != 0) {
+            fprintf(stderr, "failed to build control endpoint for runtime=%d\n", i);
+            goto fail;
+        }
+        rv = nng_req0_open(&control_peers[i].req);
+        if (rv != 0) {
+            fprintf(stderr, "control REQ open failed for runtime=%d: %s\n",
+                i, nng_strerror(rv));
+            goto fail;
+        }
+        rv = nng_socket_set_ms(control_peers[i].req,
+            NNG_OPT_REQ_RESENDTIME, opts.control_resend_ms);
+        if (rv != 0) {
+            fprintf(stderr, "control resend-time setup failed for runtime=%d: %s\n",
+                i, nng_strerror(rv));
+            goto fail;
+        }
+        rv = nng_socket_set_ms(control_peers[i].req,
+            NNG_OPT_REQ_RESENDTICK, resend_tick_ms);
+        if (rv != 0) {
+            fprintf(stderr, "control resend-tick setup failed for runtime=%d: %s\n",
+                i, nng_strerror(rv));
+            goto fail;
+        }
+        rv = nng_aio_alloc(&control_peers[i].aio, NULL, NULL);
+        if (rv != 0) {
+            fprintf(stderr, "control AIO allocation failed for runtime=%d: %s\n",
+                i, nng_strerror(rv));
+            goto fail;
+        }
+        rv = nng_pipe_notify(control_peers[i].req, NNG_PIPE_EV_ADD_POST,
+            control_pipe_event, &control_peers[i]);
+        if (rv != 0) {
+            goto fail;
+        }
+        rv = nng_pipe_notify(control_peers[i].req, NNG_PIPE_EV_REM_POST,
+            control_pipe_event, &control_peers[i]);
+        if (rv != 0) {
+            goto fail;
+        }
+        rv = nng_listen(control_peers[i].req, control_url, NULL, 0);
+        if (rv != 0) {
+            fprintf(stderr, "control REQ listen failed for runtime=%d at %s: %s\n",
+                i, control_url, nng_strerror(rv));
+            goto fail;
+        }
+    }
+
     for (i = 0; i < chip_count; i++) {
-        char control_url[256];
         if (build_endpoint_url(control_url, sizeof(control_url), control_prefix, control_port_base + i) != 0) {
             goto fail;
         }
@@ -777,7 +961,6 @@ main(int argc, char **argv)
     }
 
     if (use_fpga) {
-        char control_url[256];
         if (build_endpoint_url(control_url, sizeof(control_url), control_prefix, control_port_base + fpga_runtime_id) != 0) {
             goto fail;
         }
@@ -794,34 +977,13 @@ main(int argc, char **argv)
         nanosleep(&ts, NULL);
     }
 
-    for (i = 0; i < runtime_count; i++) {
-        char control_url[256];
-        if (build_endpoint_url(control_url, sizeof(control_url), control_prefix, control_port_base + i) != 0) {
-            goto fail;
-        }
-        rv = nng_req0_open(&control_reqs[i]);
-        if (rv != 0) {
-            fprintf(stderr, "control req open failed for runtime %d: %s\n", i, nng_strerror(rv));
-            goto fail;
-        }
-        rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_SENDTIMEO, opts.ack_timeout_ms);
-        if (rv != 0) {
-            goto fail;
-        }
-        rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_RECVTIMEO, opts.ack_timeout_ms);
-        if (rv != 0) {
-            goto fail;
-        }
-        rv = nng_socket_set_ms(control_reqs[i], NNG_OPT_REQ_RESENDTIME, NNG_DURATION_INFINITE);
-        if (rv != 0) {
-            goto fail;
-        }
-        rv = nng_dial(control_reqs[i], control_url, NULL, 0);
-        if (rv != 0) {
-            fprintf(stderr, "control dial failed for runtime %d at %s: %s\n", i, control_url, nng_strerror(rv));
-            goto fail;
-        }
+    if (wait_for_control_peers(control_peers,
+            runtime_count, opts.ack_timeout_ms, child_pids) != 0) {
+        goto fail;
     }
+    printf("orchestrator_larpix: control_req_rep_connected=%d\n", runtime_count);
+    printf("orchestrator_larpix: tick_dispatch=aio_req_rep resend_ms=%d\n",
+        opts.control_resend_ms);
 
     for (seq = 0; seq < opts.ticks; seq++) {
         chipsim_tick_msg_t tick;
@@ -829,17 +991,9 @@ main(int argc, char **argv)
         tick.type = CHIPSIM_MSG_TICK;
         tick.seq = seq;
 
-        for (i = 0; i < runtime_count; i++) {
-            rv = nng_send(control_reqs[i], &tick, sizeof(tick), 0);
-            if (rv != 0) {
-                fprintf(stderr, "send(TICK) failed for runtime %d: %s\n", i, nng_strerror(rv));
-                goto fail;
-            }
-        }
-        for (i = 0; i < runtime_count; i++) {
-            if (recv_done_response(control_reqs[i], i, child_pids[i], seq) != 0) {
-                goto fail;
-            }
+        if (send_control_and_gather(control_peers, &tick,
+                runtime_count, opts.ack_timeout_ms, child_pids) != 0) {
+            goto fail;
         }
     }
 
@@ -849,17 +1003,9 @@ main(int argc, char **argv)
         stop_msg.type = CHIPSIM_MSG_STOP;
         stop_msg.seq = opts.ticks;
 
-        for (i = 0; i < runtime_count; i++) {
-            rv = nng_send(control_reqs[i], &stop_msg, sizeof(stop_msg), 0);
-            if (rv != 0) {
-                fprintf(stderr, "send(STOP) failed for runtime %d: %s\n", i, nng_strerror(rv));
-                goto fail;
-            }
-        }
-        for (i = 0; i < runtime_count; i++) {
-            if (recv_done_response(control_reqs[i], i, child_pids[i], opts.ticks) != 0) {
-                goto fail;
-            }
+        if (send_control_and_gather(control_peers, &stop_msg,
+                runtime_count, opts.ack_timeout_ms, child_pids) != 0) {
+            goto fail;
         }
     }
 
@@ -887,9 +1033,13 @@ main(int argc, char **argv)
     t_all_end = mono_now_sec();
     printf("orchestrator_larpix: completed in %.6f sec\n", t_all_end - t_all_start);
 
-    for (i = 0; i < runtime_count; i++) {
-        if (nng_socket_id(control_reqs[i]) > 0) {
-            nng_socket_close(control_reqs[i]);
+    for (i = 0; i < runtime_count; ++i) {
+        if (control_peers[i].aio != NULL) {
+            nng_aio_stop(control_peers[i].aio);
+            nng_aio_free(control_peers[i].aio);
+        }
+        if (nng_socket_id(control_peers[i].req) > 0) {
+            nng_socket_close(control_peers[i].req);
         }
     }
     if (nng_socket_id(metric_pull) > 0) {
@@ -897,7 +1047,7 @@ main(int argc, char **argv)
     }
     free(routes);
     free(child_pids);
-    free(control_reqs);
+    free(control_peers);
     nng_fini();
     return 0;
 
@@ -908,10 +1058,14 @@ fail:
     if (collector_pid > 0) {
         kill(collector_pid, SIGTERM);
     }
-    if (control_reqs != NULL) {
-        for (i = 0; i < runtime_count; i++) {
-            if (nng_socket_id(control_reqs[i]) > 0) {
-                nng_socket_close(control_reqs[i]);
+    if (control_peers != NULL) {
+        for (i = 0; i < runtime_count; ++i) {
+            if (control_peers[i].aio != NULL) {
+                nng_aio_stop(control_peers[i].aio);
+                nng_aio_free(control_peers[i].aio);
+            }
+            if (nng_socket_id(control_peers[i].req) > 0) {
+                nng_socket_close(control_peers[i].req);
             }
         }
     }
@@ -932,7 +1086,7 @@ fail:
     }
     free(routes);
     free(child_pids);
-    free(control_reqs);
+    free(control_peers);
     nng_fini();
     return 1;
 }
