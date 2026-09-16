@@ -18,7 +18,8 @@ set -euo pipefail
 # south. Chips 3, 4, and 5 use north-only upstream routing. Chip 7 retains
 # south-only upstream routing. All other chips retain standard routing.
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+repo_root="$repository_root/chip_network_sim"
 build_dir="$repo_root/build"
 chip_target="${CHIP_TARGET:-chip_larpix_v3c_build}"
 chip_bin_name="${CHIP_BIN_NAME:-chip_larpix_v3c}"
@@ -306,35 +307,37 @@ python3 "$repo_root/sim_core/visualizers/packet_transmission/convert_live_trace_
   --trace-jsonl "$trace_jsonl" \
   --out "$playback_json" \
   --rtl-version "$rtl_version_label" \
-  --name "3x3 v3c Convergent Packet Loss Probe"
+  --name "3x3 $rtl_version_label Convergent Packet Loss Probe"
 
-python3 - "$playback_json" "$run_metrics_json" <<'PYPLAYBACK'
+python3 - "$playback_json" "$run_metrics_json" "$rtl_version_label" <<'PYPLAYBACK'
 import json
 import pathlib
 import sys
 
 playback_path = pathlib.Path(sys.argv[1])
+rtl_version = sys.argv[3]
 playback = json.loads(playback_path.read_text())
 playback['run_summary'] = json.loads(pathlib.Path(sys.argv[2]).read_text())
 playback['chip_internal_debug'] = {
     'csv_url': './chip4_rx_debug.csv',
     'monitor_chip_id': 4,
     'monitor_runtime_id': 4,
-    'label': 'v3c Chip 4 Three-Way Convergence',
-    'kind': 'v3c_3x3_convergent_packet_loss_chip4',
+    'label': f'{rtl_version} Chip 4 Three-Way Convergence',
+    'kind': f'{rtl_version}_3x3_convergent_packet_loss_chip4',
 }
 playback['chip_internal_debug_aux'] = {
     'csv_url': './chip0_rx_debug.csv',
     'monitor_chip_id': 0,
     'monitor_runtime_id': 0,
-    'label': 'v3c Chip 0 Final Sink Path',
-    'kind': 'v3c_3x3_convergent_packet_loss_chip0',
+    'label': f'{rtl_version} Chip 0 Final Sink Path',
+    'kind': f'{rtl_version}_3x3_convergent_packet_loss_chip0',
 }
 playback_path.write_text(json.dumps(playback, indent=2) + '\n')
 PYPLAYBACK
 
 python3 - "$trace_jsonl" "$log_file" "$summary_json" \
-  "$repo_root/sim_core/tools/larpix_uart.py" "$injection_tick" <<'PYSUM'
+  "$repo_root/sim_core/tools/larpix_uart.py" "$injection_tick" \
+  "$rtl_version_label" <<'PYSUM'
 import importlib.util
 import json
 import pathlib
@@ -346,6 +349,7 @@ log_path = pathlib.Path(sys.argv[2])
 summary_path = pathlib.Path(sys.argv[3])
 helper_path = pathlib.Path(sys.argv[4])
 injection_tick = int(sys.argv[5])
+rtl_version = sys.argv[6]
 
 spec = importlib.util.spec_from_file_location('larpix_uart', helper_path)
 module = importlib.util.module_from_spec(spec)
@@ -419,7 +423,7 @@ for match in re.finditer(
     fpga_unique.setdefault(chip_id, set()).add(word)
 
 summary = {
-    'scenario': '3x3 v3c Convergent Packet Loss Probe',
+    'scenario': f'3x3 {rtl_version} Convergent Packet Loss Probe',
     'source_runtime_id': 0,
     'injected_runtime_ids': [3, 5, 7],
     'injection_tick': injection_tick,

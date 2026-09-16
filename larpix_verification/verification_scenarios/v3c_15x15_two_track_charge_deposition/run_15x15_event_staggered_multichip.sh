@@ -19,10 +19,11 @@ set -euo pipefail
 # - generate a visualizer playback JSON for the preconfigured 15x15 scenario
 # - verify that the FPGA receives downstream data packets from each injected chip
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+repo_root="$repository_root/chip_network_sim"
 build_dir="$repo_root/build"
-chip_target="${CHIP_TARGET:-chip_larpix_v3b_build}"
-chip_bin_name="${CHIP_BIN_NAME:-chip_larpix_v3b}"
+chip_target="${CHIP_TARGET:-chip_larpix_v3c_build}"
+chip_bin_name="${CHIP_BIN_NAME:-chip_larpix_v3c}"
 case "$chip_bin_name" in
   chip_larpix_v3c) rtl_version_default="v3c" ;;
   chip_larpix_v3b_v2) rtl_version_default="v3b_v2" ;;
@@ -30,6 +31,7 @@ case "$chip_bin_name" in
 esac
 rtl_version_label="${RTL_VERSION_LABEL:-$rtl_version_default}"
 build_binaries="${BUILD_BINARIES:-1}"
+require_all_targets="${REQUIRE_ALL_TARGETS:-1}"
 chip_variant="${CHIP_VARIANT_LABEL:-$rtl_version_default}"
 scenario_name="larpix_15x15_event_staggered_multichip"
 work_dir="$build_dir/${scenario_name}__${chip_variant}"
@@ -62,6 +64,10 @@ python3 "$repo_root/sim_core/tools/generate_bootstrap_preconfigured_event_init_j
 
 if [[ "$build_binaries" != "0" && "$build_binaries" != "1" ]]; then
   echo "BUILD_BINARIES must be 0 or 1" >&2
+  exit 2
+fi
+if [[ "$require_all_targets" != "0" && "$require_all_targets" != "1" ]]; then
+  echo "REQUIRE_ALL_TARGETS must be 0 or 1" >&2
   exit 2
 fi
 
@@ -254,7 +260,8 @@ playback['run_summary'] = json.loads(run_metrics_json.read_text())
 playback_json.write_text(json.dumps(playback, indent=2) + '\n')
 PYMETRICS
 
-python3 - "$init_json" "$log_file" "$trace_jsonl" "$playback_json" "$repo_root/sim_core/tools/larpix_uart.py" <<'PY2'
+python3 - "$init_json" "$log_file" "$trace_jsonl" "$playback_json" \
+  "$repo_root/sim_core/tools/larpix_uart.py" "$require_all_targets" <<'PY2'
 import importlib.util
 import json
 import pathlib
@@ -266,6 +273,7 @@ log_path = pathlib.Path(sys.argv[2])
 trace_jsonl = pathlib.Path(sys.argv[3])
 playback_json = pathlib.Path(sys.argv[4])
 helper_path = pathlib.Path(sys.argv[5])
+require_all_targets = bool(int(sys.argv[6]))
 init_raw = json.loads(init_json.read_text())
 text = log_path.read_text()
 if not trace_jsonl.exists() or trace_jsonl.stat().st_size == 0:
@@ -319,7 +327,7 @@ for word, fields in data_packets:
         observed_by_chip[chip_id].add(decoded['channel_id'])
         first_matching_by_chip.setdefault(chip_id, (word, fields))
 missing_chips = [chip_id for chip_id, channels in observed_by_chip.items() if not channels]
-if missing_chips:
+if missing_chips and require_all_targets:
     raise SystemExit('FAIL: missing matching data packets from chip_ids ' + ','.join(str(v) for v in missing_chips))
 
 playback = json.loads(playback_json.read_text())
@@ -333,7 +341,11 @@ charge_events = [event for event in playback.get('chip_events', []) if event.get
 if len(charge_events) != len(target_chip_ids):
     raise SystemExit(f'FAIL: expected {len(target_chip_ids)} charge events in playback, observed {len(charge_events)}')
 
-print('PASS: 15x15 LArPix analog/cosim two-track staggered multi-chip event test (rtl_preconfigured)')
+if missing_chips:
+    print('COMPLETE: 15x15 run produced comparison artifacts with missing chip IDs: '
+          + ','.join(str(v) for v in missing_chips))
+else:
+    print('PASS: 15x15 LArPix analog/cosim two-track staggered multi-chip event test (rtl_preconfigured)')
 print(f'preloaded_register_writes={len(init_raw.get("register_writes", []))}')
 print(f'configured_targets={len(init_raw.get("targets", []))}')
 print(f'trace_jsonl={trace_jsonl}')

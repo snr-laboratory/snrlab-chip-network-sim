@@ -19,10 +19,11 @@ set -euo pipefail
 # - per-tick RX/Hydra state CSV for runtime 0
 # - a post-run summary of packet counts by chip-0 incoming lane and at the FPGA
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+repo_root="$repository_root/chip_network_sim"
 build_dir="$repo_root/build"
-chip_target="${CHIP_TARGET:-chip_larpix_v3b_build}"
-chip_bin_name="${CHIP_BIN_NAME:-chip_larpix_v3b}"
+chip_target="${CHIP_TARGET:-chip_larpix_v3c_build}"
+chip_bin_name="${CHIP_BIN_NAME:-chip_larpix_v3c}"
 case "$chip_bin_name" in
   chip_larpix_v3c) rtl_version_default="v3c" ;;
   chip_larpix_v3b_v2) rtl_version_default="v3b_v2" ;;

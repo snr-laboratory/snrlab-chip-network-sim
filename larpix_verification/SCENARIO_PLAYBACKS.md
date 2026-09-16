@@ -146,6 +146,8 @@ received packets identified chip 2 as their source.
 
 - Playback JSON:
   [`live_event_2x2_packet_loss_probe.json`](verification_scenarios/v3b_2x2_packet_loss_probe/live_event_2x2_packet_loss_probe.json)
+- Reproduction runner:
+  [`run_2x2_packet_loss_probe_v3b.sh`](verification_scenarios/v3b_2x2_packet_loss_probe/run_2x2_packet_loss_probe_v3b.sh)
 - Packet-loss summary:
   [`packet_loss_summary.json`](verification_scenarios/v3b_2x2_packet_loss_probe/packet_loss_summary.json)
 - Stable visualizer page:
@@ -159,6 +161,8 @@ read replies reached the FPGA.
 
 - Playback JSON:
   [`live_event_3x3_convergent_packet_loss_probe.json`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/live_event_3x3_convergent_packet_loss_probe.json)
+- Reproduction runner:
+  [`run_3x3_convergent_packet_loss_probe_v3b.sh`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/run_3x3_convergent_packet_loss_probe_v3b.sh)
 - Required chip-4 debug sidecar:
   [`chip4_rx_debug.csv`](verification_scenarios/v3b_3x3_convergent_packet_loss_read_contention/chip4_rx_debug.csv)
 - Required chip-0 debug sidecar:
@@ -175,6 +179,8 @@ IDs 0 through 99.
 
 - Playback JSON:
   [`live_bootstrap_10x10.json`](verification_scenarios/v3b_10x10_unconfigured_network_startup/live_bootstrap_10x10.json)
+- Reproduction runner:
+  [`run_10x10_bootstrap_startup_v3b.sh`](verification_scenarios/v3b_10x10_unconfigured_network_startup/run_10x10_bootstrap_startup_v3b.sh)
 - Bootstrap summary:
   [`bootstrap_summary.json`](verification_scenarios/v3b_10x10_unconfigured_network_startup/bootstrap_summary.json)
 - Stable visualizer page:
@@ -188,6 +194,8 @@ packets arrived from chip IDs 113, 129, 169, 183, or 184.
 
 - Playback JSON:
   [`live_event_15x15_staggered_multichip.json`](verification_scenarios/v3b_15x15_two_track_charge_deposition/live_event_15x15_staggered_multichip.json)
+- Reproduction runner:
+  [`run_15x15_event_staggered_multichip_v3b.sh`](verification_scenarios/v3b_15x15_two_track_charge_deposition/run_15x15_event_staggered_multichip_v3b.sh)
 - Selected-chip FIFO occupancy plot:
   [`selected_chip_fifo_occupancy_ticks_1000_18000.png`](verification_scenarios/v3b_15x15_two_track_charge_deposition/selected_chip_fifo_occupancy_ticks_1000_18000.png)
 - Stable visualizer page:

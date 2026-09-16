@@ -10,7 +10,8 @@ set -euo pipefail
 # write frames use 75-tick spacing, safely above the observed 68-tick forwarding
 # service interval.
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+repo_root="$repository_root/chip_network_sim"
 build_dir="$repo_root/build"
 chip_target="${CHIP_TARGET:-chip_larpix_v3c_build}"
 chip_bin_name="${CHIP_BIN_NAME:-chip_larpix_v3c}"
@@ -162,11 +163,12 @@ python3 "$repo_root/sim_core/visualizers/packet_transmission/convert_live_trace_
   --trace-jsonl "$trace_jsonl" \
   --out "$playback_json" \
   --rtl-version "$rtl_version_label" \
-  --name "Live v3c 10x10 Bootstrap Configuration"
+  --name "Live $rtl_version_label 10x10 Bootstrap Configuration"
 
 python3 - \
   "$startup_json" "$log_file" "$playback_json" "$summary_json" \
-  "$run_metrics_json" "$repo_root/sim_core/tools/larpix_uart.py" <<'PYVERIFY'
+  "$run_metrics_json" "$repo_root/sim_core/tools/larpix_uart.py" \
+  "$rtl_version_label" <<'PYVERIFY'
 import importlib.util
 import json
 import pathlib
@@ -179,6 +181,7 @@ playback_path = pathlib.Path(sys.argv[3])
 summary_path = pathlib.Path(sys.argv[4])
 run_metrics_path = pathlib.Path(sys.argv[5])
 helper_path = pathlib.Path(sys.argv[6])
+rtl_version = sys.argv[7]
 
 startup = json.loads(startup_path.read_text())
 log_text = log_path.read_text()
@@ -246,7 +249,7 @@ downstream_writes = sum(
 )
 
 summary = {
-    'scenario': 'Live v3c 10x10 Bootstrap Configuration Without Readbacks',
+    'scenario': f'Live {rtl_version} 10x10 Bootstrap Configuration Without Readbacks',
     'rows': 10,
     'cols': 10,
     'chip_count': 100,
@@ -270,7 +273,7 @@ playback['run_summary'] = summary['run_metrics']
 playback['bootstrap_summary'] = summary
 playback_path.write_text(json.dumps(playback, indent=2) + '\n')
 
-print('PASS: live v3c 10x10 bootstrap configuration')
+print(f'PASS: live {rtl_version} 10x10 bootstrap configuration')
 print(json.dumps(summary, indent=2))
 PYVERIFY
 
