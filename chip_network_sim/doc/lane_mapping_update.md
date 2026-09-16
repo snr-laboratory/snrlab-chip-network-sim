@@ -63,7 +63,7 @@ This avoids rewriting the rest of the simulator around RTL-specific bit position
 
 The most important fix is in:
 
-- [sim_core/src/larpix_cosim_backend.cpp](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/src/larpix_cosim_backend.cpp)
+- [sim_core/src/larpix_cosim_backend.cpp](../sim_core/src/larpix_cosim_backend.cpp)
 
 Two separate maps are now used.
 
@@ -109,34 +109,34 @@ The old assumption had been:
 
 ### Live cosimulation boundary
 
-- [sim_core/src/larpix_cosim_backend.cpp](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/src/larpix_cosim_backend.cpp)
+- [sim_core/src/larpix_cosim_backend.cpp](../sim_core/src/larpix_cosim_backend.cpp)
 
 This is the required fix for correct live chip I/O.
 
 ### Bootstrap / preload mask generation
 
-- [sim_core/tools/generate_bootstrap_chip_id_readback_json.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/tools/generate_bootstrap_chip_id_readback_json.py)
-- [sim_core/tools/generate_bootstrap_preconfigured_event_init_json.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/tools/generate_bootstrap_preconfigured_event_init_json.py)
+- [sim_core/tools/generate_bootstrap_chip_id_readback_json.py](../sim_core/tools/generate_bootstrap_chip_id_readback_json.py)
+- [sim_core/tools/generate_bootstrap_preconfigured_event_init_json.py](../sim_core/tools/generate_bootstrap_preconfigured_event_init_json.py)
 
 The bootstrap helper now writes `ENABLE_PISO_*` using the corrected `PISO` bit ordering.
 
 ### Single-chip startup/readback config
 
-- [sim_core/config/startup_1chip_event_source.json](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/config/startup_1chip_event_source.json)
-- [sim_core/config/startup_1chip_full_reg_readback.json](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/config/startup_1chip_full_reg_readback.json)
-- [sim_core/tools/generate_1chip_full_reg_readback_json.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/tools/generate_1chip_full_reg_readback_json.py)
+- [sim_core/config/startup_1chip_event_source.json](../sim_core/config/startup_1chip_event_source.json)
+- [sim_core/config/startup_1chip_full_reg_readback.json](../sim_core/config/startup_1chip_full_reg_readback.json)
+- [sim_core/tools/generate_1chip_full_reg_readback_json.py](../sim_core/tools/generate_1chip_full_reg_readback_json.py)
 
 For a single-chip source connected on the south side, enabling south TX now means writing `0x02`, not `0x04`.
 
 ### Playback reconstruction
 
-- [sim_core/visualizers/packet_transmission/convert_live_trace_to_playback.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/convert_live_trace_to_playback.py)
+- [sim_core/visualizers/packet_transmission/convert_live_trace_to_playback.py](../sim_core/visualizers/packet_transmission/convert_live_trace_to_playback.py)
 
 This converter now interprets `up_mask` and `down_mask` using the corrected `PISO` bit ordering when reconstructing reachable neighbors and lane labels.
 
 ### Web visualizer
 
-- [sim_core/visualizers/packet_transmission/main.js](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/main.js)
+- [sim_core/visualizers/packet_transmission/main.js](../sim_core/visualizers/packet_transmission/main.js)
 
 The visualizer now uses two separate mappings:
 

@@ -212,7 +212,8 @@ This framework allows for using the same CMakeLists.txt for multiple RTL variant
 
 The first success criterion is narrow: can the new backend be built.
 
-After editing `CMakeLists.txt`, build the new chip target from the repo root with:
+After editing `CMakeLists.txt`, build the new chip target from the
+`chip_network_sim/` simulator directory with:
 
 ```bash
 cmake -S . -B build

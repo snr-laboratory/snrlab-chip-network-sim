@@ -38,9 +38,11 @@ nng/build/libnng.so
 
 ### Recommended way to obtain NNG
 
-Clone the upstream repository into the repo root:
+From the public repository checkout, enter the simulator directory and clone
+the upstream repository there:
 
 ```bash
+cd chip_network_sim
 git clone https://github.com/nanomsg/nng.git
 ```
 
@@ -191,7 +193,7 @@ patch --dry-run -p0 < ../../doc/patches/verilator_rtl_compatibility_minimal.patc
 patch -p0 < ../../doc/patches/verilator_rtl_compatibility_minimal.patch
 ```
 
-In other words, the user applies the patch from inside their RTL variant directory, not from the repo root.
+In other words, the user applies the patch from inside their RTL variant directory, not from the `chip_network_sim/` simulator directory.
 
 Instead of requiring cells such as:
 

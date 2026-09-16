@@ -61,7 +61,7 @@ The visualizer should be pointed at the playback JSON inside that directory.
 
 The visualizer must be opened through a local web server, not as a raw `file://` path.
 
-From the repo root, a simple option is:
+From the `chip_network_sim/` simulator directory, a simple option is:
 
 ```bash
 python3 -m http.server 8000
