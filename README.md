@@ -26,11 +26,3 @@ Start with the documentation index in
 
 The simulator sources and build definition are under
 [`chip_network_sim/`](chip_network_sim/README.md).
-
-## K.G.'s note
-
-A key use of AI was in understanding and integrating a third-party RTL repository for the LArPix digital backend designed by the IC Design Group at Lawrence Berkeley National Laboratory, which served as a reference case for the architecture. Because the repository consisted exclusively of RTL source code, which can be difficult to interpret without prior familiarity with the digital structure being described, AI proved extremely useful as an interactive tool for explanation and clarification. By iteratively querying the agent about specific modules and signal flows, I was able to build a functional understanding of the design and incorporate it into my workflow.
-
-As a physicist by training, my primary focus is on the functional behavior and validation of the system rather than low-level software implementation. AI tools enabled me to bridge this gap, allowing me to rapidly develop and adapt complex software infrastructure without requiring extensive prior expertise in software engineering or RTL design. As a result, my role in the project has emphasized designing validation strategies, testing the architecture, and applying domain-specific knowledge to interpret the simulation results.
-
-Overall, the use of AI significantly accelerated development. The scope of work completed—including multi-language implementation, integration of external codebases, and system-level architecture design—would likely have required on the order of a year of dedicated effort without these tools.
