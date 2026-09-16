@@ -1,110 +1,145 @@
 # Internal Inspection Mode
 
-This document covers optional RTL adjustments that are useful for internal observability after the chip already builds and runs under Verilator.
+This mode explains how RTLswarm can inspect selected internal RTL signals
+without adding debug ports or simulator-specific annotations to the supplied
+RTL.
 
-These changes are not part of the minimal functional-cosimulation contract. They are for richer debugging, state inspection, and post-run analysis.
+Internal inspection is optional. First make the RTL build and run through the
+normal integration flow; then add visibility only for signals needed by a
+debug scenario or analysis output.
 
-## 1. Purpose
+## 1. Simulator-Owned Visibility
 
-The goal of this mode is to make selected internal RTL signals easier for the simulator and analysis tooling to inspect during live runs.
+Verilator accepts control files with the `.vlt` extension. RTLswarm keeps this
+visibility configuration on the simulator side, separate from the RTL source
+tree.
 
-This mode is not required just to get a chip binary built and launched successfully.
+The repository provides a simulator-side example at:
 
-## 2. What This Mode Is For
+```text
+sim_core/config/example_debug_public.vlt
+```
 
-Use this mode if you want:
+Copy it to a design-specific filename under `sim_core/config/` before editing
+it. The example is intentionally not enabled by default because its fictional
+module and signal names do not describe a real design. Keeping these files
+under `chip_network_sim/` makes the ownership clear: they are part of the
+simulator integration, not part of the synthesizable design.
 
-- internal debug CSV capture
-- richer live-state inspection during a scenario
-- support for detailed post-run debugging
-- visibility into internal FIFO and control-state behavior
+Because users provide their own RTL, they also provide the module and signal
+names entered in this file. RTLswarm cannot preselect a universal set of
+internal signals for every design.
 
-## 3. Optional Analysis Artifacts
+## 2. Selecting Signals In The `.vlt` File
 
-Some scenario scripts can also produce optional post-run analysis artifacts beyond the minimal launch inputs and raw outputs.
+A Verilator control file begins with `` `verilator_config``. The provided
+[`example_debug_public.vlt`](../sim_core/config/example_debug_public.vlt) shows
+the complete minimal structure. Use
+`public_flat_rd` rules to expose internal state for read-only simulator access:
 
-Examples include:
+```text
+`verilator_config
 
-- occupancy CSV files
-- internal debug CSV files
-- run-summary or metrics JSON files
-- scenario-specific analysis summary JSON files
+// Read-only state used by simulator-side debug capture.
+public_flat_rd -module "<module_name>" -var "<signal_name>"
+public_flat_rd -module "<another_module_name>" -var "<another_signal_name>"
+```
 
-These are useful for:
+Replace the placeholders with module and variable names from the supplied RTL.
+Each rule selects matching instances of that module and makes the named
+variable visible in the generated Verilated C++ model.
 
-- inspecting internal FIFO behavior
-- understanding why a scenario passed or failed
-- comparing runs across RTL variants
-- debugging packet flow and timing behavior
+Prefer read-only exposure for inspection. The simulator should observe these
+signals, not drive them or change the RTL's behavior.
 
-They should be treated as optional inspection outputs, not as required artifacts for every scenario.
+## 3. Passing The Control File To Verilator
 
-## 4. LArPix-Specific Optional Adjustments
+The `.vlt` file must be included in the Verilator command used to build the
+chip executable. In `CMakeLists.txt`, each `add_larpix_chip_target(...)` call
+has a final argument for its simulator-side control file. Pass the
+design-specific path in that target definition:
 
-For the LArPix-oriented RTL in this repository, the main optional observability adjustments were made in:
+```cmake
+add_larpix_chip_target(
+  chip_myrtl_build
+  chip_myrtl
+  MYRTL_MDIR
+  MYRTL_BIN
+  "${MYRTL_RTL_DIR}"
+  "${MYRTL_SOURCES}"
+  "${CMAKE_SOURCE_DIR}/sim_core/config/myrtl_debug_public.vlt"
+)
+```
 
-- `external_interface.sv`
-- `hydra_ctrl.sv`
+The existing calls use an empty final argument (`""`) when they do not need
+internal inspection. CMake verifies any nonempty path, passes the file to
+Verilator, and treats it as a build dependency so changes regenerate the chip
+model.
 
-These edits made internal signals explicit so they could be inspected more easily after the Verilator build and during live simulation.
+Do not attach the example unchanged. First replace its fictional module and
+signal names with hierarchy from the supplied RTL.
 
-### `external_interface.sv`
+The control file is part of the target definition, so it is used automatically
+whenever that chip target is built. Different RTL targets can select different
+`.vlt` files without additional configure-time flags.
 
-The recorded patch history shows explicit declarations added for internal signals such as:
+## 4. Reading Exposed State In The Simulator
 
-- `rx_data_flag`
-- `ready_for_pkt`
-- `comms_busy`
+After Verilator rebuilds the model, it emits C++ members for the selected
+signals. Their generated names reflect the RTL instance hierarchy and the
+Verilator version.
 
-These are useful for observing receive-path and handshake behavior.
+Inspect the generated headers under the target's `build/verilated_*` directory
+to find the exact member names. The RTL-specific cosimulation backend can then
+read those members during a simulation tick and copy their values into debug
+records, CSV rows, trace events, or scenario metrics.
 
-### `hydra_ctrl.sv`
+This keeps the responsibilities separate:
 
-The recorded patch history shows explicit declarations added for internal signals such as:
+- the `.vlt` file chooses which internal RTL state is visible;
+- the cosimulation backend samples the generated C++ members; and
+- the scenario or analysis tooling decides how to record and present them.
 
-- `fifo_full`
-- `fifo_write_n`
+## 5. Typical Workflow
 
-These are useful for observing FIFO-control behavior.
+1. Build and run the RTL without optional internal inspection.
+2. Identify the internal state needed to answer a specific debug question.
+3. Copy the example `.vlt` file and replace its fictional hierarchy names.
+4. Put that file's path in the corresponding CMake chip-target definition.
+5. Rebuild the Verilated chip model.
+6. Inspect the generated headers and add backend sampling for the exposed
+   members.
+7. Record the values only in scenarios that need the additional visibility.
 
-## 5. Why These Are Optional
+## 6. Inspection Outputs
 
-A generic RTL can still be functionally cosimulated without exposing many of these internal signals.
+Once the backend samples the exposed state, scenarios may produce optional
+artifacts such as:
 
-The minimal required contract is the top-level functional interface needed by the simulator:
+- internal-state CSV files;
+- occupancy or utilization histories;
+- trace events;
+- run-summary metrics; and
+- scenario-specific analysis JSON.
 
-- clock/reset behavior
-- top-level serial I/O
-- any analog/event injection interface the flow depends on
-- any required preload/config path
+These are debug products, not requirements of the basic RTLswarm interface.
 
-By contrast, the internal declarations above are primarily useful for:
+## 7. Practical Limits
 
-- debug capture
-- internal-state inspection
-- richer analysis tooling
-- diagnosing why a run behaved a certain way
-
-So they should be treated as optional observability features, not core prerequisites.
-
-## 6. When To Use This Mode
-
-Use this mode only after:
-
-- `prerequisite_mode.md`
-- `integrate_rtl_mode.md`
-
-In other words:
-
-- first make the toolchain work
-- then make the RTL build and run
-- only then add deeper internal inspection features if you need them
+- Module and variable names in the `.vlt` file must match the supplied RTL.
+- Hierarchical generated C++ names may change when RTL hierarchy or Verilator
+  versions change.
+- Adding or removing `.vlt` rules requires rebuilding the Verilated model.
+- Expose only the signals needed for a specific inspection task; large public
+  signal sets increase generated-model complexity and couple the backend more
+  tightly to one RTL hierarchy.
+- Keep functional inputs and outputs in the normal top-level RTL contract.
+  Internal inspection should not become a second functional interface.
 
 ## Summary
 
-This mode separates optional observability work from the minimal functional RTL contract.
-
-For the current LArPix case, that optional work centered on exposing additional internal signals in:
-
-- `external_interface.sv`
-- `hydra_ctrl.sv`
+RTLswarm exposes optional internal state through a simulator-owned `.vlt`
+control file. Verilator turns the selected read-only signals into generated C++
+members, and the cosimulation backend samples those members for debug and
+analysis outputs. This provides internal visibility without changing the
+supplied synthesizable RTL.

@@ -1,0 +1,7 @@
+`verilator_config
+
+// Example only: replace these fictional module and variable names with names
+// from the RTL being integrated before passing this file to Verilator.
+// Read-only exposure keeps simulator inspection from driving the RTL.
+public_flat_rd -module "example_packet_fifo" -var "occupancy"
+public_flat_rd -module "example_router_ctrl" -var "state"

@@ -119,11 +119,21 @@ if(VERILATOR_BIN)
   # users typically only need to add one more add_larpix_chip_target(...) call below.
   # If the RTL needs a different top module, different include files, or a different runtime contract,
   # this function is one of the places that would need editing.
-  function(add_larpix_chip_target target_name output_name mdir_var bin_var rtl_include_dir sv_sources)
+  # The final debug_vlt argument attaches a simulator-side Verilator control
+  # file to this target. Pass "" when no internal inspection is needed. To use
+  # one, copy sim_core/config/example_debug_public.vlt, replace its fictional
+  # hierarchy names, and pass the resulting path in the target call below.
+  function(add_larpix_chip_target target_name output_name mdir_var bin_var rtl_include_dir sv_sources debug_vlt)
     set(${mdir_var} "${CMAKE_BINARY_DIR}/verilated_${output_name}" PARENT_SCOPE)
     set(${bin_var} "${CMAKE_BINARY_DIR}/${output_name}" PARENT_SCOPE)
     set(_mdir "${CMAKE_BINARY_DIR}/verilated_${output_name}")
     set(_bin "${CMAKE_BINARY_DIR}/${output_name}")
+    set(_verilator_control_file "${debug_vlt}")
+    if(_verilator_control_file AND NOT EXISTS "${_verilator_control_file}")
+      message(FATAL_ERROR
+        "Verilator control file for ${target_name} does not exist: ${_verilator_control_file}"
+      )
+    endif()
     add_custom_command(
       OUTPUT "${_bin}"
       COMMAND ${CMAKE_COMMAND} -E make_directory "${_mdir}"
@@ -134,6 +144,7 @@ if(VERILATOR_BIN)
         --build-jobs 0
         --Wno-fatal
         --sv
+        ${_verilator_control_file}
         --top-module digital_core
         --prefix Vdigital_core
         --Mdir "${_mdir}"
@@ -151,6 +162,7 @@ if(VERILATOR_BIN)
         "${_bin}"
       DEPENDS
         ${sv_sources}
+        ${_verilator_control_file}
         "${rtl_include_dir}/config_regfile_assign.sv"
         "${rtl_include_dir}/larpix_constants.sv"
         "${rtl_include_dir}/priority_onehot.sv"
@@ -170,11 +182,14 @@ if(VERILATOR_BIN)
   # Concrete RTL-backed chip targets available in this branch.
   # USER-EDIT SECTION:
   # Add or remove target lines here when enabling or retiring specific RTL variants.
-  add_larpix_chip_target(chip_larpix_v3b_build chip_larpix_v3b LARPIX_CHIP_MDIR LARPIX_CHIP_BIN "${LARPIX_RTL_V1_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES}")
-  add_larpix_chip_target(chip_larpix_v3b_v2_build chip_larpix_v3b_v2 LARPIX_CHIP_V2_MDIR LARPIX_CHIP_V2_BIN "${LARPIX_RTL_V2_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V2}")
-  add_larpix_chip_target(chip_larpix_v3c_build chip_larpix_v3c LARPIX_CHIP_V3C_MDIR LARPIX_CHIP_V3C_BIN "${LARPIX_RTL_V3C_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V3C}")
-  add_larpix_chip_target(chip_larpix_v3c2_build chip_larpix_v3c2 LARPIX_CHIP_V3C2_MDIR LARPIX_CHIP_V3C2_BIN "${LARPIX_RTL_V3C2_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V3C2}")
-  add_larpix_chip_target(chip_larpix_msg_rtl_build chip_larpix_msg_rtl LARPIX_CHIP_MSG_MDIR LARPIX_CHIP_MSG_BIN "${LARPIX_RTL_MSG_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_MSG}")
+  # The last argument is the target's .vlt path. These examples leave it empty.
+  # A target with inspection enabled would use a path such as:
+  #   "${CMAKE_SOURCE_DIR}/sim_core/config/myrtl_debug_public.vlt"
+  add_larpix_chip_target(chip_larpix_v3b_build chip_larpix_v3b LARPIX_CHIP_MDIR LARPIX_CHIP_BIN "${LARPIX_RTL_V1_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES}" "")
+  add_larpix_chip_target(chip_larpix_v3b_v2_build chip_larpix_v3b_v2 LARPIX_CHIP_V2_MDIR LARPIX_CHIP_V2_BIN "${LARPIX_RTL_V2_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V2}" "")
+  add_larpix_chip_target(chip_larpix_v3c_build chip_larpix_v3c LARPIX_CHIP_V3C_MDIR LARPIX_CHIP_V3C_BIN "${LARPIX_RTL_V3C_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V3C}" "")
+  add_larpix_chip_target(chip_larpix_v3c2_build chip_larpix_v3c2 LARPIX_CHIP_V3C2_MDIR LARPIX_CHIP_V3C2_BIN "${LARPIX_RTL_V3C2_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_V3C2}" "")
+  add_larpix_chip_target(chip_larpix_msg_rtl_build chip_larpix_msg_rtl LARPIX_CHIP_MSG_MDIR LARPIX_CHIP_MSG_BIN "${LARPIX_RTL_MSG_DIR}" "${LARPIX_DIGITAL_CORE_SV_SOURCES_MSG}" "")
 else()
   # Build remains usable for non-Verilated pieces even if Verilator is absent.
   message(WARNING "verilator not found; RTL-backed chip_larpix_<variant> targets will not be available")
