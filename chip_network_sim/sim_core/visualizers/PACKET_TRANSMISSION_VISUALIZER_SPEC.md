@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a browser-based visualizer for `larpix_network_sim` that is inspired by the interaction model and presentation style of [nifty-routing-board-game](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/nifty-routing-board-game/README.md).
+Build a browser-based visualizer for RTLswarm using the interaction model of the earlier routing-board prototype.
 
 The current implementation target is not a full packet-hop debugger. It is a state viewer for the RTL-backed digital core during live network playback.
 
@@ -15,7 +15,7 @@ The visualizer should make it easy to see:
 
 ## Reference App Features To Reuse
 
-From [nifty-routing-board-game](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/nifty-routing-board-game/README.md):
+Useful interaction ideas from that prototype include:
 - full-window canvas rendering
 - a compact fixed HUD in the top-left corner
 - step / step-back / run / pause controls
@@ -35,7 +35,7 @@ Playback state rule:
 - for preconfigured scenarios, `tick 0` should reflect the explicit preloaded register state applied before the first live tick
 
 It should:
-- load a playback JSON produced from a live `larpix_network_sim` run
+- load a playback JSON produced from a live RTLswarm run
 - render a rectangular chip grid
 - show FPGA transmit activity at the source chip south edge
 - show chip-local state changes tick by tick
@@ -182,7 +182,7 @@ A representative shape is:
 ## Data Preparation Pipeline
 
 Expected file flow:
-- `larpix_network_sim` live run
+- RTLswarm live run
 - startup JSON and run log
 - converter script
 - visualization-ready playback JSON

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The current web-based visualizer under [packet_transmission](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission) is a browser playback tool for `larpix_network_sim` live runs.
+The current web-based visualizer under [packet_transmission](packet_transmission) is a browser playback tool for RTLswarm live runs.
 
 Its current role is to show the RTL-backed digital-core state over time during a live network run.
 
@@ -17,9 +17,9 @@ Internal packet motion is still present in the playback data, but it is now seco
 ## Current Browser App
 
 Current files:
-- [index.html](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/index.html)
-- [style.css](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/style.css)
-- [main.js](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/main.js)
+- [index.html](packet_transmission/index.html)
+- [style.css](packet_transmission/style.css)
+- [main.js](packet_transmission/main.js)
 
 Current viewer behavior:
 - renders the chip grid on a full-window canvas
@@ -58,45 +58,42 @@ Interpretation:
 The current end-to-end file flow for the live `3x5` bootstrap visualization is:
 
 1. Bootstrap protocol reference
-- [bootstrap_id_protocol_sim.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/tools/bootstrap_id_protocol_sim.py)
+- [bootstrap_id_protocol_sim.py](../tools/bootstrap_id_protocol_sim.py)
 - This is the toy reference for the bootstrap routing and chip-ID assignment logic.
 
 2. Startup schedule generation
-- [generate_bootstrap_chip_id_readback_json.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/tools/generate_bootstrap_chip_id_readback_json.py)
+- [generate_bootstrap_chip_id_readback_json.py](../tools/generate_bootstrap_chip_id_readback_json.py)
 - Generates the live startup JSON schedule for arbitrary `rows`, `cols`, and source `s`.
 
 3. Startup schedule used by the live run
-- [startup_3x5_bootstrap_chip_ids.json](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/config/startup_3x5_bootstrap_chip_ids.json)
+- [startup_3x5_bootstrap_chip_ids.json](../config/startup_3x5_bootstrap_chip_ids.json)
 
 4. Startup schedule compilation into UART frames
-- [compile_startup_json.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/tools/compile_startup_json.py)
+- [compile_startup_json.py](../tools/compile_startup_json.py)
 
 5. Live network runtime
-- [run_3x5_bootstrap_id_startup.sh](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/scenarios/run_3x5_bootstrap_id_startup.sh)
+- [run_3x5_bootstrap_id_startup.sh](../scenarios/run_3x5_bootstrap_id_startup.sh)
 - Launches the live network run using:
-  - [orchestrator_larpix.c](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/src/orchestrator_larpix.c)
-  - [chip_larpix.cpp](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/src/chip_larpix.cpp)
-  - [larpix_cosim_backend.cpp](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/src/larpix_cosim_backend.cpp)
-  - [fpga_larpix.cpp](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/src/fpga_larpix.cpp)
+  - [orchestrator_larpix.c](../src/orchestrator_larpix.c)
+  - [chip_larpix.cpp](../src/chip_larpix.cpp)
+  - [larpix_cosim_backend.cpp](../src/larpix_cosim_backend.cpp)
+  - [fpga_larpix.cpp](../src/fpga_larpix.cpp)
 
 6. Live run output
-- [run.log](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/build/larpix_3x5_bootstrap_id_smoke/run.log)
+- `build/larpix_3x5_bootstrap_id_smoke/run.log`
 - This contains the FPGA transmit events and received readback packets for the live run.
 
 7. Conversion into browser playback JSON
-- [convert_live_bootstrap_log_to_playback.py](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/convert_live_bootstrap_log_to_playback.py)
-- This reads:
-  - the startup JSON schedule
-  - the live `run.log`
-- and writes a sparse playback file focused on chip-state changes plus FPGA transmission spans.
+- [convert_live_trace_to_playback.py](packet_transmission/convert_live_trace_to_playback.py)
+- This reads the live trace plus scenario configuration and writes the browser-facing playback data.
 
 8. Browser playback file
-- [live_bootstrap_3x5.json](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/data/live_bootstrap_3x5.json)
+- [live_bootstrap_3x5.json](packet_transmission/data/live_bootstrap_3x5.json)
 
 9. Browser playback
-- [index.html](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/index.html)
-- [main.js](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/main.js)
-- [style.css](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/style.css)
+- [index.html](packet_transmission/index.html)
+- [main.js](packet_transmission/main.js)
+- [style.css](packet_transmission/style.css)
 
 So the effective flow is:
 - toy protocol logic
@@ -122,7 +119,7 @@ The live network run that feeds the visualizer produced:
 
 ## How To View
 
-From the repo root:
+From the `chip_network_sim/` directory:
 
 ```bash
 python3 -m http.server 8000
@@ -135,14 +132,14 @@ http://localhost:8000/sim_core/visualizers/packet_transmission/
 ```
 
 By default, the page loads:
-- [live_bootstrap_3x5.json](/home/lxusers/k/kalindigosine/snrlab-ic-q-pix-v1/chip_network_sim/sim_core/visualizers/packet_transmission/data/live_bootstrap_3x5.json)
+- [live_bootstrap_3x5.json](packet_transmission/data/live_bootstrap_3x5.json)
 
 ## Current Limitations
 
 Known limitations:
 - internal packet spans are still approximate and are not the main model
 - the converter infers state application timing from the startup schedule and FPGA log, not from a dedicated chip-local trace stream
-- there is no general converter yet for analog/event-data runs
+- playback conversion remains an offline, post-run step
 - there is no direct live socket connection; playback remains offline from JSON
 - the HUD is still minimal for long runs
 

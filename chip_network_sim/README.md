@@ -4,7 +4,7 @@
 The active branch is organized around:
 
 - `sim_core/`: runtime, tooling, scenarios, config assets, and visualizer
-- `rtl/`: supported LArPix-like RTL trees
+- `rtl/`: user-provided LArPix-like RTL trees (not distributed in this repository)
 - `doc/`: architecture notes and workflow documentation
 
 ## Runtime Model
@@ -32,8 +32,8 @@ Common active targets:
 - `orchestrator_larpix`
 - `fpga_larpix`
 - `trace_collector_larpix`
-- `chip_larpix_build`
-- `chip_larpix_v2_build`
+- `chip_larpix_v3b_build`
+- `chip_larpix_v3b_v2_build`
 - `chip_larpix_v3c_build`
 - `chip_larpix_v3c2_build`
 - `chip_larpix_msg_rtl_build`
@@ -62,7 +62,8 @@ The active workflow is scenario-driven. Scenario launch scripts live under:
 - `sim_core/scenarios/`
 
 Examples:
-- `sim_core/scenarios/run_3x3_msg_center_charge_probe.sh`
+- `sim_core/scenarios/run_1chip_event_startup.sh`
+- `sim_core/scenarios/run_1chip_fullreg_readback_startup.sh`
 - `sim_core/scenarios/run_6x6_msg_rerouting_second_wave_probe.sh`
 
 These scripts typically:

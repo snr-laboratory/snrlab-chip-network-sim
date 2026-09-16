@@ -101,15 +101,10 @@ set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_V3C ${LARPIX_R
 set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_V3C2 ${LARPIX_RTL_V3C2_DIR})
 set_larpix_digital_core_sv_sources(LARPIX_DIGITAL_CORE_SV_SOURCES_MSG ${LARPIX_RTL_MSG_DIR})
 
-# Verilator discovery.
-# USER-EDIT SECTION:
-# Update VERILATOR_SEARCH_HINTS if Verilator lives somewhere else on the user's machine.
-set(VERILATOR_SEARCH_HINTS
-  /home/lxusers/y/ymei/OpenICEDA/bin
-)
+# Verilator discovery. Install Verilator on PATH or provide VERILATOR_BIN when
+# configuring CMake.
 find_program(VERILATOR_BIN
   NAMES verilator
-  HINTS ${VERILATOR_SEARCH_HINTS}
   DOC "Path to the Verilator executable"
 )
 if(VERILATOR_BIN)
