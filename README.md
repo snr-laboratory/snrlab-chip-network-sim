@@ -10,6 +10,23 @@ including the
 and the
 [v3c 15x15 two-track charge-deposition playback](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3c-15x15-two-track-charge-deposition/).
 
+## Getting started
+
+RTLswarm is distributed as a research framework rather than with a bundled RTL
+design. Users provide their own compatible RTL tree and install the external
+NNG and Verilator dependencies locally.
+
+Start with the documentation index in
+[`chip_network_sim/doc/`](chip_network_sim/doc/README.md). It leads through:
+
+1. installing the prerequisites and preparing RTL for Verilator;
+2. integrating an RTL tree with the simulator build;
+3. launching and validating scenarios; and
+4. viewing generated playback data.
+
+The simulator sources and build definition are under
+[`chip_network_sim/`](chip_network_sim/README.md).
+
 ## K.G.'s note
 
 A key use of AI was in understanding and integrating a third-party RTL repository for the LArPix digital backend designed by the IC Design Group at Lawrence Berkeley National Laboratory, which served as a reference case for the architecture. Because the repository consisted exclusively of RTL source code, which can be difficult to interpret without prior familiarity with the digital structure being described, AI proved extremely useful as an interactive tool for explanation and clarification. By iteratively querying the agent about specific modules and signal flows, I was able to build a functional understanding of the design and incorporate it into my workflow.
