@@ -4,12 +4,6 @@ This project aims to develop a deterministic, scalable simulation architecture f
 
 AI tools, particularly Codex, have played a central role in the development of this project, with the overall simulation architecture having been largely constructed with the assistance of AI. This included generating and organizing code across multiple languages (C++, Verilog, and Python), as well as structuring a nontrivial, multi-component codebase.
 
-Explore the [verification scenario gallery](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/),
-including the
-[v3c 10x10 unconfigured-network startup playback](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3c-10x10-unconfigured-network-startup/)
-and the
-[v3c 15x15 two-track charge-deposition playback](https://www.snr-lab.org/snrlab-chip-network-sim/scenarios/v3c-15x15-two-track-charge-deposition/).
-
 ## Getting started
 
 RTLswarm is distributed as a research framework rather than with a bundled RTL
