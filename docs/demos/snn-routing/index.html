@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>8x8 SNN/Routing Network</title>
+  <link rel="stylesheet" href="style.css?v=snn-orange-2">
+</head>
+<body>
+  <aside id="hud">
+    <h1>8x8 SNN/Routing Network</h1>
+    <div id="scenario">Scenario: loading...</div>
+    <div id="rtlVersion">RTL: loading...</div>
+    <div id="status">Tick: 0 / 0</div>
+    <div class="sep"></div>
+    <div class="controls">
+      <button id="playPause">Play</button>
+      <button id="stepBack">Step Back</button>
+      <button id="stepForward">Step</button>
+      <button id="reset">Reset</button>
+      <button id="showInstructions">Instructions</button>
+      <button id="showRunMetrics">Run Metrics</button>
+    </div>
+    <div class="view-tabs">
+      <button id="showNetworkView" class="view-tab active">Network View</button>
+      <button id="showChipView" class="view-tab">Chip 0 View</button>
+    </div>
+    <div class="controls">
+      <button id="chipZoomOut" type="button">-</button>
+      <button id="chipZoomIn" type="button">+</button>
+    </div>
+    <div class="controls">
+      <button id="timelineSpanOut" type="button">Ticks -</button>
+      <button id="timelineSpanIn" type="button">Ticks +</button>
+    </div>
+    <div id="timelineSpanStatus" class="small">Timeline span: 1.0x</div>
+    <div id="laneOrderControls" hidden>
+      <div class="sep"></div>
+      <div class="small caps">Lane Order</div>
+      <div id="laneOrderStatus" class="small">Top to bottom: north, west, east</div>
+      <div class="controls">
+        <button id="laneNorthUp" type="button">North Up</button>
+        <button id="laneNorthDown" type="button">North Down</button>
+      </div>
+      <div class="controls">
+        <button id="laneWestUp" type="button">West Up</button>
+        <button id="laneWestDown" type="button">West Down</button>
+      </div>
+      <div class="controls">
+        <button id="laneEastUp" type="button">East Up</button>
+        <button id="laneEastDown" type="button">East Down</button>
+      </div>
+    </div>
+    <label class="row">
+      <span>Speed</span>
+      <input id="speed" type="range" min="1" max="10000" value="500">
+    </label>
+    <label class="row">
+      <span>Tick</span>
+      <input id="scrubber" type="range" min="0" max="0" value="0">
+    </label>
+    <label class="row">
+      <span>Load JSON</span>
+      <input id="fileInput" type="file" accept="application/json,.json">
+    </label>
+    <details><summary>Display options</summary>
+    <div class="packet-filters">
+      <div class="small caps">Packet Types</div>
+      <label class="filter-item">
+        <input id="filterConfigWrite" type="checkbox" checked>
+        <span class="swatch packet-config-write"></span>
+        <span class="filter-label">config writes</span>
+      </label>
+      <label class="filter-item">
+        <input id="filterConfigRead" type="checkbox" checked>
+        <span class="swatch packet-config-read"></span>
+        <span class="filter-label">config reads</span>
+      </label>
+      <label class="filter-item">
+        <input id="filterEventData" type="checkbox" checked>
+        <span class="swatch packet-event-data"></span>
+        <span class="filter-label">data packets</span>
+      </label>
+
+    </div>
+    <div class="packet-filters">
+      <div class="small caps">Visual Layers</div>
+      <label class="filter-item">
+        <input id="filterSharedFifo" type="checkbox" checked>
+        <span class="swatch shared-fifo"></span>
+        <span class="filter-label">shared fifo occupancy</span>
+      </label>
+      <label class="filter-item">
+        <input id="filterPacketLabels" type="checkbox">
+        <span class="swatch packet-labels"></span>
+        <span class="filter-label">packet labels</span>
+      </label>
+      <label class="filter-item">
+        <input id="filterPersistentInjection" type="checkbox" checked>
+        <span class="swatch persistent-injection"></span>
+        <span class="filter-label">injected chips persist</span>
+      </label>
+    </div>
+    </details>
+    <div class="sep"></div>
+    <div class="small">Keys: <kbd>Space</kbd> play/pause, <kbd>S</kbd> step, <kbd>Z</kbd> step back, <kbd>R</kbd> reset</div>
+    <div class="small">Lane Colors:
+      <span class="swatch disabled"></span> disabled TX direction,
+      <span class="swatch up"></span> upstream-enabled direction,
+      <span class="swatch down"></span> downstream-enabled direction,
+      <span class="swatch selected-down"></span> current downstream selection (SNN, fallback or fixed),
+      <span class="swatch source-fpga"></span> FPGA connection,
+      <span class="swatch inject"></span> charge injection
+    </div>
+    <div class="sep"></div>
+    
+    <div id="dataPacketMetrics" class="hud-section">
+      <div class="small caps">Data Packet Metrics</div>
+      <div id="dataPacketMetricsSummary" class="small">Data packets: n/a</div>
+      <div id="dataPacketMetricsList" class="metrics-list"></div>
+    </div>
+    <div id="selection">Selection: none</div>
+  </aside>
+  <div id="hudResizeHandle" aria-label="Resize HUD" title="Drag to resize HUD"></div>
+  <div id="fpgaPopup" class="floating-panel hidden" aria-live="polite">
+    <div class="floating-panel-header">
+      <div id="fpgaPopupTitle">FPGA</div>
+      <button id="fpgaPopupClose" type="button">Close</button>
+    </div>
+    <div id="fpgaPopupBody" class="floating-panel-body"></div>
+  </div>
+  <div id="instructionsPopup" class="floating-panel hidden" aria-live="polite">
+    <div class="floating-panel-header">
+      <div>Instructions</div>
+      <button id="instructionsPopupClose" type="button">Close</button>
+    </div>
+    <div class="floating-panel-body">
+      <div class="fpga-card">
+        <div class="fpga-card-title">How To Explore</div>
+        <div class="fpga-label">Click on the FPGA square to see per-tick TX and RX packet activity at the FPGA.</div>
+        <div class="fpga-label">The popup shows the bit on the current tick, the packet word, and decoded packet fields, which is especially useful for configuration packets.</div>
+      </div>
+      <div class="fpga-card">
+        <div class="fpga-card-title">How To Run</div>
+        <div class="fpga-label">Use Play and Pause and Step Back and Step to see a tick-accurate recreation of network simulator results.</div>
+        <div class="fpga-label">You can also upload playback JSON files produced by other simulation runs.</div>
+      </div>
+      <div class="fpga-card">
+        <div class="fpga-card-title">Packet Loss</div>
+        <div class="fpga-label">Scroll down in the HUD to the <code>Data Packet Metrics</code> section to see packet generation, FPGA arrival counts, and packet-loss-related summary information.</div>
+      </div>
+      <div class="fpga-card">
+        <div class="fpga-card-title">Run Metrics</div>
+        <div class="fpga-label">Click the <code>Run Metrics</code> button to open the popup with ticks per second and total runtime for the run.</div>
+      </div>
+    </div>
+  </div>
+  <div id="runMetricsPopup" class="floating-panel hidden" aria-live="polite">
+    <div class="floating-panel-header">
+      <div>Run Metrics</div>
+      <button id="runMetricsPopupClose" type="button">Close</button>
+    </div>
+    <div id="runMetricsPopupBody" class="floating-panel-body"></div>
+  </div>
+  <canvas id="board"></canvas>
+  <script type="module" src="main.js?v=snn-route-highlight-7"></script>
+</body>
+</html>

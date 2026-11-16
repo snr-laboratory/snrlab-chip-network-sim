@@ -1,0 +1,343 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #f4f7fb;
+  color: #1f2937;
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  position: relative;
+  --hud-width: 320px;
+}
+
+#board {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#hud {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: var(--hud-width);
+  max-width: min(70vw, 640px);
+  min-width: 260px;
+  max-height: calc(100vh - 20px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+}
+
+#hud h1 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+#hudResizeHandle {
+  position: fixed;
+  top: 10px;
+  left: calc(10px + var(--hud-width) + 8px);
+  width: 10px;
+  height: calc(100vh - 20px);
+  cursor: ew-resize;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(100, 116, 139, 0.08), rgba(100, 116, 139, 0.32), rgba(100, 116, 139, 0.08));
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+#hudResizeHandle:hover,
+body.hud-resizing #hudResizeHandle {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.18), rgba(37, 99, 235, 0.65), rgba(37, 99, 235, 0.18));
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.24);
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 10px;
+}
+
+.view-tab {
+  flex: 1 1 0;
+  border-color: #b8c4d4;
+}
+
+.view-tab.active {
+  background: #e5efff;
+  border-color: #4f83cc;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.14);
+}
+
+button {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #b8c4d4;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #e8eef6;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+input[type="range"], input[type="file"] {
+  width: 100%;
+}
+
+.sep {
+  height: 1px;
+  margin: 10px 0;
+  background: rgba(100, 116, 139, 0.24);
+}
+
+.small {
+  font-size: 12px;
+  color: #5b6474;
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #edf1f5;
+  border: 1px solid #c8d0dc;
+  font: 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin: 0 3px 0 6px;
+}
+
+.swatch.up { background: #1677b8; }
+.swatch.down { background: #f4cc9a; }
+.swatch.selected-down { background: #ec7800; }
+.swatch.snn-route-change { background: #9de8df; border: 1px solid #067b73; }
+.swatch.disabled { background: #a7b2c1; }
+.swatch.source-fpga { background: #7b3fb2; }
+.swatch.packet { background: #16803c; }
+
+.swatch.inject { background: #c8325c; }
+
+
+.packet-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.filter-item input {
+  margin: 0;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.filter-label {
+  line-height: 1.2;
+}
+
+.caps {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.swatch.packet-config-write { background: #16803c; }
+.swatch.packet-config-read { background: #1677b8; }
+.swatch.packet-event-data { background: #c8325c; }
+.swatch.packet-msg { background: #9a6a00; }
+
+.swatch.shared-fifo { background: #16805a; }
+.swatch.packet-labels { background: #4b5563; }
+.swatch.persistent-injection { background: #b8326a; }
+
+#runStats,
+#selection {
+  font-size: 12px;
+  color: #1f2937;
+  margin-top: 8px;
+}
+
+#runStats {
+  color: #5b6474;
+}
+
+.hud-section {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.hidden {
+  display: none !important;
+}
+
+#dataPacketMetricsSummary {
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.metrics-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.metrics-row {
+  font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #1f2937;
+}
+
+.metrics-empty {
+  color: #64748b;
+}
+
+
+.floating-panel {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  width: min(420px, 34vw);
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(123, 63, 178, 0.34);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(6px);
+  z-index: 20;
+}
+
+.floating-panel.hidden {
+  display: none;
+}
+
+.floating-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.38);
+  font: 13px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #51306f;
+}
+
+.floating-panel-body {
+  max-height: calc(100vh - 88px);
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fpga-card {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: rgba(248, 250, 252, 0.94);
+}
+
+.fpga-card-title {
+  font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #7b3fb2;
+  margin-bottom: 6px;
+}
+
+.fpga-meta,
+.fpga-label,
+.fpga-word,
+.fpga-empty,
+.fpga-json {
+  font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.fpga-meta,
+.fpga-label,
+.fpga-word {
+  color: #1f2937;
+}
+
+.fpga-empty {
+  color: #64748b;
+}
+
+.fpga-json {
+  white-space: pre-wrap;
+  color: #5b6474;
+  margin: 0;
+}
+
+
+#showInstructions {
+  border-color: rgba(123, 63, 178, 0.5);
+}
+
+#showInstructions:hover {
+  background: #f0e7f8;
+}
+
+code {
+  font: 12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #51306f;
+}
+
+
+#showRunMetrics {
+  border-color: rgba(22, 119, 184, 0.48);
+}
+
+#showRunMetrics:hover {
+  background: #e3f0f8;
+}
